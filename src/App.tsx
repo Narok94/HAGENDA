@@ -6,7 +6,7 @@ import SemanaTab from './components/SemanaTab';
 import MesTab from './components/MesTab';
 import CategorySettings from './components/CategorySettings';
 import QuickAddModal from './components/QuickAddModal';
-import { Sun, Moon, Search, Sparkles, Plus, AlertTriangle, Trash2, CalendarDays, Check, RefreshCw, Settings, Dumbbell, Flag, Bell } from 'lucide-react';
+import { Sun, Moon, Clock, Sparkles, Plus, AlertTriangle, Trash2, CalendarDays, Check, RefreshCw, Settings, Dumbbell, Flag, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const DEFAULT_CATEGORIES: Category[] = [
@@ -21,7 +21,6 @@ export default function App() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeTab, setActiveTab] = useState<ActiveTab>('hoje');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [searchQuery, setSearchQuery] = useState('');
   
   // Date states
   const [referenceDate, setReferenceDate] = useState<Date>(new Date());
@@ -29,8 +28,9 @@ export default function App() {
   const [prefilledDate, setPrefilledDate] = useState<string | undefined>(undefined);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
 
-  // New states for Settings dropdown and Sleep (Soninho) alert
+  // New states for Settings dropdown, Notification dropdown and Sleep (Soninho) alert
   const [isSettingsDropdownOpen, setIsSettingsDropdownOpen] = useState(false);
+  const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [simulatedTime, setSimulatedTime] = useState<string | null>(null);
   const [ignoredSoninhoAlerts, setIgnoredSoninhoAlerts] = useState<string[]>([]);
@@ -243,18 +243,61 @@ export default function App() {
     saveItemsList(filtered);
   };
 
-  // Inline Quick Add on Hoje Tab
-  const handleInlineQuickAdd = (title: string, time?: string) => {
+  // Function to calculate alerts for the notification bell (sininho)
+  const getBellAlertItems = () => {
     const todayStr = new Date().toISOString().split('T')[0];
-    const newItem: Item = {
-      id: 'item_' + Date.now() + Math.random().toString(36).substring(2, 6),
-      title,
-      date: todayStr,
-      time,
-      completed: false,
-      priority: 'média'
-    };
-    saveItemsList([...items, newItem]);
+    
+    // Get current hours and minutes (simulated or real)
+    let currentHours: number;
+    let currentMinutes: number;
+    if (simulatedTime) {
+      const [sh, sm] = simulatedTime.split(':').map(Number);
+      currentHours = sh;
+      currentMinutes = sm;
+    } else {
+      currentHours = currentTime.getHours();
+      currentMinutes = currentTime.getMinutes();
+    }
+    const currentTotalMin = currentHours * 60 + currentMinutes;
+
+    return items
+      .filter(item => {
+        // Must have a time
+        if (!item.time) return false;
+        
+        // Must be for today or recurring on today
+        const isForToday = item.date === todayStr || (item.recurring && isItemRecurringOnDate(item, todayStr));
+        if (!isForToday) return false;
+
+        // Must NOT be completed today
+        const isCompleted = isItemCompletedOnDate(item, todayStr);
+        if (isCompleted) return false;
+
+        // Calculate minutes difference
+        const [ih, im] = item.time.split(':').map(Number);
+        const itemTotalMin = ih * 60 + im;
+        const diff = itemTotalMin - currentTotalMin;
+
+        // Show items with at most 1 hour of anticipation (diff <= 60)
+        // This includes overdue/late items where diff < 0!
+        return diff <= 60;
+      })
+      .map(item => {
+        const [ih, im] = item.time!.split(':').map(Number);
+        const itemTotalMin = ih * 60 + im;
+        const diff = itemTotalMin - currentTotalMin;
+        return {
+          item,
+          minutesRemaining: diff,
+          isOverdue: diff < 0
+        };
+      })
+      .sort((a, b) => {
+        // Overdue first, then nearest upcoming
+        if (a.isOverdue && !b.isOverdue) return -1;
+        if (!a.isOverdue && b.isOverdue) return 1;
+        return a.minutesRemaining - b.minutesRemaining;
+      });
   };
 
   // Category management functions
@@ -464,14 +507,7 @@ export default function App() {
     setSimulatedTime(null);
   };
 
-  // Global search filtering
   const todayStr = new Date().toISOString().split('T')[0];
-  const searchResults = searchQuery.trim() 
-    ? items.filter(it => 
-        it.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        (it.note && it.note.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : [];
 
   // Helper to determine if an item is completed on a date for search display
   const isItemCompletedOnDate = (item: Item, targetStr: string): boolean => {
@@ -483,72 +519,171 @@ export default function App() {
     return item.completed;
   };
 
+  const bellAlerts = getBellAlertItems();
+
   return (
     <div className="h-[100dvh] w-screen bg-white text-[#1A1F2B] dark:bg-white dark:text-[#1A1F2B] transition-colors duration-200 font-sans flex flex-col overflow-hidden">
       
       {/* GLOBAL HEADER BAR - Styled exactly like the screenshot with profile avatar, personalized title, notification bell & settings toggles */}
       <header className="shrink-0 z-40 bg-white dark:bg-white px-4 pt-6 pb-4 sm:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="max-w-7xl mx-auto flex flex-row items-center justify-between gap-4">
           
           {/* Left Side: Avatar Profile + Greetings Group */}
           <div className="flex items-center gap-3.5">
             {/* HE Profile Avatar (Royal Blue circle with bold white text) */}
-            <div className="w-12 h-12 rounded-full bg-brand-accent flex items-center justify-center text-white font-sans font-bold text-sm tracking-wide shadow-md shadow-brand-accent/15 shrink-0">
+            <div className="w-12 h-12 rounded-full bg-[#1D4ED8] flex items-center justify-center text-white font-sans font-bold text-sm tracking-wide shadow-md shrink-0">
               HE
             </div>
             
             {/* Header Text Labels */}
             <div className="flex flex-col">
-              <span className="text-[11px] font-mono font-bold tracking-widest text-gray-400 dark:text-gray-500 uppercase leading-none">
+              <span className="text-[11px] font-mono font-bold tracking-widest text-gray-400 uppercase leading-none">
                 OLÁ, HENRIQUE 👋
               </span>
-              <h1 className="font-sans font-extrabold text-gray-950 dark:text-white text-lg sm:text-xl lg:text-2xl tracking-tight leading-none mt-1">
+              <h1 className="font-sans font-extrabold text-gray-950 text-lg sm:text-xl lg:text-2xl tracking-tight leading-none mt-1">
                 Pronto para evoluir hoje?
               </h1>
-              <span className="text-[11px] text-gray-400 dark:text-[#525E72] font-normal leading-normal mt-0.5 block">
+              <span className="text-[11px] text-gray-400 font-normal leading-normal mt-0.5 block">
                 Disciplina hoje, resultado sempre.
               </span>
             </div>
           </div>
 
-          {/* Right Side: Search & Compact Round Controls (Bell + Settings) */}
-          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
-            {/* Real-time search with elegant rounded-full input */}
-            <div className="relative w-full sm:w-48">
-              <Search size={12} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#525E72]" />
-              <input
-                type="text"
-                placeholder="Pesquisar..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-[#E2E5EC] rounded-full pl-9 pr-3.5 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-accent transition-colors shadow-[0_2px_8px_rgba(16,24,40,0.06)]"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* Notification Bell (Circular button with status indicator like in the screenshot) */}
+          {/* Right Side: Compact Round Controls (Bell + Settings) - Always positioned at the top right */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Notification Bell (Circular button with status indicator) */}
+            <div className="relative">
               <button
-                className="relative p-2.5 bg-white border border-[#E2E5EC] rounded-full hover:text-brand-accent transition-all text-gray-500 shadow-[0_2px_8px_rgba(16,24,40,0.06)] cursor-pointer"
-                title="Notificações"
+                onClick={() => {
+                  setIsNotificationDropdownOpen(!isNotificationDropdownOpen);
+                  setIsSettingsDropdownOpen(false);
+                }}
+                className={`relative p-2.5 border rounded-full transition-all cursor-pointer shadow-[0_2px_8px_rgba(15,23,42,0.04)] ${
+                  isNotificationDropdownOpen
+                    ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-md'
+                    : 'bg-white border-[#E2E5EC] hover:text-[#1D4ED8] text-gray-500 hover:border-blue-200'
+                }`}
+                title="Alertas e Compromissos Urgentes"
               >
                 <Bell size={14} className="stroke-2" />
-                {/* Small indicator badge */}
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-brand-accent rounded-full border border-white" />
+                {/* Indicator badge showing count of active alerts */}
+                {bellAlerts.length > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-sans font-black w-4.5 h-4.5 rounded-full flex items-center justify-center border-2 border-white shadow-xs">
+                    {bellAlerts.length}
+                  </span>
+                )}
               </button>
 
-              {/* Settings Dropdown Container */}
-              <div className="relative">
-                <button
-                  onClick={() => setIsSettingsDropdownOpen(!isSettingsDropdownOpen)}
-                  className={`p-2.5 border rounded-full transition-all cursor-pointer shadow-[0_2px_8px_rgba(16,24,40,0.06)] ${
-                    isSettingsDropdownOpen
-                      ? 'bg-brand-accent text-white border-brand-accent shadow-md'
-                      : 'bg-white border-[#E2E5EC] hover:text-brand-accent text-gray-500'
-                  }`}
-                  title="Configurações"
-                >
-                  <Settings size={14} className="stroke-2" />
-                </button>
+              {isNotificationDropdownOpen && (
+                <>
+                  {/* Backdrop to dismiss on click outside */}
+                  <div 
+                    className="fixed inset-0 z-40 cursor-default"
+                    onClick={() => setIsNotificationDropdownOpen(false)}
+                  />
+                  
+                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-[#E2E5EC] rounded-[18px] shadow-[0_10px_30px_rgba(15,23,42,0.08)] py-3 px-4 z-50 animate-in fade-in slide-in-from-top-3 duration-150">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-2.5 mb-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <Bell size={14} className="text-[#1D4ED8]" />
+                        <span className="block text-xs font-sans font-extrabold text-gray-900 uppercase tracking-wide">
+                          Alertas de Compromissos ({bellAlerts.length})
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono font-semibold text-gray-400">
+                        Limiar: ≤ 1h
+                      </span>
+                    </div>
+
+                    {bellAlerts.length === 0 ? (
+                      <div className="text-center py-6">
+                        <p className="text-xs text-gray-400">Nenhum compromisso próximo ou atrasado pendente no momento.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
+                        {bellAlerts.map(({ item, minutesRemaining, isOverdue }) => {
+                          const cat = categories.find(c => c.id === item.category);
+                          return (
+                            <div 
+                              key={item.id} 
+                              className={`p-2.5 rounded-[12px] border text-left flex items-start gap-2.5 transition-all ${
+                                isOverdue 
+                                  ? 'bg-red-50/20 border-red-100' 
+                                  : 'bg-blue-50/10 border-blue-100/50'
+                              }`}
+                            >
+                              {/* Quick tick checkbox */}
+                              <button
+                                onClick={() => {
+                                  handleToggleComplete(item.id, todayStr);
+                                }}
+                                className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 cursor-pointer ${
+                                  isOverdue
+                                    ? 'border-red-300 hover:border-red-500 text-red-600'
+                                    : 'border-blue-300 hover:border-[#1D4ED8] text-[#1D4ED8]'
+                                }`}
+                                title="Marcar como concluído"
+                              >
+                                <Check size={10} className="stroke-[3]" />
+                              </button>
+
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                                  <h4 className="text-xs font-semibold text-gray-900 truncate leading-snug">
+                                    {item.title}
+                                  </h4>
+                                  
+                                  {isOverdue ? (
+                                    <span className="text-[8px] font-sans font-black text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.2 rounded-md uppercase tracking-wider shrink-0 flex items-center gap-0.5">
+                                      <AlertTriangle size={8} /> ATRASADO
+                                    </span>
+                                  ) : (
+                                    <span className="text-[8px] font-sans font-black text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded-md uppercase tracking-wider shrink-0 flex items-center gap-0.5">
+                                      <Clock size={8} /> EM {minutesRemaining} MIN
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-2 mt-1.5">
+                                  <span className="font-mono text-[9px] font-bold text-gray-500">
+                                    🕒 {item.time}
+                                  </span>
+                                  {cat && (
+                                    <span 
+                                      className="text-[9px] font-semibold px-1 rounded-sm"
+                                      style={{ backgroundColor: `${cat.color}12`, color: cat.color }}
+                                    >
+                                      {cat.name}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Settings Dropdown Container */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setIsSettingsDropdownOpen(!isSettingsDropdownOpen);
+                  setIsNotificationDropdownOpen(false);
+                }}
+                className={`p-2.5 border rounded-full transition-all cursor-pointer shadow-[0_2px_8px_rgba(15,23,42,0.04)] ${
+                  isSettingsDropdownOpen
+                    ? 'bg-[#1D4ED8] text-white border-[#1D4ED8] shadow-md'
+                    : 'bg-white border-[#E2E5EC] hover:text-[#1D4ED8] text-gray-500 hover:border-blue-200'
+                }`}
+                title="Configurações"
+              >
+                <Settings size={14} className="stroke-2" />
+              </button>
                 
                 {isSettingsDropdownOpen && (
                   <>
@@ -604,98 +739,9 @@ export default function App() {
               </div>
             </div>
           </div>
-        </div>
       </header>
 
-      {/* SEARCH RESULTS BOARD OVERLAY (shown only when searching) */}
-      {searchQuery.trim() !== '' && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 mt-6">
-          <div className="bg-white border border-[#E2E5EC] rounded-[20px] p-5 shadow-[0_2px_8px_rgba(16,24,40,0.06)]">
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-dark-border pb-3 mb-4">
-              <div className="flex items-center gap-2">
-                <Search size={16} className="text-brand-gold" />
-                <h2 className="font-display font-semibold text-sm text-gray-900 dark:text-white uppercase tracking-wider">
-                  Resultados da Busca para "{searchQuery}" ({searchResults.length})
-                </h2>
-              </div>
-              <button
-                onClick={() => setSearchQuery('')}
-                className="text-xs font-mono text-brand-gold hover:underline cursor-pointer font-bold"
-              >
-                LIMPAR BUSCA
-              </button>
-            </div>
 
-            {searchResults.length === 0 ? (
-              <p className="text-xs text-gray-400 dark:text-[#8A94A6] py-4 text-center">Nenhum compromisso correspondente aos termos digitados.</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {searchResults.map(item => {
-                  const cat = categories.find(c => c.id === item.category);
-                  const isCompleted = isItemCompletedOnDate(item, item.date);
-                  const formattedDate = new Date(item.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
-                  
-                  return (
-                    <div
-                      key={item.id}
-                      className={`p-3 rounded-xl border flex items-start gap-3 transition-colors ${
-                        isCompleted 
-                          ? 'bg-gray-50 dark:bg-black/20 border-gray-100 dark:border-gray-900 opacity-60' 
-                          : 'bg-gray-50/50 dark:bg-dark-inner border-gray-200/60 dark:border-dark-border shadow-xs'
-                      }`}
-                    >
-                      <button
-                        onClick={() => handleToggleComplete(item.id, item.date)}
-                        className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                          isCompleted
-                            ? 'bg-emerald-500 border-emerald-600 text-white shadow-inner shadow-emerald-700/20'
-                            : 'border-gray-300 dark:border-gray-700 text-transparent hover:border-brand-gold'
-                        }`}
-                      >
-                        <Check size={11} strokeWidth={3.5} />
-                      </button>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-[10px] text-gray-400 uppercase">{formattedDate}</span>
-                          {item.time && <span className="font-mono text-[10px] text-brand-gold font-bold">{item.time}</span>}
-                          
-                          <h4 
-                            onClick={() => triggerEditItem(item)}
-                            className={`text-xs font-semibold text-gray-900 dark:text-white truncate cursor-pointer hover:underline ${
-                              isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : ''
-                            }`}
-                          >
-                            {item.title}
-                          </h4>
-                        </div>
-                        
-                        {item.note && <p className="text-[11px] text-gray-400 mt-1 truncate">{item.note}</p>}
-                        
-                        <div className="flex items-center gap-2 mt-2">
-                          {cat && (
-                            <span 
-                              className="text-[9px] px-1.5 py-0.2 rounded font-medium"
-                              style={{ backgroundColor: `${cat.color}15`, color: cat.color }}
-                            >
-                              {cat.name}
-                            </span>
-                          )}
-                          {item.recurring && (
-                            <span className="text-[9px] font-mono text-blue-400 bg-blue-500/10 px-1 rounded">
-                              ↺ {item.recurring}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* SONINHO ALERT BAR - Sliding in beautifully if a sleep-related task is approaching */}
       <AnimatePresence>
@@ -809,7 +855,7 @@ export default function App() {
               categories={categories}
               onToggleComplete={handleToggleComplete}
               onEditItem={triggerEditItem}
-              onQuickAdd={handleInlineQuickAdd}
+              onAddTaskOnDate={triggerAddTaskOnDate}
               selectedDateStr={todayStr}
             />
           )}

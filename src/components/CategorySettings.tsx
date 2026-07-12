@@ -47,14 +47,14 @@ export default function CategorySettings({
   };
 
   return (
-    <div className="bg-white p-5 rounded-[20px] border border-[#E2E5EC] shadow-[0_2px_8px_rgba(16,24,40,0.06)] space-y-6">
+    <div className="bg-white p-5 rounded-[18px] border border-[#E2E5EC] shadow-[0_6px_18px_rgba(15,23,42,0.04)] space-y-5">
       <div>
-        <h2 className="font-display font-semibold text-gray-900 dark:text-white flex items-center gap-2 text-sm uppercase tracking-wider">
-          <Tag size={16} className="text-brand-accent dark:text-brand-accent-dark" />
-          <span className="font-display font-bold">Gerenciar Categorias</span>
+        <h2 className="font-sans font-bold text-gray-900 flex items-center gap-2 text-xs uppercase tracking-wider">
+          <Tag size={15} className="text-[#1D4ED8]" />
+          <span>Gerenciar Categorias</span>
         </h2>
-        <p className="text-xs text-gray-400 dark:text-[#8A94A6] mt-1">
-          Crie marcadores personalizados para categorizar e filtrar seus compromissos.
+        <p className="text-xs text-gray-400 mt-1">
+          Crie marcadores personalizados para categorizar seus compromissos.
         </p>
       </div>
 
@@ -65,7 +65,7 @@ export default function CategorySettings({
           return (
             <div
               key={cat.id}
-              className="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-dark-inner border border-gray-100 dark:border-dark-border rounded-xl hover:border-gray-200 dark:hover:border-dark-hover transition-colors"
+              className="flex items-center justify-between p-2.5 bg-gray-50/60 border border-gray-100 rounded-[12px] hover:border-gray-200 transition-colors"
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <span
@@ -73,8 +73,8 @@ export default function CategorySettings({
                   style={{ backgroundColor: cat.color }}
                 />
                 <div className="truncate">
-                  <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">{cat.name}</span>
-                  <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500 block">
+                  <span className="text-xs font-semibold text-gray-800">{cat.name}</span>
+                  <span className="text-[10px] font-mono text-gray-400 block mt-0.5">
                     {count} {count === 1 ? 'item agendado' : 'itens agendados'}
                   </span>
                 </div>
@@ -91,7 +91,7 @@ export default function CategorySettings({
                       onDeleteCategory(cat.id);
                     }
                   }}
-                  className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-colors cursor-pointer"
+                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                   title="Excluir Categoria"
                 >
                   <Trash2 size={13} />
@@ -103,9 +103,9 @@ export default function CategorySettings({
       </div>
 
       {/* Addition Form */}
-      <form onSubmit={handleSubmit} className="space-y-4 border-t border-gray-100 dark:border-dark-border pt-4">
+      <form onSubmit={handleSubmit} className="space-y-4 border-t border-gray-100 pt-4">
         <div>
-          <label className="block text-[10px] font-mono uppercase text-gray-400 dark:text-[#8A94A6] tracking-wider mb-1.5">
+          <label className="block text-[10px] font-mono uppercase text-gray-400 tracking-wider mb-1.5">
             Nova Categoria
           </label>
           <div className="relative">
@@ -115,14 +115,14 @@ export default function CategorySettings({
               placeholder="Ex: Trabalho, Faculdade, Saúde..."
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-dark-inner border border-gray-200/60 dark:border-dark-border rounded-xl px-3.5 py-2 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-[#4E5A6C] focus:outline-none focus:border-brand-accent dark:focus:border-brand-accent-dark transition-all"
+              className="w-full bg-gray-50 border border-gray-200 rounded-[14px] px-3.5 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#1D4ED8] transition-all"
             />
           </div>
         </div>
 
         {/* Color presets selection & custom picker */}
         <div>
-          <label className="block text-[10px] font-mono uppercase text-gray-400 dark:text-[#8A94A6] tracking-wider mb-2">
+          <label className="block text-[10px] font-mono uppercase text-gray-400 tracking-wider mb-2">
             Escolher Cor
           </label>
           
@@ -132,7 +132,7 @@ export default function CategorySettings({
                 key={color}
                 type="button"
                 onClick={() => setSelectedColor(color)}
-                className="w-6 h-6 rounded-full flex items-center justify-center border border-black/10 transition-transform hover:scale-110 cursor-pointer shadow-sm relative shrink-0"
+                className="w-6 h-6 rounded-full flex items-center justify-center border border-black/10 transition-transform hover:scale-110 cursor-pointer shadow-xs relative shrink-0"
                 style={{ backgroundColor: color }}
               >
                 {selectedColor === color && (
@@ -142,9 +142,9 @@ export default function CategorySettings({
             ))}
 
             {/* Custom color wrapper */}
-            <div className="flex items-center gap-1.5 ml-1 border-l border-gray-100 dark:border-dark-border pl-3">
+            <div className="flex items-center gap-1.5 ml-1 border-l border-gray-100 pl-3">
               <label 
-                className="w-6 h-6 rounded-full flex items-center justify-center border border-black/10 transition-transform hover:scale-110 cursor-pointer shadow-sm relative shrink-0"
+                className="w-6 h-6 rounded-full flex items-center justify-center border border-black/10 transition-transform hover:scale-110 cursor-pointer shadow-xs relative shrink-0"
                 style={{ backgroundColor: customColor }}
               >
                 <input
@@ -160,14 +160,14 @@ export default function CategorySettings({
                   <Check size={11} className="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]" strokeWidth={3} />
                 )}
               </label>
-              <span className="text-[10px] text-gray-400 dark:text-[#8A94A6] font-mono uppercase">{customColor}</span>
+              <span className="text-[10px] text-gray-400 font-mono uppercase">{customColor}</span>
             </div>
           </div>
         </div>
 
         <button
           type="submit"
-          className="w-full bg-brand-accent hover:bg-brand-accent-hover dark:bg-brand-accent-dark dark:hover:bg-brand-accent text-white dark:text-dark-bg text-xs font-semibold font-mono uppercase tracking-wider py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+          className="w-full bg-[#1D4ED8] hover:bg-[#163A8A] text-white text-xs font-semibold font-sans py-2.5 rounded-[16px] flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-98"
         >
           <Plus size={13} strokeWidth={2.5} />
           <span>Criar Categoria</span>

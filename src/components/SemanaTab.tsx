@@ -89,46 +89,46 @@ export default function SemanaTab({
     <div className="space-y-6">
       
       {/* Week Controller Header - Sem caixa própria, sem borda */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-white p-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-3">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-brand-accent/10 dark:bg-brand-accent-dark/10 text-brand-accent dark:text-brand-accent-dark rounded-xl shrink-0">
+          <div className="p-2.5 bg-blue-50 text-[#1D4ED8] rounded-[14px] shrink-0">
             <CalendarDays size={20} />
           </div>
           <div>
-            <span className="text-xs font-mono font-bold uppercase text-brand-accent dark:text-brand-accent-dark tracking-wider">VISÃO SEMANAL</span>
-            <h1 className="font-display font-bold text-lg text-gray-900 dark:text-white mt-0.5">
+            <span className="text-[10px] font-mono font-bold uppercase text-[#1D4ED8] tracking-widest block">VISÃO SEMANAL</span>
+            <h1 className="font-sans font-bold text-lg text-gray-900 mt-0.5">
               {weekDays[0].toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} – {weekDays[6].toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
             </h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 font-mono text-xs">
+        <div className="flex items-center gap-2 font-sans text-xs">
           <button
             onClick={handleTodayWeek}
-            className="px-3.5 py-2 bg-white hover:bg-gray-50 dark:bg-dark-card dark:hover:bg-dark-hover text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-dark-border rounded-xl shadow-xs transition-colors cursor-pointer"
+            className="px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 border border-[#E2E5EC] rounded-[16px] shadow-[0_2px_6px_rgba(15,23,42,0.02)] transition-all cursor-pointer font-semibold active:scale-98"
           >
-            ESTA SEMANA
+            Esta Semana
           </button>
           
-          <div className="flex items-center border border-gray-200 dark:border-dark-border rounded-xl overflow-hidden bg-white dark:bg-dark-card shadow-xs">
+          <div className="flex items-center border border-[#E2E5EC] rounded-[16px] overflow-hidden bg-white shadow-[0_2px_6px_rgba(15,23,42,0.02)]">
             <button
               onClick={handlePrevWeek}
-              className="p-2 hover:bg-gray-50 dark:hover:bg-dark-hover text-gray-600 dark:text-[#8A94A6] hover:text-brand-accent dark:hover:text-brand-accent-dark border-r border-gray-200 dark:border-dark-border transition-colors cursor-pointer"
+              className="p-2.5 hover:bg-gray-50 text-gray-600 hover:text-[#1D4ED8] border-r border-[#E2E5EC] transition-colors cursor-pointer"
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={15} />
             </button>
             <button
               onClick={handleNextWeek}
-              className="p-2 hover:bg-gray-50 dark:hover:bg-dark-hover text-gray-600 dark:text-[#8A94A6] hover:text-brand-accent dark:hover:text-brand-accent-dark transition-colors cursor-pointer"
+              className="p-2.5 hover:bg-gray-50 text-gray-600 hover:text-[#1D4ED8] transition-colors cursor-pointer"
             >
-              <ChevronRight size={16} />
+              <ChevronRight size={15} />
             </button>
           </div>
         </div>
       </div>
 
       {/* Week Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-7 gap-3.5">
         {weekDays.map((day) => {
           const dateStr = day.toISOString().split('T')[0];
           const isToday = dateStr === todayStr;
@@ -152,29 +152,29 @@ export default function SemanaTab({
           return (
             <div 
               key={dateStr}
-              className={`flex flex-col bg-[#F8FAFC] dark:bg-white rounded-2xl shadow-xs min-h-[360px] md:min-h-[480px] transition-all overflow-hidden ${
+              className={`flex flex-col bg-white rounded-[18px] min-h-[360px] md:min-h-[480px] transition-all overflow-hidden border shadow-[0_6px_18px_rgba(15,23,42,0.04)] ${
                 isToday 
-                  ? 'ring-2 ring-brand-accent dark:ring-brand-accent-dark' 
-                  : 'border border-gray-200/40 dark:border-dark-border/40'
+                  ? 'border-2 border-[#1D4ED8] shadow-[0_6px_18px_rgba(29,78,216,0.08)]' 
+                  : 'border-[#E2E5EC]'
               }`}
             >
               {/* Day Header */}
               <div 
                 onClick={() => onAddTaskOnDate(dateStr)}
-                className={`p-3 text-center cursor-pointer transition-colors flex items-center justify-between md:flex-col md:gap-0.5 select-none ${
+                className={`p-3 text-center cursor-pointer transition-colors flex items-center justify-between md:flex-col md:gap-0.5 select-none border-b ${
                   isToday 
-                    ? 'bg-brand-accent/5 dark:bg-brand-accent-dark/10 border-b border-brand-accent/10' 
-                    : 'bg-white dark:bg-dark-card border-b border-gray-100/60 dark:border-dark-border/40 hover:bg-gray-50 dark:hover:bg-dark-hover'
+                    ? 'bg-blue-50/50 border-blue-100' 
+                    : 'bg-white border-gray-100 hover:bg-gray-50'
                 }`}
               >
                 <div className="text-left md:text-center">
-                  <span className={`text-[10px] font-mono font-bold tracking-wider block ${
-                    isToday ? 'text-brand-accent dark:text-brand-accent-dark' : 'text-gray-400 dark:text-[#8A94A6]'
+                  <span className={`text-[9px] font-mono font-bold tracking-widest block ${
+                    isToday ? 'text-[#1D4ED8]' : 'text-gray-400'
                   }`}>
                     {weekdayName}
                   </span>
-                  <span className={`font-display text-lg font-bold tabular-nums block ${
-                    isToday ? 'text-brand-accent dark:text-brand-accent-dark' : 'text-gray-900 dark:text-white'
+                  <span className={`font-sans text-base font-bold tabular-nums block ${
+                    isToday ? 'text-[#1D4ED8]' : 'text-gray-900'
                   }`}>
                     {dayNum}
                   </span>
@@ -185,22 +185,22 @@ export default function SemanaTab({
                     e.stopPropagation();
                     onAddTaskOnDate(dateStr);
                   }}
-                  className={`p-1 rounded-md transition-colors ${
+                  className={`p-1.5 rounded-lg transition-colors ${
                     isToday 
-                      ? 'text-brand-accent dark:text-brand-accent-dark hover:bg-brand-accent/10 dark:hover:bg-brand-accent-dark/10' 
-                      : 'text-gray-400 hover:text-brand-accent dark:hover:text-brand-accent-dark hover:bg-gray-100 dark:hover:bg-dark-hover'
+                      ? 'text-[#1D4ED8] hover:bg-blue-100/60' 
+                      : 'text-gray-400 hover:text-[#1D4ED8] hover:bg-gray-100'
                   }`}
                   title="Adicionar compromisso para este dia"
                 >
-                  <Plus size={14} />
+                  <Plus size={13} />
                 </button>
               </div>
 
               {/* Day Tasks Area */}
-              <div className="p-2 flex-1 space-y-2 overflow-y-auto bg-white/50 dark:bg-dark-card/30">
+              <div className="p-2 flex-1 space-y-2 overflow-y-auto bg-gray-50/10">
                 {sortedDayItems.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center p-4 text-center select-none text-gray-300 dark:text-gray-700">
-                    <span className="text-[10px] font-mono uppercase tracking-wider font-medium opacity-50">Livre</span>
+                  <div className="h-full flex flex-col items-center justify-center p-4 text-center select-none text-gray-300">
+                    <span className="text-[9px] font-mono uppercase tracking-wider font-semibold opacity-40">Livre</span>
                   </div>
                 ) : (
                   sortedDayItems.map(item => {
@@ -211,23 +211,12 @@ export default function SemanaTab({
                       <div
                         key={`${item.id}-${dateStr}`}
                         onClick={() => onEditItem(item)}
-                        className={`group relative p-2.5 pl-3.5 rounded-xl text-left cursor-pointer transition-all ${
+                        className={`group relative p-2.5 pl-3 rounded-[14px] text-left cursor-pointer transition-all ${
                           isCompleted
                             ? 'opacity-60 bg-white border border-gray-100'
-                            : 'bg-white border border-[#E2E5EC] shadow-[0_2px_8px_rgba(16,24,40,0.06)] hover:shadow-md'
+                            : 'bg-white border border-[#E2E5EC] shadow-[0_2px_8px_rgba(15,23,42,0.03)] hover:border-gray-300'
                         }`}
                       >
-                        {/* Priority left border line indicator */}
-                        <div 
-                          className={`absolute left-0 top-2 bottom-2 w-0.5 rounded-r-md ${
-                            item.priority === 'alta' 
-                              ? 'bg-[#E23D3D]' 
-                              : item.priority === 'baixa'
-                                ? 'bg-[#B9BFC9]'
-                                : 'bg-[#E8A33D]'
-                          }`}
-                        />
-
                         <div className="flex items-start gap-2">
                           {/* Compact complete button */}
                           <button
@@ -235,18 +224,18 @@ export default function SemanaTab({
                               e.stopPropagation();
                               onToggleComplete(item.id, dateStr);
                             }}
-                            className={`w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0 mt-0.5 cursor-pointer ${
+                            className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all shrink-0 mt-0.5 cursor-pointer ${
                               isCompleted
-                                ? 'bg-emerald-500 border-emerald-600 text-white scale-95 shadow-inner'
-                                : 'border-gray-200 dark:border-dark-border text-transparent hover:border-brand-accent dark:hover:border-brand-accent-dark'
+                                ? 'bg-[#1D4ED8] border-[#1D4ED8] text-white scale-95 shadow-inner'
+                                : 'border-gray-200 hover:border-[#1D4ED8] text-transparent'
                             }`}
                           >
-                            <Check size={10} strokeWidth={3.5} className={isCompleted ? "block" : "opacity-0 hover:opacity-100"} />
+                            <Check size={9} strokeWidth={3.5} className="block" />
                           </button>
 
                           <div className="min-w-0 flex-1">
-                            <h4 className={`text-xs font-semibold text-gray-800 dark:text-gray-200 leading-tight break-words truncate transition-all duration-300 ${
-                              isCompleted ? 'line-through text-gray-400 dark:text-gray-600 font-normal' : 'font-semibold'
+                            <h4 className={`text-xs text-gray-800 leading-tight break-words truncate transition-all duration-300 ${
+                              isCompleted ? 'line-through text-gray-400 font-normal' : 'font-medium hover:text-[#1D4ED8]'
                             }`}>
                               {item.title}
                             </h4>
@@ -254,14 +243,14 @@ export default function SemanaTab({
                             {/* Metadata row: maximum 2 items */}
                             <div className="flex items-center gap-1.5 flex-wrap mt-1">
                               {item.time && (
-                                <span className="font-mono text-[9px] font-bold text-brand-accent dark:text-brand-accent-dark tracking-wide tabular-nums">
+                                <span className="font-mono text-[9px] font-bold text-[#163A8A] tracking-tight shrink-0 tabular-nums">
                                   {item.time}
                                 </span>
                               )}
                               {cat && (
                                 <>
-                                  {item.time && <span className="text-gray-300 text-[8px]">•</span>}
-                                  <span className="text-[9px] font-medium" style={{ color: cat.color }}>
+                                  {item.time && <span className="text-gray-300 text-[8px] shrink-0">•</span>}
+                                  <span className="text-[9px] font-medium shrink-0" style={{ color: cat.color }}>
                                     {cat.name}
                                   </span>
                                 </>

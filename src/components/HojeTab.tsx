@@ -8,7 +8,7 @@ interface HojeTabProps {
   categories: Category[];
   onToggleComplete: (itemId: string, dateStr: string) => void;
   onEditItem: (item: Item) => void;
-  onQuickAdd: (title: string, time?: string) => void;
+  onAddTaskOnDate?: (dateStr: string) => void;
   selectedDateStr: string; // "YYYY-MM-DD"
 }
 
@@ -17,21 +17,10 @@ export default function HojeTab({
   categories,
   onToggleComplete,
   onEditItem,
-  onQuickAdd,
+  onAddTaskOnDate,
   selectedDateStr
 }: HojeTabProps) {
-  const [quickTitle, setQuickTitle] = useState('');
-  const [quickTime, setQuickTime] = useState('');
   const [isOverdueExpanded, setIsOverdueExpanded] = useState(false);
-
-  // Handle inline quick addition
-  const handleQuickSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!quickTitle.trim()) return;
-    onQuickAdd(quickTitle.trim(), quickTime || undefined);
-    setQuickTitle('');
-    setQuickTime('');
-  };
 
   const getLongDateCompact = () => {
     const d = new Date(selectedDateStr + 'T12:00:00');
@@ -58,8 +47,6 @@ export default function HojeTab({
   // Helper to get completion state on specific date
   const isItemCompletedOnDate = (item: Item, targetStr: string): boolean => {
     if (!item.recurring) return item.completed;
-    // For recurring, let's assume we store completed dates in a custom list, or check standard completed
-    // Let's support an array `completedDates` or fallback to item.completed
     const customItem = item as any;
     if (customItem.completedDates && Array.isArray(customItem.completedDates)) {
       return customItem.completedDates.includes(targetStr);
@@ -81,7 +68,7 @@ export default function HojeTab({
 
   // Overdue items: date < selectedDateStr, not completed, and not recurring (or not completed on those past days)
   const overdueItems = items.filter(item => {
-    if (item.recurring) return false; // Recurring items don't accumulate as overdue in the same way, they just show up on their respective days
+    if (item.recurring) return false; // Recurring items don't accumulate as overdue
     return item.date < selectedDateStr && !item.completed;
   });
 
@@ -89,13 +76,6 @@ export default function HojeTab({
   const completedCount = todayAllItems.filter(item => isItemCompletedOnDate(item, selectedDateStr)).length;
   const totalCount = todayAllItems.length;
   const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-  
-  // Progress Ring Geometry
-  const radius = 26;
-  const strokeWidth = 3.5;
-  const normalizedRadius = radius - strokeWidth * 2;
-  const circumference = normalizedRadius * 2 * Math.PI;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
   // Render nicely formatted long date in Portuguese
   const getLongDate = () => {
@@ -108,117 +88,85 @@ export default function HojeTab({
 
   return (
     <div className="space-y-6">
-      {/* Card do dia (Styled exactly like the workout card in the screenshot) */}
+      {/* REDESIGNED PREMIUM HERO CARD - Reduced height, elegant, Apple Fitness/Things hybrid */}
       <div 
-        style={{ background: 'linear-gradient(135deg, #101B3D 0%, #1B4F91 45%, #0EA5B7 100%)' }}
-        className="text-white p-6 rounded-[24px] shadow-lg relative overflow-hidden flex flex-col justify-between min-h-[150px] transition-all"
+        style={{ background: 'linear-gradient(135deg, #163A8A 0%, #1D4ED8 45%, #0F2E63 100%)' }}
+        className="text-white p-5 rounded-[18px] shadow-[0_6px_18px_rgba(15,23,42,0.06)] relative overflow-hidden flex flex-col justify-between min-h-[110px] transition-all"
       >
-        {/* Subtle decorative grid/mesh in the background */}
+        {/* Subtle decorative mesh */}
         <div className="absolute inset-0 opacity-5 pointer-events-none bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:12px_12px]" />
-        <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
         
-        <div className="flex justify-between items-center gap-4 z-10">
-          <div className="space-y-2">
-            {/* Transparent elegant pill label */}
-            <span className="inline-block bg-white/15 backdrop-blur-md text-[10px] font-mono font-bold tracking-widest px-3 py-1 rounded-full text-blue-100 leading-none">
-              COMPROMISSOS DE HOJE
-            </span>
-            <h1 className="font-sans font-extrabold text-xl sm:text-2xl tracking-tight leading-snug text-white">
-              {getLongDate()}
-            </h1>
-            <span className="text-[11px] text-blue-200/80 font-mono tracking-wide block">
-              {totalCount > 0 
-                ? `${completedCount} de ${totalCount} tarefas concluídas` 
-                : 'Sua rotina, um só lugar.'}
-            </span>
-          </div>
-
-          {/* CIRCULAR PROGRESS RING - Smoothly animated, exactly as requested */}
-          <div className="flex flex-col items-center justify-center shrink-0">
-            <div className="relative w-14 h-14 flex items-center justify-center">
-              <svg className="w-14 h-14 transform -rotate-90">
-                {/* Background path circle */}
-                <circle
-                  className="text-white/10"
-                  strokeWidth={strokeWidth}
-                  stroke="currentColor"
-                  fill="transparent"
-                  r={normalizedRadius}
-                  cx={radius}
-                  cy={radius}
-                />
-                {/* Foreground path circle with smooth CSS transition */}
-                <circle
-                  className="text-cyan-300 transition-all duration-700 ease-out"
-                  strokeWidth={strokeWidth}
-                  strokeDasharray={`${circumference} ${circumference}`}
-                  style={{ strokeDashoffset }}
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="transparent"
-                  r={normalizedRadius}
-                  cx={radius}
-                  cy={radius}
-                />
-              </svg>
-              {/* Inner Percentage Label */}
-              <span className="absolute text-[10px] font-mono font-bold text-white tabular-nums">
-                {percentage}%
-              </span>
-            </div>
-            <span className="text-[8px] font-mono text-cyan-200 uppercase tracking-widest mt-1 font-bold">Progresso</span>
-          </div>
+        {/* Discrete progress badge in the top right corner */}
+        <div className="absolute top-4 right-4 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 text-[10px] font-mono font-bold tracking-wide text-blue-200">
+          {completedCount}/{totalCount} • {percentage}%
         </div>
 
-        {/* Lower indicator line */}
-        {totalCount > 0 && (
-          <div className="w-full bg-white/10 h-1 rounded-full mt-5 overflow-hidden z-10">
-            <div 
-              className="bg-cyan-300 h-full transition-all duration-500 rounded-full" 
-              style={{ width: `${percentage}%` }}
-            />
-          </div>
-        )}
+        <div className="space-y-1 z-10 max-w-[70%]">
+          <h1 className="font-sans font-bold text-lg sm:text-xl tracking-tight text-white leading-tight">
+            {getLongDate()}
+          </h1>
+          <p className="text-xs text-blue-100/70 font-normal leading-relaxed">
+            {totalCount > 0 
+              ? `${completedCount} de ${totalCount} compromissos finalizados` 
+              : 'Sua agenda está livre para hoje.'}
+          </p>
+        </div>
+
+        {/* Discrete primary action button */}
+        <div className="mt-3.5 z-10 self-start">
+          <button
+            onClick={() => {
+              if (onAddTaskOnDate) {
+                onAddTaskOnDate(selectedDateStr);
+              }
+            }}
+            className="bg-white hover:bg-blue-50 text-[#163A8A] font-sans font-semibold text-xs px-4 py-2 rounded-[16px] transition-all shadow-sm active:scale-98 cursor-pointer flex items-center gap-1.5"
+          >
+            <Plus size={13} strokeWidth={2.5} />
+            <span>Novo Compromisso</span>
+          </button>
+        </div>
       </div>
 
       {/* OVERDUE SECTION (ATRASADOS) - COLLAPSIBLE BANNER */}
       {overdueItems.length > 0 && (
-        <div className="bg-[#FDEBEB] border-l-4 border-[#E23D3D] rounded-r-lg overflow-hidden transition-all duration-200">
+        <div className="bg-white border border-red-200 rounded-[14px] shadow-[0_6px_18px_rgba(15,23,42,0.06)] overflow-hidden transition-all duration-200">
           <button
             type="button"
             onClick={() => setIsOverdueExpanded(!isOverdueExpanded)}
-            className="w-full flex items-center justify-between px-4 py-2 text-[#C21E1E] transition-colors cursor-pointer text-left"
+            className="w-full flex items-center justify-between px-4 py-3 text-[#C21E1E] transition-colors cursor-pointer text-left"
           >
-            <div className="flex items-center gap-1.5 font-sans text-xs font-extrabold tracking-wide">
+            <div className="flex items-center gap-2 font-sans text-xs font-bold tracking-wide">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
               <span>{overdueItems.length} {overdueItems.length === 1 ? 'COMPROMISSO ATRASADO' : 'COMPROMISSOS ATRASADOS'}</span>
             </div>
-            <span className="text-xs font-sans font-semibold hover:underline">
+            <span className="text-xs font-sans font-medium text-gray-500 hover:text-gray-900 hover:underline">
               {isOverdueExpanded ? 'Recolher' : 'Visualizar'}
             </span>
           </button>
           
           {isOverdueExpanded && (
-            <div className="px-3 pb-2.5 pt-0.5 space-y-1.5 bg-[#FDEBEB]/50">
+            <div className="px-4 pb-3 pt-1 space-y-2 border-t border-red-100 bg-red-50/20">
               {overdueItems.map(item => {
                 const overdueDate = new Date(item.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
                 
                 return (
                   <div 
                     key={item.id}
-                    className="flex items-center justify-between bg-white px-3 py-1.5 rounded-lg border border-[#E2E5EC] shadow-[0_2px_8px_rgba(16,24,40,0.06)] transition-colors"
+                    className="flex items-center justify-between bg-white px-3 py-2 rounded-xl border border-red-100 shadow-[0_2px_6px_rgba(194,30,30,0.02)] transition-colors"
                   >
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       <button
                         onClick={() => onToggleComplete(item.id, item.date)}
-                        className="w-4 h-4 rounded border border-red-200 dark:border-red-800 flex items-center justify-center hover:bg-red-50 text-red-600 transition-colors shrink-0 cursor-pointer"
+                        className="w-4 h-4 rounded-full border border-red-200 flex items-center justify-center hover:bg-red-50 text-red-600 transition-colors shrink-0 cursor-pointer"
                       >
                         <Check size={10} className="opacity-0 hover:opacity-100" />
                       </button>
                       
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-xs text-gray-800 dark:text-gray-200 font-medium truncate">{item.title}</span>
-                          <span className="text-[9px] font-mono text-red-600 dark:text-red-400 font-bold shrink-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs text-gray-800 font-medium truncate">{item.title}</span>
+                          <span className="text-[10px] font-mono text-red-500 font-bold shrink-0">
                             ({overdueDate})
                           </span>
                         </div>
@@ -227,7 +175,7 @@ export default function HojeTab({
 
                     <button
                       onClick={() => onEditItem(item)}
-                      className="p-1 hover:bg-gray-100 dark:hover:bg-dark-hover rounded text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors cursor-pointer"
+                      className="p-1 hover:bg-gray-50 rounded text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
                     >
                       <Edit2 size={11} />
                     </button>
@@ -239,47 +187,20 @@ export default function HojeTab({
         </div>
       )}
 
-      {/* QUICK ADD LINE (ALWAYS VISIBLE) - Compacted */}
-      <form onSubmit={handleQuickSubmit} className="bg-white p-2 rounded-2xl border border-[#E2E5EC] shadow-[0_2px_8px_rgba(16,24,40,0.06)] flex flex-col sm:flex-row items-center gap-2">
-        <div className="relative w-full flex-1">
-          <input
-            type="text"
-            required
-            placeholder="Adicione rapidamente um compromisso..."
-            value={quickTitle}
-            onChange={(e) => setQuickTitle(e.target.value)}
-            className="w-full bg-transparent border-0 px-3 py-2 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none"
-          />
-        </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 px-2 sm:px-0">
-          <input
-            type="time"
-            value={quickTime}
-            onChange={(e) => setQuickTime(e.target.value)}
-            className="bg-gray-50 dark:bg-dark-inner border border-gray-200/60 dark:border-dark-border rounded-xl px-2.5 py-1.5 text-xs text-gray-800 dark:text-gray-200 font-mono focus:outline-none focus:border-brand-accent dark:focus:border-brand-accent-dark shrink-0 w-24 text-center"
-          />
-          <button
-            type="submit"
-            className="flex-1 sm:flex-initial bg-brand-accent hover:bg-brand-accent-hover text-white font-semibold text-[11px] font-mono uppercase tracking-wider py-1.5 px-4 rounded-xl flex items-center justify-center gap-1 shadow-sm transition-all cursor-pointer"
-          >
-            <Plus size={12} strokeWidth={2.5} />
-            <span>ADICIONAR</span>
-          </button>
-        </div>
-      </form>
+
 
       {/* TASKS LIST */}
       <div className="space-y-6">
         
         {/* State Empty Illustration */}
         {todayAllItems.length === 0 && (
-          <div className="bg-white p-12 rounded-2xl border border-[#E2E5EC] shadow-[0_2px_8px_rgba(16,24,40,0.06)] flex flex-col items-center justify-center text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-brand-accent/5 dark:bg-brand-accent-dark/10 flex items-center justify-center text-brand-accent dark:text-brand-accent-dark">
-              <Sparkles size={28} />
+          <div className="bg-white p-12 rounded-[18px] border border-[#E2E5EC] shadow-[0_6px_18px_rgba(15,23,42,0.06)] flex flex-col items-center justify-center text-center space-y-4">
+            <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center text-[#1D4ED8]">
+              <Sparkles size={24} />
             </div>
             <div className="max-w-md">
-              <h3 className="font-display font-semibold text-lg text-gray-900 dark:text-white">Céu limpo por hoje</h3>
-              <p className="text-sm text-gray-500 dark:text-[#8A94A6] mt-1.5">
+              <h3 className="font-sans font-semibold text-base text-gray-900">Céu limpo por hoje</h3>
+              <p className="text-xs text-gray-400 mt-1.5">
                 Você concluiu todos os seus compromissos ou não agendou nada para hoje. Aproveite este momento para respirar ou planejar sua semana!
               </p>
             </div>
@@ -289,8 +210,8 @@ export default function HojeTab({
         {/* Timed Tasks Section */}
         {timedItems.length > 0 && (
           <div>
-            <div className="text-xs font-mono font-bold text-gray-400 dark:text-[#8A94A6] tracking-widest uppercase mb-3 flex items-center gap-2">
-              <Clock size={13} className="text-brand-accent dark:text-brand-accent-dark" />
+            <div className="text-[10px] font-mono font-bold text-gray-400 tracking-widest uppercase mb-3 flex items-center gap-2 pl-1">
+              <Clock size={12} className="text-[#1D4ED8]" />
               <span>COMPROMISSOS COM HORÁRIO</span>
             </div>
             
@@ -307,89 +228,75 @@ export default function HojeTab({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ duration: 0.2 }}
-                      className={`relative flex items-center justify-between p-4 pl-5 bg-white rounded-2xl border border-[#E2E5EC] shadow-[0_2px_8px_rgba(16,24,40,0.06)] transition-all ${
+                      className={`relative flex items-center justify-between p-3.5 pl-4 bg-white rounded-[14px] border border-[#E2E5EC] shadow-[0_6px_18px_rgba(15,23,42,0.06)] transition-all ${
                         isCompleted 
-                          ? 'opacity-65' 
-                          : 'hover:shadow-md'
+                          ? 'opacity-60' 
+                          : 'hover:border-gray-300'
                       }`}
                     >
-                      {/* Priority left border line indicator */}
-                      <div 
-                        className={`absolute left-0 top-3 bottom-3 w-1 rounded-r-md ${
-                          item.priority === 'alta' 
-                            ? 'bg-[#E23D3D]' 
-                            : item.priority === 'baixa'
-                              ? 'bg-[#B9BFC9]'
-                              : 'bg-[#E8A33D]'
-                        }`}
-                      />
-
                       <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                        {/* Interactive satisfying Checkbox */}
+                        {/* 1. Checkbox */}
                         <button
                           onClick={() => onToggleComplete(item.id, selectedDateStr)}
-                          className={`w-5 h-5 rounded border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
+                          className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
                             isCompleted 
-                              ? 'bg-emerald-500 border-emerald-600 text-white shadow-inner scale-95 shadow-emerald-700/20' 
-                              : 'border-gray-200 dark:border-dark-border hover:border-brand-accent dark:hover:border-brand-accent-dark text-transparent hover:text-brand-accent dark:hover:text-brand-accent-dark'
+                              ? 'bg-[#1D4ED8] border-[#1D4ED8] text-white' 
+                              : 'border-gray-300 hover:border-[#1D4ED8] text-transparent hover:text-[#1D4ED8]'
                           }`}
                         >
-                          <Check size={12} strokeWidth={3.5} className={isCompleted ? "block" : "opacity-0 hover:opacity-100"} />
+                          <Check size={11} strokeWidth={3.5} className="block" />
                         </button>
 
+                        {/* 2. Horário */}
+                        <span className="font-mono text-xs font-semibold text-[#163A8A] tracking-tight shrink-0 tabular-nums min-w-[42px]">
+                          {item.time}
+                        </span>
+
+                        {/* 3. Título */}
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-sm font-medium text-gray-900 dark:text-white truncate transition-all duration-300 ${
-                              isCompleted ? 'line-through text-gray-400 dark:text-gray-500 font-normal' : 'font-semibold'
-                            }`}>
-                              {item.title}
-                            </span>
+                          <span 
+                            onClick={() => onEditItem(item)}
+                            className={`text-sm text-gray-900 leading-tight block truncate cursor-pointer ${
+                              isCompleted 
+                                ? 'line-through text-gray-400 font-normal' 
+                                : 'font-medium hover:text-[#1D4ED8]'
+                            }`}
+                          >
+                            {item.title}
+                          </span>
+                        </div>
 
-                            {item.recurring && (
-                              <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500" title={`Recorrente: ${item.recurring}`}>
-                                ↺
-                              </span>
-                            )}
-                          </div>
-                          
-                          {/* Note if exists */}
-                          {item.note && (
-                            <p className={`text-xs mt-0.5 truncate ${
-                              isCompleted ? 'text-gray-400' : 'text-gray-500'
-                            }`}>
-                              {item.note}
-                            </p>
-                          )}
+                        {/* 4. Categoria */}
+                        {cat && (
+                          <span 
+                            className="text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0"
+                            style={{ color: cat.color, backgroundColor: `${cat.color}12` }}
+                          >
+                            {cat.name}
+                          </span>
+                        )}
 
-                          {/* Metadata row: maximum 2 items */}
-                          <div className="flex items-center gap-2 mt-1.5">
-                            {/* Metadata 1: Time */}
-                            {item.time && (
-                              <span className="font-mono text-[10px] font-semibold text-brand-accent dark:text-brand-accent-dark tracking-wide tabular-nums">
-                                {item.time}
-                              </span>
-                            )}
-                            {/* Metadata 2: Category (only if present) */}
-                            {cat && (
-                              <>
-                                {item.time && <span className="text-gray-300 dark:text-gray-700 text-[10px]">•</span>}
-                                <span 
-                                  className="text-[10px] font-medium"
-                                  style={{ color: cat.color }}
-                                >
-                                  {cat.name}
-                                </span>
-                              </>
-                            )}
-                          </div>
+                        {/* 5. Prioridade */}
+                        <div className="flex items-center gap-1.5 shrink-0 pl-1">
+                          <span 
+                            className={`w-1.5 h-1.5 rounded-full block ${
+                              item.priority === 'alta' 
+                                ? 'bg-red-500' 
+                                : item.priority === 'baixa'
+                                  ? 'bg-gray-300'
+                                  : 'bg-amber-500'
+                            }`}
+                            title={`Prioridade ${item.priority}`}
+                          />
                         </div>
                       </div>
 
+                      {/* Edit Button */}
                       <button
                         onClick={() => onEditItem(item)}
-                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-dark-inner rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors cursor-pointer"
+                        className="ml-3 p-1 hover:bg-gray-50 rounded-lg text-gray-400 hover:text-gray-600 transition-colors cursor-pointer shrink-0"
                       >
-                        <Edit2 size={14} />
+                        <Edit2 size={12} />
                       </button>
                     </motion.div>
                   );
@@ -402,8 +309,8 @@ export default function HojeTab({
         {/* Untimed Tasks Section */}
         {untimedItems.length > 0 && (
           <div>
-            <div className="text-xs font-mono font-bold text-gray-400 dark:text-[#8A94A6] tracking-widest uppercase mb-3 flex items-center gap-2">
-              <Calendar size={13} className="text-brand-accent dark:text-brand-accent-dark" />
+            <div className="text-[10px] font-mono font-bold text-gray-400 tracking-widest uppercase mb-3 flex items-center gap-2 pl-1">
+              <Calendar size={12} className="text-[#1D4ED8]" />
               <span>OUTROS COMPROMISSOS DO DIA</span>
             </div>
             
@@ -420,79 +327,72 @@ export default function HojeTab({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ duration: 0.2 }}
-                      className={`relative flex items-center justify-between p-4 pl-5 bg-white rounded-2xl border border-[#E2E5EC] shadow-[0_2px_8px_rgba(16,24,40,0.06)] transition-all ${
+                      className={`relative flex items-center justify-between p-3.5 pl-4 bg-white rounded-[14px] border border-[#E2E5EC] shadow-[0_6px_18px_rgba(15,23,42,0.06)] transition-all ${
                         isCompleted 
-                          ? 'opacity-65' 
-                          : 'hover:shadow-md'
+                          ? 'opacity-60' 
+                          : 'hover:border-gray-300'
                       }`}
                     >
-                      {/* Priority left border line indicator */}
-                      <div 
-                        className={`absolute left-0 top-3 bottom-3 w-1 rounded-r-md ${
-                          item.priority === 'alta' 
-                            ? 'bg-[#E23D3D]' 
-                            : item.priority === 'baixa'
-                              ? 'bg-[#B9BFC9]'
-                              : 'bg-[#E8A33D]'
-                        }`}
-                      />
-
                       <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                        {/* Interactive satisfying Checkbox */}
+                        {/* 1. Checkbox */}
                         <button
                           onClick={() => onToggleComplete(item.id, selectedDateStr)}
-                          className={`w-5 h-5 rounded border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
+                          className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all shrink-0 cursor-pointer ${
                             isCompleted 
-                              ? 'bg-emerald-500 border-emerald-600 text-white shadow-inner scale-95 shadow-emerald-700/20' 
-                              : 'border-gray-200 dark:border-dark-border hover:border-brand-accent dark:hover:border-brand-accent-dark text-transparent hover:text-brand-accent dark:hover:text-brand-accent-dark'
+                              ? 'bg-[#1D4ED8] border-[#1D4ED8] text-white' 
+                              : 'border-gray-300 hover:border-[#1D4ED8] text-transparent hover:text-[#1D4ED8]'
                           }`}
                         >
-                          <Check size={12} strokeWidth={3.5} className={isCompleted ? "block" : "opacity-0 hover:opacity-100"} />
+                          <Check size={11} strokeWidth={3.5} className="block" />
                         </button>
 
+                        {/* 2. Sem horário - placeholder para alinhamento horizontal se necessário */}
+
+                        {/* 3. Título */}
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-sm font-medium text-gray-900 dark:text-white truncate transition-all duration-300 ${
-                              isCompleted ? 'line-through text-gray-400 dark:text-gray-500 font-normal' : 'font-semibold'
-                            }`}>
-                              {item.title}
-                            </span>
+                          <span 
+                            onClick={() => onEditItem(item)}
+                            className={`text-sm text-gray-900 leading-tight block truncate cursor-pointer ${
+                              isCompleted 
+                                ? 'line-through text-gray-400 font-normal' 
+                                : 'font-medium hover:text-[#1D4ED8]'
+                            }`}
+                          >
+                            {item.title}
+                          </span>
+                        </div>
 
-                            {item.recurring && (
-                              <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500" title={`Recorrente: ${item.recurring}`}>
-                                ↺
-                              </span>
-                            )}
-                          </div>
-                          
-                          {/* Note if exists */}
-                          {item.note && (
-                            <p className={`text-xs mt-0.5 truncate ${
-                              isCompleted ? 'text-gray-400' : 'text-gray-500'
-                            }`}>
-                              {item.note}
-                            </p>
-                          )}
+                        {/* 4. Categoria */}
+                        {cat && (
+                          <span 
+                            className="text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0"
+                            style={{ color: cat.color, backgroundColor: `${cat.color}12` }}
+                          >
+                            {cat.name}
+                          </span>
+                        )}
 
-                          {/* Metadata row: maximum 2 items */}
-                          <div className="flex items-center gap-2 mt-1.5">
-                            {cat && (
-                              <span 
-                                className="text-[10px] font-medium"
-                                style={{ color: cat.color }}
-                              >
-                                {cat.name}
-                              </span>
-                            )}
-                          </div>
+                        {/* 5. Prioridade */}
+                        <div className="flex items-center gap-1.5 shrink-0 pl-1">
+                          <span 
+                            className={`w-1.5 h-1.5 rounded-full block ${
+                              item.priority === 'alta' 
+                                ? 'bg-red-500' 
+                                : item.priority === 'baixa'
+                                  ? 'bg-gray-300'
+                                  : 'bg-amber-500'
+                            }`}
+                            title={`Prioridade ${item.priority}`}
+                          />
                         </div>
                       </div>
 
+                      {/* Edit Button */}
                       <button
                         onClick={() => onEditItem(item)}
-                        className="p-1.5 hover:bg-gray-100 dark:hover:bg-dark-inner rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors cursor-pointer"
+                        className="ml-3 p-1 hover:bg-gray-50 rounded-lg text-gray-400 hover:text-gray-600 transition-colors cursor-pointer shrink-0"
                       >
-                        <Edit2 size={14} />
+                        <Edit2 size={12} />
                       </button>
                     </motion.div>
                   );

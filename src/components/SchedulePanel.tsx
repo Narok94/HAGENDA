@@ -75,18 +75,18 @@ export default function SchedulePanel({ items, categories, onTaskClick }: Schedu
     <div className="w-full space-y-4">
       {/* HERO GRADIENT CARD (Horus style) */}
       <div 
-        style={{ background: 'linear-gradient(135deg, #101B3D 0%, #1B4F91 45%, #0EA5B7 100%)' }}
-        className="text-white rounded-[20px] p-5 shadow-lg relative overflow-hidden flex flex-col justify-between min-h-[160px]"
+        style={{ background: 'linear-gradient(135deg, #163A8A 0%, #1D4ED8 50%, #0F2E63 100%)' }}
+        className="text-white rounded-[18px] p-5 shadow-[0_6px_20px_rgba(29,78,216,0.12)] relative overflow-hidden flex flex-col justify-between min-h-[160px]"
       >
         {/* Subtle mesh background accent */}
         <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:12px_12px]"></div>
         
         {/* Top bar with tag */}
         <div className="flex items-center justify-between relative z-10">
-          <span className="bg-white/15 backdrop-blur-md text-[10px] font-mono font-bold tracking-widest px-2.5 py-1 rounded text-cyan-200">
+          <span className="bg-white/15 backdrop-blur-md text-[10px] font-mono font-bold tracking-widest px-2.5 py-1 rounded-[12px] text-blue-100">
             {isFeaturedToday ? 'TREINO DE HOJE' : 'PRÓXIMO COMPROMISSO'}
           </span>
-          <span className="text-xs font-mono font-medium text-white/75 tabular-nums">
+          <span className="text-[10px] font-mono font-bold text-blue-200/90 tabular-nums uppercase tracking-wider">
             {todayRemainingCount} pendente{todayRemainingCount !== 1 ? 's' : ''} hoje
           </span>
         </div>
@@ -100,34 +100,34 @@ export default function SchedulePanel({ items, categories, onTaskClick }: Schedu
             >
               <div className="flex items-baseline gap-2">
                 {featuredItem.time && (
-                  <span className="text-xs font-mono font-bold text-cyan-300 bg-black/20 px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
+                  <span className="text-[10px] font-mono font-bold text-white bg-black/20 px-2 py-0.5 rounded-[12px] flex items-center gap-1 shrink-0">
                     <Clock size={10} />
                     {featuredItem.time}
                   </span>
                 )}
                 {!isFeaturedToday && (
-                  <span className="text-[10px] font-mono text-cyan-300">
-                    {new Date(featuredItem.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}
+                  <span className="text-[10px] font-mono text-blue-200 font-bold">
+                    {new Date(featuredItem.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }).toUpperCase()}
                   </span>
                 )}
               </div>
               
-              <h3 className="font-display font-black text-lg md:text-xl text-white tracking-tight mt-1.5 line-clamp-2 leading-snug group-hover:text-cyan-200 transition-colors">
-                {featuredItem.title.toUpperCase()}
+              <h3 className="font-sans font-extrabold text-base sm:text-lg text-white tracking-tight mt-1.5 line-clamp-2 leading-snug group-hover:text-blue-100 transition-colors">
+                {featuredItem.title}
               </h3>
               
               {featuredItem.note && (
-                <p className="text-xs text-white/70 line-clamp-1 font-sans mt-1">
+                <p className="text-xs text-white/75 line-clamp-1 font-sans mt-1 font-medium">
                   {featuredItem.note}
                 </p>
               )}
             </div>
           ) : (
             <div>
-              <h3 className="font-display font-black text-lg text-white tracking-tight leading-snug uppercase">
+              <h3 className="font-sans font-extrabold text-base text-white tracking-tight leading-snug uppercase">
                 AGENDA CONCLUÍDA!
               </h3>
-              <p className="text-xs text-cyan-200 mt-1 font-sans">
+              <p className="text-xs text-blue-100 mt-1 font-sans font-medium">
                 Você não tem mais compromissos pendentes.
               </p>
             </div>
@@ -137,8 +137,8 @@ export default function SchedulePanel({ items, categories, onTaskClick }: Schedu
         {/* Bottom bar with status summary */}
         <div className="flex items-center justify-between border-t border-white/10 pt-3 relative z-10">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-            <span className="text-[10px] font-mono text-cyan-100 uppercase tracking-wider">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="text-[10px] font-mono text-blue-100 font-bold uppercase tracking-wider">
               {todayCompleted} de {todayItems.length} concluídos
             </span>
           </div>
@@ -146,9 +146,9 @@ export default function SchedulePanel({ items, categories, onTaskClick }: Schedu
           {featuredItem && onTaskClick && (
             <button 
               onClick={() => onTaskClick(featuredItem.id)}
-              className="text-xs font-mono font-bold text-white flex items-center gap-1 hover:text-cyan-200 transition-colors cursor-pointer"
+              className="text-[10px] font-sans font-bold text-white flex items-center gap-1 hover:text-blue-100 transition-colors cursor-pointer uppercase tracking-wider"
             >
-              <span>DETALHES</span>
+              <span>Detalhes</span>
               <ArrowRight size={12} />
             </button>
           )}

@@ -89,19 +89,19 @@ export default function QuickAddModal({
       ></div>
  
       {/* Modal Dialog */}
-      <div className="bg-white border border-[#E2E5EC] text-gray-900 rounded-xl shadow-[0_10px_30px_rgba(16,24,40,0.12)] w-full max-w-lg overflow-hidden relative z-10 animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white border border-[#E2E5EC] text-gray-900 rounded-[18px] shadow-[0_10px_30px_rgba(15,23,42,0.08)] w-full max-w-lg overflow-hidden relative z-10 animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-200 dark:border-dark-border px-5 py-4 bg-gray-50 dark:bg-dark-inner">
-          <h2 className="font-display font-semibold text-base tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-brand-accent dark:bg-brand-accent-dark animate-pulse"></span>
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 bg-gray-50/50">
+          <h2 className="font-sans font-bold text-sm tracking-tight text-gray-900 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#1D4ED8] animate-pulse"></span>
             {editingItem ? 'EDITAR COMPROMISSO' : 'NOVO COMPROMISSO'}
           </h2>
           <button 
             onClick={onClose}
-            className="p-1 hover:bg-gray-200 dark:hover:bg-dark-hover rounded text-[#8A94A6] hover:text-gray-900 dark:hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 hover:bg-gray-100 rounded-lg text-[#8A94A6] hover:text-gray-900 transition-colors cursor-pointer"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
  
@@ -110,7 +110,7 @@ export default function QuickAddModal({
           
           {/* Title */}
           <div>
-            <label className="block text-xs font-mono uppercase text-gray-500 dark:text-[#8A94A6] tracking-wider mb-1">Título do Item</label>
+            <label className="block text-[10px] font-mono font-bold uppercase text-gray-400 tracking-widest mb-1.5 pl-0.5">Título do Item</label>
             <input
               ref={titleInputRef}
               type="text"
@@ -118,15 +118,15 @@ export default function QuickAddModal({
               placeholder="Ex: Alinhamento trimestral com a diretoria"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-dark-inner border border-gray-200 dark:border-dark-border rounded-lg px-3.5 py-2 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-[#4E5A6C] focus:outline-none focus:border-brand-accent dark:focus:border-brand-accent-dark text-sm transition-colors"
+              className="w-full bg-gray-50 border border-gray-200 rounded-[14px] px-3.5 py-2.5 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#1D4ED8] text-sm transition-colors"
             />
           </div>
  
           {/* Date & Time Grid */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3.5">
             <div>
-              <label className="text-xs font-mono uppercase text-gray-500 dark:text-[#8A94A6] tracking-wider mb-1 flex items-center gap-1.5">
-                <Calendar size={12} className="text-brand-accent dark:text-brand-accent-dark" />
+              <label className="text-[10px] font-mono font-bold uppercase text-gray-400 tracking-widest mb-1.5 pl-0.5 flex items-center gap-1.5">
+                <Calendar size={12} className="text-[#1D4ED8]" />
                 Data
               </label>
               <input
@@ -134,34 +134,34 @@ export default function QuickAddModal({
                 required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-dark-inner border border-gray-200 dark:border-dark-border rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:outline-none focus:border-brand-accent dark:focus:border-brand-accent-dark text-sm font-mono transition-colors"
+                className="w-full bg-gray-50 border border-gray-200 rounded-[14px] px-3.5 py-2.5 text-gray-900 focus:outline-none focus:border-[#1D4ED8] text-sm font-mono transition-colors"
               />
             </div>
             <div>
-              <label className="text-xs font-mono uppercase text-gray-500 dark:text-[#8A94A6] tracking-wider mb-1 flex items-center gap-1.5">
-                <Clock size={12} className="text-brand-accent dark:text-brand-accent-dark" />
-                Horário <span className="text-[10px] text-gray-400 dark:text-gray-500 font-normal">(Opcional)</span>
+              <label className="text-[10px] font-mono font-bold uppercase text-gray-400 tracking-widest mb-1.5 pl-0.5 flex items-center gap-1.5">
+                <Clock size={12} className="text-[#1D4ED8]" />
+                Horário <span className="text-[9px] text-gray-400 font-normal lowercase">(opcional)</span>
               </label>
               <input
                 type="time"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-dark-inner border border-gray-200 dark:border-dark-border rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:outline-none focus:border-brand-accent dark:focus:border-brand-accent-dark text-sm font-mono transition-colors"
+                className="w-full bg-gray-50 border border-gray-200 rounded-[14px] px-3.5 py-2.5 text-gray-900 focus:outline-none focus:border-[#1D4ED8] text-sm font-mono transition-colors"
               />
             </div>
           </div>
  
           {/* Category & Priority Grid */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3.5">
             <div>
-              <label className="text-xs font-mono uppercase text-gray-500 dark:text-[#8A94A6] tracking-wider mb-1 flex items-center gap-1.5">
-                <Tag size={12} className="text-brand-accent dark:text-brand-accent-dark" />
+              <label className="text-[10px] font-mono font-bold uppercase text-gray-400 tracking-widest mb-1.5 pl-0.5 flex items-center gap-1.5">
+                <Tag size={12} className="text-[#1D4ED8]" />
                 Categoria
               </label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-dark-inner border border-gray-200 dark:border-dark-border rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:outline-none focus:border-brand-accent dark:focus:border-brand-accent-dark text-sm transition-colors"
+                className="w-full bg-gray-50 border border-gray-200 rounded-[14px] px-3.5 py-2.5 text-gray-900 focus:outline-none focus:border-[#1D4ED8] text-sm transition-colors cursor-pointer"
               >
                 <option value="">Sem Categoria</option>
                 {categories.map(cat => (
@@ -173,14 +173,14 @@ export default function QuickAddModal({
             </div>
             
             <div>
-              <label className="text-xs font-mono uppercase text-gray-500 dark:text-[#8A94A6] tracking-wider mb-1 flex items-center gap-1.5">
-                <AlertTriangle size={12} className="text-brand-accent dark:text-brand-accent-dark" />
+              <label className="text-[10px] font-mono font-bold uppercase text-gray-400 tracking-widest mb-1.5 pl-0.5 flex items-center gap-1.5">
+                <AlertTriangle size={12} className="text-[#1D4ED8]" />
                 Prioridade
               </label>
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as any)}
-                className="w-full bg-gray-50 dark:bg-dark-inner border border-gray-200 dark:border-dark-border rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:outline-none focus:border-brand-accent dark:focus:border-brand-accent-dark text-sm transition-colors"
+                className="w-full bg-gray-50 border border-gray-200 rounded-[14px] px-3.5 py-2.5 text-gray-900 focus:outline-none focus:border-[#1D4ED8] text-sm transition-colors cursor-pointer"
               >
                 <option value="baixa">Baixa</option>
                 <option value="média">Média</option>
@@ -191,8 +191,8 @@ export default function QuickAddModal({
  
           {/* Recurrence Selection */}
           <div>
-            <label className="text-xs font-mono uppercase text-gray-500 dark:text-[#8A94A6] tracking-wider mb-1 flex items-center gap-1.5">
-              <RefreshCw size={12} className="text-brand-accent dark:text-brand-accent-dark" />
+            <label className="text-[10px] font-mono font-bold uppercase text-gray-400 tracking-widest mb-1.5 pl-0.5 flex items-center gap-1.5">
+              <RefreshCw size={12} className="text-[#1D4ED8]" />
               Recorrência
             </label>
             <div className="grid grid-cols-4 gap-2">
@@ -206,10 +206,10 @@ export default function QuickAddModal({
                   key={String(opt.value)}
                   type="button"
                   onClick={() => setRecurring(opt.value as any)}
-                  className={`py-1.5 px-1 text-xs font-mono rounded-lg border transition-all cursor-pointer ${
+                  className={`py-2 px-1 text-xs font-mono rounded-[12px] border transition-all cursor-pointer ${
                     recurring === opt.value
-                      ? 'bg-brand-accent/15 border-brand-accent text-brand-accent dark:bg-brand-accent-dark/15 dark:border-brand-accent-dark dark:text-brand-accent-dark font-semibold'
-                      : 'bg-gray-50 dark:bg-dark-inner border-gray-200 dark:border-dark-border text-gray-500 dark:text-[#8A94A6] hover:bg-gray-100 dark:hover:bg-dark-hover hover:text-gray-900 dark:hover:text-white'
+                      ? 'bg-blue-50 border-[#1D4ED8] text-[#1D4ED8] font-bold shadow-[0_2px_6px_rgba(29,78,216,0.03)]'
+                      : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
                   {opt.label}
@@ -220,8 +220,8 @@ export default function QuickAddModal({
  
           {/* Note */}
           <div>
-            <label className="text-xs font-mono uppercase text-gray-500 dark:text-[#8A94A6] tracking-wider mb-1 flex items-center gap-1.5">
-              <FileText size={12} className="text-brand-accent dark:text-brand-accent-dark" />
+            <label className="text-[10px] font-mono font-bold uppercase text-gray-400 tracking-widest mb-1.5 pl-0.5 flex items-center gap-1.5">
+              <FileText size={12} className="text-[#1D4ED8]" />
               Nota Curta
             </label>
             <input
@@ -229,12 +229,12 @@ export default function QuickAddModal({
               placeholder="Ex: Levar documento de identidade impresso"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-dark-inner border border-gray-200 dark:border-dark-border rounded-lg px-3.5 py-2 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-[#4E5A6C] focus:outline-none focus:border-brand-accent dark:focus:border-brand-accent-dark text-sm transition-colors"
+              className="w-full bg-gray-50 border border-gray-200 rounded-[14px] px-3.5 py-2.5 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#1D4ED8] text-sm transition-colors"
             />
           </div>
  
           {/* Actions Footer */}
-          <div className="flex justify-between items-center pt-3 border-t border-gray-200 dark:border-dark-border mt-6">
+          <div className="flex justify-between items-center pt-4 border-t border-gray-100 mt-6">
             <div>
               {editingItem && onDelete && (
                 <button
@@ -245,7 +245,7 @@ export default function QuickAddModal({
                       onClose();
                     }
                   }}
-                  className="px-4 py-2 bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-300 font-mono text-xs uppercase rounded-lg border border-red-200 dark:border-red-900/30 transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-sans text-xs font-semibold rounded-[16px] border border-red-100 transition-colors cursor-pointer"
                 >
                   Excluir
                 </button>
@@ -256,14 +256,14 @@ export default function QuickAddModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 bg-gray-50 dark:bg-dark-inner hover:bg-gray-100 dark:hover:bg-dark-hover border border-gray-200 dark:border-dark-border text-gray-700 dark:text-white font-mono text-xs uppercase rounded-lg transition-colors cursor-pointer"
+                className="px-4 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 font-sans text-xs font-semibold rounded-[16px] transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
               
               <button
                 type="submit"
-                className="px-5 py-2 bg-brand-accent hover:bg-brand-accent-hover dark:bg-brand-accent-dark dark:hover:bg-brand-accent text-white dark:text-dark-bg font-semibold font-mono text-xs uppercase rounded-lg shadow-md transition-all cursor-pointer"
+                className="px-5 py-2 bg-[#1D4ED8] hover:bg-[#163A8A] text-white font-sans font-semibold text-xs rounded-[16px] shadow-sm transition-all cursor-pointer active:scale-98"
               >
                 Salvar
               </button>
