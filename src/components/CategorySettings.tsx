@@ -47,7 +47,7 @@ export default function CategorySettings({
   };
 
   return (
-    <div className="bg-white dark:bg-dark-card p-5 rounded-[20px] border border-gray-100 dark:border-dark-border shadow-sm space-y-6">
+    <div className="bg-white p-5 rounded-[20px] border border-[#E2E5EC] shadow-[0_2px_8px_rgba(16,24,40,0.06)] space-y-6">
       <div>
         <h2 className="font-display font-semibold text-gray-900 dark:text-white flex items-center gap-2 text-sm uppercase tracking-wider">
           <Tag size={16} className="text-brand-accent dark:text-brand-accent-dark" />

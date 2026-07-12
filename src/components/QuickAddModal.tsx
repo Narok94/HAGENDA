@@ -89,7 +89,7 @@ export default function QuickAddModal({
       ></div>
  
       {/* Modal Dialog */}
-      <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border text-gray-900 dark:text-[#E8EAED] rounded-xl shadow-2xl w-full max-w-lg overflow-hidden relative z-10 animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white border border-[#E2E5EC] text-gray-900 rounded-xl shadow-[0_10px_30px_rgba(16,24,40,0.12)] w-full max-w-lg overflow-hidden relative z-10 animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-200 dark:border-dark-border px-5 py-4 bg-gray-50 dark:bg-dark-inner">

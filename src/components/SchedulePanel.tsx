@@ -74,7 +74,10 @@ export default function SchedulePanel({ items, categories, onTaskClick }: Schedu
   return (
     <div className="w-full space-y-4">
       {/* HERO GRADIENT CARD (Horus style) */}
-      <div className="bg-horus-gradient text-white rounded-[20px] p-5 shadow-lg relative overflow-hidden flex flex-col justify-between min-h-[160px]">
+      <div 
+        style={{ background: 'linear-gradient(135deg, #101B3D 0%, #1B4F91 45%, #0EA5B7 100%)' }}
+        className="text-white rounded-[20px] p-5 shadow-lg relative overflow-hidden flex flex-col justify-between min-h-[160px]"
+      >
         {/* Subtle mesh background accent */}
         <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:12px_12px]"></div>
         

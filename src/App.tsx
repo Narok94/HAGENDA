@@ -9,10 +9,10 @@ import QuickAddModal from './components/QuickAddModal';
 import { Sun, Moon, Search, Sparkles, Plus, AlertTriangle, Trash2, CalendarDays, Check, RefreshCw, Settings, Dumbbell, Flag, Bell } from 'lucide-react';
 
 const DEFAULT_CATEGORIES: Category[] = [
-  { id: '1', name: 'Trabalho', color: '#4F46E5' },
-  { id: '2', name: 'Pessoal', color: '#10B981' },
-  { id: '3', name: 'Saúde', color: '#EF4444' },
-  { id: '4', name: 'Estudos', color: '#8B5CF6' }
+  { id: '1', name: 'Trabalho', color: '#5B5FEF' },
+  { id: '2', name: 'Pessoal', color: '#0EA5B7' },
+  { id: '3', name: 'Saúde', color: '#12A66B' },
+  { id: '4', name: 'Estudos', color: '#E8A33D' }
 ];
 
 export default function App() {
@@ -36,6 +36,13 @@ export default function App() {
     if (storedCategories) {
       try {
         loadedCategories = JSON.parse(storedCategories);
+        loadedCategories = loadedCategories.map(cat => {
+          if (cat.id === '1' || cat.name === 'Trabalho') return { ...cat, color: '#5B5FEF' };
+          if (cat.id === '2' || cat.name === 'Pessoal') return { ...cat, color: '#0EA5B7' };
+          if (cat.id === '3' || cat.name === 'Saúde') return { ...cat, color: '#12A66B' };
+          if (cat.id === '4' || cat.name === 'Estudos') return { ...cat, color: '#E8A33D' };
+          return cat;
+        });
       } catch (e) {
         loadedCategories = DEFAULT_CATEGORIES;
       }
@@ -333,28 +340,28 @@ export default function App() {
                 placeholder="Pesquisar..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white dark:bg-[#1B2333] border border-gray-100 dark:border-[#242D3D] rounded-full pl-9 pr-3.5 py-1.5 text-xs text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-brand-accent transition-colors shadow-xs"
+                className="w-full bg-white border border-[#E2E5EC] rounded-full pl-9 pr-3.5 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-accent transition-colors shadow-[0_2px_8px_rgba(16,24,40,0.06)]"
               />
             </div>
 
             <div className="flex items-center gap-2">
               {/* Notification Bell (Circular button with status indicator like in the screenshot) */}
               <button
-                className="relative p-2.5 bg-white dark:bg-[#1B2333] border border-gray-100 dark:border-[#242D3D] rounded-full hover:text-brand-accent transition-all text-gray-500 dark:text-gray-400 shadow-xs cursor-pointer"
+                className="relative p-2.5 bg-white border border-[#E2E5EC] rounded-full hover:text-brand-accent transition-all text-gray-500 shadow-[0_2px_8px_rgba(16,24,40,0.06)] cursor-pointer"
                 title="Notificações"
               >
                 <Bell size={14} className="stroke-2" />
                 {/* Small indicator badge */}
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-brand-accent rounded-full border border-white dark:border-[#1B2333]" />
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-brand-accent rounded-full border border-white" />
               </button>
 
               {/* Open Panel / Settings Toggle (Circular Settings Icon) */}
               <button
                 onClick={() => setActiveTab(activeTab === 'painel' ? 'hoje' : 'painel')}
-                className={`p-2.5 border rounded-full transition-all cursor-pointer shadow-xs ${
+                className={`p-2.5 border rounded-full transition-all cursor-pointer shadow-[0_2px_8px_rgba(16,24,40,0.06)] ${
                   activeTab === 'painel'
-                    ? 'bg-brand-accent/10 border-brand-accent/30 text-brand-accent dark:text-brand-accent-dark'
-                    : 'bg-white dark:bg-[#1B2333] border-gray-100 dark:border-[#242D3D] hover:text-brand-accent text-gray-500 dark:text-gray-400'
+                    ? 'bg-brand-accent/10 border-brand-accent/30 text-brand-accent'
+                    : 'bg-white border-[#E2E5EC] hover:text-brand-accent text-gray-500'
                 }`}
                 title="Abrir Painel"
               >
@@ -368,7 +375,7 @@ export default function App() {
       {/* SEARCH RESULTS BOARD OVERLAY (shown only when searching) */}
       {searchQuery.trim() !== '' && (
         <div className="max-w-7xl mx-auto px-4 sm:px-8 mt-6">
-          <div className="bg-white dark:bg-dark-card border border-gray-100 dark:border-dark-border rounded-[20px] p-5 shadow-xl">
+          <div className="bg-white border border-[#E2E5EC] rounded-[20px] p-5 shadow-[0_2px_8px_rgba(16,24,40,0.06)]">
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-dark-border pb-3 mb-4">
               <div className="flex items-center gap-2">
                 <Search size={16} className="text-brand-gold" />
@@ -548,20 +555,20 @@ export default function App() {
           />
 
           {/* COMPACT GENERAL METRICS & FOOTER CONTROLS */}
-          <div className="bg-white dark:bg-dark-card p-5 rounded-[20px] border border-gray-100 dark:border-dark-border shadow-md dark:shadow-brand-gold/5 text-xs space-y-4">
+          <div className="bg-white p-5 rounded-[20px] border border-[#E2E5EC] shadow-[0_2px_8px_rgba(16,24,40,0.06)] text-xs space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-mono font-bold uppercase text-gray-400 dark:text-[#8A94A6] tracking-wider flex items-center gap-2">
+              <h3 className="font-mono font-bold uppercase text-gray-400 tracking-wider flex items-center gap-2">
                 <Sparkles size={14} className="text-brand-gold" />
                 <span>Painel de Estatísticas</span>
               </h3>
             </div>
             
             <div className="grid grid-cols-2 gap-2 text-center font-mono">
-              <div className="bg-gray-50 dark:bg-dark-inner p-2.5 rounded-xl border border-gray-100 dark:border-dark-border">
+              <div className="bg-gray-50 p-2.5 rounded-xl border border-[#E2E5EC]">
                 <span className="block text-[9px] text-gray-400 uppercase">Total de Itens</span>
                 <span className="text-sm font-bold text-brand-gold text-gold-glow tabular-nums">{items.length}</span>
               </div>
-              <div className="bg-gray-50 dark:bg-dark-inner p-2.5 rounded-xl border border-gray-100 dark:border-dark-border">
+              <div className="bg-gray-50 p-2.5 rounded-xl border border-[#E2E5EC]">
                 <span className="block text-[9px] text-gray-400 uppercase">Concluídos</span>
                 <span className="text-sm font-bold text-emerald-500 tabular-nums">
                   {items.filter(it => it.completed).length}
@@ -569,14 +576,14 @@ export default function App() {
               </div>
             </div>
 
-            <div className="border-t border-gray-100 dark:border-dark-border pt-4 flex flex-col gap-2">
+            <div className="border-t border-[#E2E5EC] pt-4 flex flex-col gap-2">
               <button
                 onClick={() => {
                   setPrefilledDate(undefined);
                   setEditingItem(null);
                   setIsQuickAddOpen(true);
                 }}
-                className="w-full bg-dark-inner hover:bg-dark-hover text-white font-semibold font-mono text-xs uppercase tracking-wider py-2 border border-dark-border hover:border-brand-gold/40 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                className="w-full bg-[#1B4F91] hover:bg-[#101B3D] text-white font-semibold font-sans text-xs uppercase tracking-wider py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
               >
                 <Plus size={13} strokeWidth={2} />
                 <span>NOVO COMPROMISSO</span>
@@ -584,7 +591,7 @@ export default function App() {
 
               <button
                 onClick={handleResetData}
-                className="w-full bg-red-950/15 hover:bg-red-950/30 text-red-400 border border-red-900/20 font-mono text-[10px] uppercase py-2 rounded-xl transition-colors cursor-pointer"
+                className="w-full bg-red-50 hover:bg-red-100 text-[#C21E1E] border border-red-200 font-mono text-[10px] uppercase py-2 rounded-xl transition-colors cursor-pointer"
               >
                 REDEFINIR TODOS OS DADOS
               </button>

@@ -283,18 +283,18 @@ export default function MesTab({
                       key={item.id}
                       className={`group relative p-2.5 pl-3.5 rounded-xl text-left flex items-start gap-2.5 transition-all ${
                         isCompleted
-                          ? 'opacity-60'
-                          : 'bg-white dark:bg-dark-inner border border-gray-100 dark:border-dark-border hover:shadow-xs'
+                          ? 'opacity-60 bg-white border border-gray-100'
+                          : 'bg-white border border-[#E2E5EC] shadow-[0_2px_8px_rgba(16,24,40,0.06)] hover:shadow-md'
                       }`}
                     >
                       {/* Priority left border line indicator */}
                       <div 
                         className={`absolute left-0 top-2 bottom-2 w-0.5 rounded-r-md ${
                           item.priority === 'alta' 
-                            ? 'bg-red-500' 
+                            ? 'bg-[#E23D3D]' 
                             : item.priority === 'baixa'
-                              ? 'bg-brand-accent'
-                              : 'bg-amber-400'
+                              ? 'bg-[#B9BFC9]'
+                              : 'bg-[#E8A33D]'
                         }`}
                       />
 

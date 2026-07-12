@@ -109,7 +109,10 @@ export default function HojeTab({
   return (
     <div className="space-y-6">
       {/* Card do dia (Styled exactly like the workout card in the screenshot) */}
-      <div className="bg-gradient-to-br from-brand-accent via-[#1646C7] to-[#0A1E5C] text-white p-6 rounded-[24px] shadow-lg relative overflow-hidden flex flex-col justify-between min-h-[150px] transition-all">
+      <div 
+        style={{ background: 'linear-gradient(135deg, #101B3D 0%, #1B4F91 45%, #0EA5B7 100%)' }}
+        className="text-white p-6 rounded-[24px] shadow-lg relative overflow-hidden flex flex-col justify-between min-h-[150px] transition-all"
+      >
         {/* Subtle decorative grid/mesh in the background */}
         <div className="absolute inset-0 opacity-5 pointer-events-none bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:12px_12px]" />
         <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
@@ -180,29 +183,29 @@ export default function HojeTab({
 
       {/* OVERDUE SECTION (ATRASADOS) - COLLAPSIBLE BANNER */}
       {overdueItems.length > 0 && (
-        <div className="bg-[#FEECEC] dark:bg-red-950/20 rounded-lg overflow-hidden transition-all duration-200">
+        <div className="bg-[#FDEBEB] border-l-4 border-[#E23D3D] rounded-r-lg overflow-hidden transition-all duration-200">
           <button
             type="button"
             onClick={() => setIsOverdueExpanded(!isOverdueExpanded)}
-            className="w-full flex items-center justify-between px-4 py-1.5 text-[#7F1D1D] dark:text-red-300 transition-colors cursor-pointer text-left"
+            className="w-full flex items-center justify-between px-4 py-2 text-[#C21E1E] transition-colors cursor-pointer text-left"
           >
-            <div className="flex items-center gap-1.5 font-mono text-[11px] font-bold tracking-wide">
+            <div className="flex items-center gap-1.5 font-sans text-xs font-extrabold tracking-wide">
               <span>{overdueItems.length} {overdueItems.length === 1 ? 'COMPROMISSO ATRASADO' : 'COMPROMISSOS ATRASADOS'}</span>
             </div>
-            <span className="text-[9px] font-mono font-bold hover:underline">
+            <span className="text-xs font-sans font-semibold hover:underline">
               {isOverdueExpanded ? 'Recolher' : 'Visualizar'}
             </span>
           </button>
           
           {isOverdueExpanded && (
-            <div className="px-3 pb-2.5 pt-0.5 space-y-1.5 bg-[#FEECEC]/50 dark:bg-black/10">
+            <div className="px-3 pb-2.5 pt-0.5 space-y-1.5 bg-[#FDEBEB]/50">
               {overdueItems.map(item => {
                 const overdueDate = new Date(item.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
                 
                 return (
                   <div 
                     key={item.id}
-                    className="flex items-center justify-between bg-white dark:bg-dark-card px-3 py-1.5 rounded-md shadow-xs transition-colors"
+                    className="flex items-center justify-between bg-white px-3 py-1.5 rounded-lg border border-[#E2E5EC] shadow-[0_2px_8px_rgba(16,24,40,0.06)] transition-colors"
                   >
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <button
@@ -237,7 +240,7 @@ export default function HojeTab({
       )}
 
       {/* QUICK ADD LINE (ALWAYS VISIBLE) - Compacted */}
-      <form onSubmit={handleQuickSubmit} className="bg-white dark:bg-dark-card p-2 rounded-2xl shadow-xs border border-gray-100 dark:border-dark-border flex flex-col sm:flex-row items-center gap-2">
+      <form onSubmit={handleQuickSubmit} className="bg-white p-2 rounded-2xl border border-[#E2E5EC] shadow-[0_2px_8px_rgba(16,24,40,0.06)] flex flex-col sm:flex-row items-center gap-2">
         <div className="relative w-full flex-1">
           <input
             type="text"
@@ -270,7 +273,7 @@ export default function HojeTab({
         
         {/* State Empty Illustration */}
         {todayAllItems.length === 0 && (
-          <div className="bg-white dark:bg-dark-card p-12 rounded-2xl border border-gray-100 dark:border-dark-border flex flex-col items-center justify-center text-center space-y-4">
+          <div className="bg-white p-12 rounded-2xl border border-[#E2E5EC] shadow-[0_2px_8px_rgba(16,24,40,0.06)] flex flex-col items-center justify-center text-center space-y-4">
             <div className="w-16 h-16 rounded-full bg-brand-accent/5 dark:bg-brand-accent-dark/10 flex items-center justify-center text-brand-accent dark:text-brand-accent-dark">
               <Sparkles size={28} />
             </div>
@@ -304,20 +307,20 @@ export default function HojeTab({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ duration: 0.2 }}
-                      className={`relative flex items-center justify-between p-4 pl-5 bg-white dark:bg-dark-card rounded-2xl shadow-xs transition-all ${
+                      className={`relative flex items-center justify-between p-4 pl-5 bg-white rounded-2xl border border-[#E2E5EC] shadow-[0_2px_8px_rgba(16,24,40,0.06)] transition-all ${
                         isCompleted 
                           ? 'opacity-65' 
-                          : 'hover:shadow-sm'
+                          : 'hover:shadow-md'
                       }`}
                     >
                       {/* Priority left border line indicator */}
                       <div 
                         className={`absolute left-0 top-3 bottom-3 w-1 rounded-r-md ${
                           item.priority === 'alta' 
-                            ? 'bg-red-500' 
+                            ? 'bg-[#E23D3D]' 
                             : item.priority === 'baixa'
-                              ? 'bg-brand-accent'
-                              : 'bg-amber-400'
+                              ? 'bg-[#B9BFC9]'
+                              : 'bg-[#E8A33D]'
                         }`}
                       />
 
@@ -417,20 +420,20 @@ export default function HojeTab({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ duration: 0.2 }}
-                      className={`relative flex items-center justify-between p-4 pl-5 bg-white dark:bg-dark-card rounded-2xl shadow-xs transition-all ${
+                      className={`relative flex items-center justify-between p-4 pl-5 bg-white rounded-2xl border border-[#E2E5EC] shadow-[0_2px_8px_rgba(16,24,40,0.06)] transition-all ${
                         isCompleted 
                           ? 'opacity-65' 
-                          : 'hover:shadow-sm'
+                          : 'hover:shadow-md'
                       }`}
                     >
                       {/* Priority left border line indicator */}
                       <div 
                         className={`absolute left-0 top-3 bottom-3 w-1 rounded-r-md ${
                           item.priority === 'alta' 
-                            ? 'bg-red-500' 
+                            ? 'bg-[#E23D3D]' 
                             : item.priority === 'baixa'
-                              ? 'bg-brand-accent'
-                              : 'bg-amber-400'
+                              ? 'bg-[#B9BFC9]'
+                              : 'bg-[#E8A33D]'
                         }`}
                       />
 
