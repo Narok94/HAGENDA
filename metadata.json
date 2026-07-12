@@ -1,0 +1,6 @@
+{
+  "name": "Agenda Pessoal",
+  "description": "Uma agenda e gerenciador de tarefas pessoal com três níveis de zoom no tempo (Dia, Semana, Mês), painel de horários interativo, e customização completa de categorias e recorrências.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
