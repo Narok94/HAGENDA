@@ -7,6 +7,7 @@ import MesTab from './components/MesTab';
 import CategorySettings from './components/CategorySettings';
 import QuickAddModal from './components/QuickAddModal';
 import { Sun, Moon, Search, Sparkles, Plus, AlertTriangle, Trash2, CalendarDays, Check, RefreshCw, Settings, Dumbbell, Flag, Bell } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 const DEFAULT_CATEGORIES: Category[] = [
   { id: '1', name: 'Trabalho', color: '#5B5FEF' },
@@ -27,6 +28,20 @@ export default function App() {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [prefilledDate, setPrefilledDate] = useState<string | undefined>(undefined);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
+
+  // New states for Settings dropdown and Sleep (Soninho) alert
+  const [isSettingsDropdownOpen, setIsSettingsDropdownOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+  const [simulatedTime, setSimulatedTime] = useState<string | null>(null);
+  const [ignoredSoninhoAlerts, setIgnoredSoninhoAlerts] = useState<string[]>([]);
+
+  // Clock Ticker
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 10000); // Update clock every 10 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   // Initialize and load from LocalStorage
   useEffect(() => {
@@ -121,6 +136,17 @@ export default function App() {
           priority: 'média',
           note: 'Revisar anotações da aula de terça-feira.',
           completed: false // This triggers the Overdue warning naturally!
+        },
+        {
+          id: 'sample-6',
+          title: 'Hora do Soninho 💤',
+          date: todayStr,
+          time: '22:30',
+          category: '3', // Saúde
+          priority: 'média',
+          note: 'Desligar as telas, preparar o chá e ler um livro para relaxar.',
+          completed: false,
+          recurring: 'diario'
         }
       ];
       localStorage.setItem('agenda_pessoal_items_v1', JSON.stringify(loadedItems));
@@ -283,6 +309,161 @@ export default function App() {
     }
   };
 
+  // Helper to check if a recurring item falls on a date
+  const isItemRecurringOnDate = (item: Item, dateStr: string): boolean => {
+    if (!item.recurring) return item.date === dateStr;
+    if (item.date > dateStr) return false; // Starts in the future
+    
+    const itemDate = new Date(item.date + 'T00:00:00');
+    const targetDate = new Date(dateStr + 'T00:00:00');
+    
+    if (item.recurring === 'diario') {
+      return true;
+    }
+    if (item.recurring === 'semanal') {
+      return itemDate.getDay() === targetDate.getDay();
+    }
+    if (item.recurring === 'mensal') {
+      return itemDate.getDate() === targetDate.getDate();
+    }
+    return false;
+  };
+
+  // Get active, uncompleted sleep item that is currently approaching its time
+  const getApproachingSoninho = (itemsList: Item[]) => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    // Find sleep-related items for today
+    const sleepItems = itemsList.filter(item => {
+      if (item.completed || ignoredSoninhoAlerts.includes(item.id)) return false;
+      
+      const titleLower = item.title.toLowerCase();
+      const isSleep = titleLower.includes('sono') || titleLower.includes('dormir') || titleLower.includes('sleep');
+      if (!isSleep) return false;
+      
+      return item.date === todayStr || (item.recurring && isItemRecurringOnDate(item, todayStr));
+    });
+
+    if (sleepItems.length === 0) return null;
+
+    // Get current hours and minutes (simulated or real)
+    let currentHours: number;
+    let currentMinutes: number;
+    if (simulatedTime) {
+      const [sh, sm] = simulatedTime.split(':').map(Number);
+      currentHours = sh;
+      currentMinutes = sm;
+    } else {
+      currentHours = currentTime.getHours();
+      currentMinutes = currentTime.getMinutes();
+    }
+    
+    const currentTotalMin = currentHours * 60 + currentMinutes;
+
+    for (const item of sleepItems) {
+      if (!item.time) continue;
+      const [ih, im] = item.time.split(':').map(Number);
+      const itemTotalMin = ih * 60 + im;
+
+      const diff = itemTotalMin - currentTotalMin;
+      
+      // Trigger if current time is within 60 mins before, or up to 30 mins after
+      if (diff >= -30 && diff <= 60) {
+        return { item, minutesRemaining: diff };
+      }
+    }
+
+    return null;
+  };
+
+  // Set simulation to test the sleep alert
+  const handleTestSoninhoAlert = () => {
+    // 1. Check if there's a sleep-related item
+    let sleepItem = items.find(item => {
+      const titleLower = item.title.toLowerCase();
+      return titleLower.includes('sono') || titleLower.includes('dormir') || titleLower.includes('sleep');
+    });
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    if (!sleepItem) {
+      // 2. Create one if none exists!
+      const newSleepItem: Item = {
+        id: 'simulated-sleep-' + Date.now(),
+        title: 'Hora do Soninho 💤',
+        date: todayStr,
+        time: '22:30',
+        category: '3', // Saúde
+        priority: 'média',
+        note: 'Desligar as telas, preparar o chá e ler um livro para relaxar.',
+        completed: false,
+        recurring: 'diario'
+      };
+      
+      const updated = [newSleepItem, ...items];
+      setItems(updated);
+      localStorage.setItem('agenda_pessoal_items_v1', JSON.stringify(updated));
+      sleepItem = newSleepItem;
+    } else {
+      // If found but completed, make it active
+      if (sleepItem.completed) {
+        const updated = items.map(it => {
+          if (it.id === sleepItem!.id) {
+            return { ...it, completed: false };
+          }
+          return it;
+        });
+        setItems(updated);
+        localStorage.setItem('agenda_pessoal_items_v1', JSON.stringify(updated));
+        sleepItem = { ...sleepItem, completed: false };
+      }
+    }
+
+    // 3. Set the simulated time to exactly 15 minutes before the task!
+    if (sleepItem.time) {
+      const [h, m] = sleepItem.time.split(':').map(Number);
+      let targetMin = h * 60 + m - 15;
+      if (targetMin < 0) targetMin += 24 * 60;
+      
+      const simH = Math.floor(targetMin / 60).toString().padStart(2, '0');
+      const simM = (targetMin % 60).toString().padStart(2, '0');
+      
+      // Remove from ignored so it pops up
+      setIgnoredSoninhoAlerts(prev => prev.filter(id => id !== sleepItem!.id));
+      setSimulatedTime(`${simH}:${simM}`);
+    }
+  };
+
+  // Control functions for sleep alert
+  const handleSnoozeSleepAlert = (itemId: string) => {
+    const updated = items.map(it => {
+      if (it.id === itemId && it.time) {
+        const [h, m] = it.time.split(':').map(Number);
+        let newMin = h * 60 + m + 15;
+        if (newMin >= 24 * 60) newMin -= 24 * 60;
+        const newH = Math.floor(newMin / 60).toString().padStart(2, '0');
+        const newM = (newMin % 60).toString().padStart(2, '0');
+        return { ...it, time: `${newH}:${newM}` };
+      }
+      return it;
+    });
+    setItems(updated);
+    localStorage.setItem('agenda_pessoal_items_v1', JSON.stringify(updated));
+    setSimulatedTime(null);
+  };
+
+  const handleCompleteSleepAlert = (itemId: string) => {
+    const updated = items.map(it => {
+      if (it.id === itemId) {
+        return { ...it, completed: true };
+      }
+      return it;
+    });
+    setItems(updated);
+    localStorage.setItem('agenda_pessoal_items_v1', JSON.stringify(updated));
+    setSimulatedTime(null);
+  };
+
   // Global search filtering
   const todayStr = new Date().toISOString().split('T')[0];
   const searchResults = searchQuery.trim() 
@@ -303,7 +484,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-[100dvh] md:h-auto md:min-h-screen bg-white text-[#1A1F2B] dark:bg-white dark:text-[#1A1F2B] transition-colors duration-200 font-sans flex flex-col overflow-hidden md:overflow-visible">
+    <div className="h-[100dvh] w-screen bg-white text-[#1A1F2B] dark:bg-white dark:text-[#1A1F2B] transition-colors duration-200 font-sans flex flex-col overflow-hidden">
       
       {/* GLOBAL HEADER BAR - Styled exactly like the screenshot with profile avatar, personalized title, notification bell & settings toggles */}
       <header className="shrink-0 z-40 bg-white dark:bg-white px-4 pt-6 pb-4 sm:px-8">
@@ -355,18 +536,72 @@ export default function App() {
                 <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-brand-accent rounded-full border border-white" />
               </button>
 
-              {/* Open Panel / Settings Toggle (Circular Settings Icon) */}
-              <button
-                onClick={() => setActiveTab(activeTab === 'painel' ? 'hoje' : 'painel')}
-                className={`p-2.5 border rounded-full transition-all cursor-pointer shadow-[0_2px_8px_rgba(16,24,40,0.06)] ${
-                  activeTab === 'painel'
-                    ? 'bg-brand-accent/10 border-brand-accent/30 text-brand-accent'
-                    : 'bg-white border-[#E2E5EC] hover:text-brand-accent text-gray-500'
-                }`}
-                title="Abrir Painel"
-              >
-                <Settings size={14} className="stroke-2" />
-              </button>
+              {/* Settings Dropdown Container */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsSettingsDropdownOpen(!isSettingsDropdownOpen)}
+                  className={`p-2.5 border rounded-full transition-all cursor-pointer shadow-[0_2px_8px_rgba(16,24,40,0.06)] ${
+                    isSettingsDropdownOpen
+                      ? 'bg-brand-accent text-white border-brand-accent shadow-md'
+                      : 'bg-white border-[#E2E5EC] hover:text-brand-accent text-gray-500'
+                  }`}
+                  title="Configurações"
+                >
+                  <Settings size={14} className="stroke-2" />
+                </button>
+                
+                {isSettingsDropdownOpen && (
+                  <>
+                    {/* Backdrop to dismiss on click outside */}
+                    <div 
+                      className="fixed inset-0 z-40 cursor-default"
+                      onClick={() => setIsSettingsDropdownOpen(false)}
+                    />
+                    
+                    <div className="absolute right-0 mt-2 w-56 bg-white border border-[#E2E5EC] rounded-2xl shadow-[0_10px_30px_rgba(16,24,40,0.12)] py-2 z-50 animate-in fade-in slide-in-from-top-3 duration-150">
+                      <div className="px-4 py-2 border-b border-gray-100 pb-1.5 mb-1.5">
+                        <span className="block text-[10px] font-mono font-bold tracking-wider text-gray-400 uppercase">Configurações</span>
+                      </div>
+                      
+                      {/* Option 1: Toggle stats panel */}
+                      <button
+                        onClick={() => {
+                          setActiveTab(activeTab === 'painel' ? 'hoje' : 'painel');
+                          setIsSettingsDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-xs font-semibold text-gray-700 flex items-center gap-2 transition-colors cursor-pointer"
+                      >
+                        <Sparkles size={14} className="text-brand-gold shrink-0" />
+                        <span>{activeTab === 'painel' ? 'Ver Agenda' : 'Abrir Painel de Estatísticas'}</span>
+                      </button>
+
+                      {/* Option 2: Test soninho alert */}
+                      <button
+                        onClick={() => {
+                          handleTestSoninhoAlert();
+                          setIsSettingsDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-xs font-semibold text-gray-700 flex items-center gap-2 transition-colors cursor-pointer"
+                      >
+                        <Moon size={14} className="text-indigo-500 shrink-0" />
+                        <span>💤 Testar Alerta do Soninho</span>
+                      </button>
+
+                      {/* Option 3: Reset data */}
+                      <button
+                        onClick={() => {
+                          handleResetData();
+                          setIsSettingsDropdownOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-2.5 hover:bg-red-50 text-xs font-semibold text-[#C21E1E] flex items-center gap-2 transition-colors cursor-pointer border-t border-gray-100 mt-1.5 pt-2"
+                      >
+                        <Trash2 size={14} className="shrink-0" />
+                        <span>Redefinir Todos os Dados</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -461,6 +696,78 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* SONINHO ALERT BAR - Sliding in beautifully if a sleep-related task is approaching */}
+      <AnimatePresence>
+        {(() => {
+          const alertInfo = getApproachingSoninho(items);
+          if (!alertInfo) return null;
+          const { item, minutesRemaining } = alertInfo;
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: -20, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: -20, height: 0 }}
+              className="max-w-7xl w-full mx-auto px-4 sm:px-8 mt-2 overflow-hidden shrink-0"
+            >
+              <div 
+                className="rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border border-amber-500/20 text-white relative shadow-[0_10px_25px_-5px_rgba(15,23,42,0.3),0_0_15px_rgba(245,158,11,0.15)] overflow-hidden"
+                style={{ background: 'linear-gradient(135deg, #0B0F19 0%, #172554 100%)' }}
+              >
+                {/* Micro stars particles for cozy look */}
+                <div className="absolute inset-0 opacity-15 pointer-events-none bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]"></div>
+                
+                <div className="flex items-start gap-3.5 relative z-10">
+                  <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-400/20 flex items-center justify-center text-amber-300 shrink-0 animate-pulse">
+                    <Moon size={20} className="stroke-[1.5]" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-mono font-bold text-amber-300 tracking-wider uppercase bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                        ✨ Hora do Descanso
+                      </span>
+                      {simulatedTime && (
+                        <span className="text-[9px] font-mono text-cyan-300 bg-cyan-950/40 border border-cyan-800/30 px-2 py-0.5 rounded-full">
+                          Modo de Teste
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-sm font-bold text-white mt-1">
+                      O seu soninho está se aproximando!
+                    </h3>
+                    <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                      Seu compromisso <strong className="text-white">"{item.title}"</strong> está agendado para as <span className="text-amber-300 font-mono font-bold">{item.time}</span> ({minutesRemaining > 0 ? `faltam ${minutesRemaining} minutos` : 'está no horário!'}). Comece a desacelerar, desligue as telas e relaxe.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 relative z-10 self-end md:self-center shrink-0">
+                  <button
+                    onClick={() => handleCompleteSleepAlert(item.id)}
+                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-sans font-bold text-xs px-3.5 py-2 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Check size={14} strokeWidth={2.5} />
+                    <span>Concluir</span>
+                  </button>
+                  <button
+                    onClick={() => handleSnoozeSleepAlert(item.id)}
+                    className="bg-white/10 hover:bg-white/15 text-white border border-white/10 font-sans font-semibold text-xs px-3.5 py-2 rounded-xl transition-colors active:scale-95 cursor-pointer"
+                  >
+                    Adiar 15 min
+                  </button>
+                  <button
+                    onClick={() => setIgnoredSoninhoAlerts(prev => [...prev, item.id])}
+                    className="text-[11px] text-slate-400 hover:text-white px-2 py-2 transition-colors cursor-pointer"
+                    title="Ignorar alerta"
+                  >
+                    Dispensar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
 
       {/* CORE ZOOM LEVEL NAVIGATION TABS - Blended layout */}
       <nav className="shrink-0 bg-white dark:bg-white px-4 sm:px-8 pb-1">

@@ -41,6 +41,9 @@ html, body {
   body {
     @apply font-sans antialiased transition-colors duration-200 bg-white text-[#1A1F2B] dark:bg-white dark:text-[#1A1F2B];
   }
+  input, textarea, select {
+    font-size: 16px !important;
+  }
 }
 
 /* Horus Hero Gradient - Royal Blue & Premium Indigo to match screenshot */
