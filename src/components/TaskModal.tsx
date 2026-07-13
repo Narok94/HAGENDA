@@ -22,6 +22,8 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
   const [icon, setIcon] = useState(task?.icon || 'Circle');
   const [priority, setPriority] = useState(task?.priority || false);
   const [notes, setNotes] = useState(task?.notes || '');
+  const [recurrence, setRecurrence] = useState<'none' | 'semanal' | 'mensal'>(task?.recurrence || 'none');
+  const [recurrenceDay, setRecurrenceDay] = useState(task?.recurrenceDay || '1');
 
   const handleSave = () => {
     if (!title.trim()) return;
@@ -36,6 +38,8 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
       priority,
       notes,
       completed: task?.completed || false,
+      recurrence,
+      recurrenceDay: recurrence !== 'none' ? recurrenceDay : undefined,
     });
   };
 
@@ -197,6 +201,95 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
                <span className="text-sm font-medium text-[#A1A1AA]">Ícone selecionado</span>
             </div>
           )}
+
+          {/* Recorrência */}
+          <div className="bg-[#0F1115] p-4 rounded-[16px] border border-white/5 space-y-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-[#A1A1AA]">Recorrência</label>
+              {isEditing ? (
+                <select
+                  value={recurrence}
+                  onChange={(e) => {
+                    const val = e.target.value as 'none' | 'semanal' | 'mensal';
+                    setRecurrence(val);
+                    if (val === 'semanal') {
+                      setRecurrenceDay('1'); // Segunda por padrão
+                    } else if (val === 'mensal') {
+                      setRecurrenceDay('1'); // Dia 1 por padrão
+                    }
+                  }}
+                  className="bg-[#171A21] border border-white/5 rounded-[12px] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C5CFF] transition-colors w-full"
+                >
+                  <option value="none">Não se repete</option>
+                  <option value="semanal">Semanal</option>
+                  <option value="mensal">Mensal</option>
+                </select>
+              ) : (
+                <p className="text-sm text-white">
+                  {recurrence === 'none' && 'Não se repete'}
+                  {recurrence === 'semanal' && 'Repete semanalmente'}
+                  {recurrence === 'mensal' && 'Repete mensalmente'}
+                </p>
+              )}
+            </div>
+
+            {recurrence === 'semanal' && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-[#A1A1AA]">Dia da Semana</label>
+                {isEditing ? (
+                  <select
+                    value={recurrenceDay}
+                    onChange={(e) => setRecurrenceDay(e.target.value)}
+                    className="bg-[#171A21] border border-white/5 rounded-[12px] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C5CFF] transition-colors w-full"
+                  >
+                    <option value="1">Segunda-feira</option>
+                    <option value="2">Terça-feira</option>
+                    <option value="3">Quarta-feira</option>
+                    <option value="4">Quinta-feira</option>
+                    <option value="5">Sexta-feira</option>
+                    <option value="6">Sábado</option>
+                    <option value="0">Domingo</option>
+                  </select>
+                ) : (
+                  <p className="text-sm text-white font-medium">
+                    {(() => {
+                      const daysMap: Record<string, string> = {
+                        '1': 'Segunda-feira',
+                        '2': 'Terça-feira',
+                        '3': 'Quarta-feira',
+                        '4': 'Quinta-feira',
+                        '5': 'Sexta-feira',
+                        '6': 'Sábado',
+                        '0': 'Domingo'
+                      };
+                      return daysMap[recurrenceDay] || 'Segunda-feira';
+                    })()}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {recurrence === 'mensal' && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-[#A1A1AA]">Dia do Mês</label>
+                {isEditing ? (
+                  <select
+                    value={recurrenceDay}
+                    onChange={(e) => setRecurrenceDay(e.target.value)}
+                    className="bg-[#171A21] border border-white/5 rounded-[12px] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C5CFF] transition-colors w-full"
+                  >
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map(num => (
+                      <option key={num} value={num.toString()}>{num}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-sm text-white font-medium">
+                    Todo dia {recurrenceDay}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Notes / Observations */}
           <div className="flex flex-col gap-2 pb-6 sm:pb-0">
