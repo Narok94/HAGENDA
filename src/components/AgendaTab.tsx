@@ -59,6 +59,10 @@ const isTaskOnDate = (task: Task, dateStr: string): boolean => {
     const [year, month, day] = dateStr.split('-').map(Number);
     const d = new Date(year, month - 1, day);
     const dayOfWeek = d.getDay().toString(); // "0" para Domingo, "1" para Segunda, etc.
+    
+    if (task.recurrenceDays) {
+      return task.recurrenceDays.includes(dayOfWeek);
+    }
     return dayOfWeek === task.recurrenceDay;
   }
 
@@ -178,13 +182,8 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     return true;
   }).sort((a, b) => a.time.localeCompare(b.time) || a.date.localeCompare(b.date));
 
-  const priorityTask = tasks.find(t => {
-    if (!t.priority) return false;
-    const isToday = isTaskOnDate(t, todayStr);
-    if (!isToday) return false;
-    const isComp = isTaskCompletedOnDate(t, todayStr);
-    return !isComp;
-  });
+  const priorityTask = tasks.find(t => t.priority && isTaskOnDate(t, todayStr) && !isTaskCompletedOnDate(t, todayStr))
+    || tasks.find(t => t.priority && isTaskOnDate(t, todayStr));
 
   const completedCount = filteredTasks.filter(t => {
     const targetDate = getTaskTargetDateForFilter(t, viewFilter, todayStr);

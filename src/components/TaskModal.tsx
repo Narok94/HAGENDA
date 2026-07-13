@@ -24,6 +24,9 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
   const [notes, setNotes] = useState(task?.notes || '');
   const [recurrence, setRecurrence] = useState<'none' | 'semanal' | 'mensal'>(task?.recurrence || 'none');
   const [recurrenceDay, setRecurrenceDay] = useState(task?.recurrenceDay || '1');
+  const [recurrenceDays, setRecurrenceDays] = useState<string[]>(
+    task?.recurrenceDays || (task?.recurrenceDay && task.recurrence === 'semanal' ? [task.recurrenceDay] : ['1'])
+  );
 
   const handleSave = () => {
     if (!title.trim()) return;
@@ -39,7 +42,8 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
       notes,
       completed: task?.completed || false,
       recurrence,
-      recurrenceDay: recurrence !== 'none' ? recurrenceDay : undefined,
+      recurrenceDay: recurrence === 'mensal' ? recurrenceDay : undefined,
+      recurrenceDays: recurrence === 'semanal' ? recurrenceDays : undefined,
     });
   };
 
@@ -99,23 +103,25 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
           {/* Properties Grid */}
           <div className="grid grid-cols-2 gap-4">
             {/* Date */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-[#A1A1AA] flex items-center gap-1">
-                <CalendarIcon size={14} /> Data
-              </label>
-              {isEditing ? (
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="bg-[#0F1115] border border-white/5 rounded-[12px] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C5CFF] transition-colors w-full"
-                />
-              ) : (
-                <p className="text-sm text-white bg-[#0F1115] border border-white/5 rounded-[12px] px-3 py-2">
-                  {date.split('-').reverse().join('/')}
-                </p>
-              )}
-            </div>
+            {recurrence !== 'semanal' && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-[#A1A1AA] flex items-center gap-1">
+                  <CalendarIcon size={14} /> Data
+                </label>
+                {isEditing ? (
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="bg-[#0F1115] border border-white/5 rounded-[12px] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C5CFF] transition-colors w-full"
+                  />
+                ) : (
+                  <p className="text-sm text-white bg-[#0F1115] border border-white/5 rounded-[12px] px-3 py-2">
+                    {date.split('-').reverse().join('/')}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Time */}
             <div className="flex flex-col gap-1">
@@ -234,37 +240,65 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
             </div>
 
             {recurrence === 'semanal' && (
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-[#A1A1AA]">Dia da Semana</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-medium text-[#A1A1AA]">Dias da Semana</label>
                 {isEditing ? (
-                  <select
-                    value={recurrenceDay}
-                    onChange={(e) => setRecurrenceDay(e.target.value)}
-                    className="bg-[#171A21] border border-white/5 rounded-[12px] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C5CFF] transition-colors w-full"
-                  >
-                    <option value="1">Segunda-feira</option>
-                    <option value="2">Terça-feira</option>
-                    <option value="3">Quarta-feira</option>
-                    <option value="4">Quinta-feira</option>
-                    <option value="5">Sexta-feira</option>
-                    <option value="6">Sábado</option>
-                    <option value="0">Domingo</option>
-                  </select>
+                  <div className="flex flex-wrap gap-2 justify-between bg-[#171A21] p-2 rounded-[16px] border border-white/5">
+                    {[
+                      { value: '1', label: 'S', fullName: 'Segunda' },
+                      { value: '2', label: 'T', fullName: 'Terça' },
+                      { value: '3', label: 'Q', fullName: 'Quarta' },
+                      { value: '4', label: 'Q', fullName: 'Quinta' },
+                      { value: '5', label: 'S', fullName: 'Sexta' },
+                      { value: '6', label: 'S', fullName: 'Sábado' },
+                      { value: '0', label: 'D', fullName: 'Domingo' },
+                    ].map(day => {
+                      const isSelected = recurrenceDays.includes(day.value);
+                      return (
+                        <button
+                          key={day.value}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              if (recurrenceDays.length > 1) {
+                                setRecurrenceDays(recurrenceDays.filter(d => d !== day.value));
+                              }
+                            } else {
+                              setRecurrenceDays([...recurrenceDays, day.value]);
+                            }
+                          }}
+                          className={`w-10 h-10 rounded-full flex flex-col items-center justify-center text-xs font-semibold transition-all ${
+                            isSelected 
+                              ? 'bg-[#7C5CFF] text-white shadow-md shadow-[#7C5CFF]/15' 
+                              : 'bg-[#0F1115] text-[#A1A1AA] hover:bg-white/5'
+                          }`}
+                        >
+                          <span>{day.label}</span>
+                          <span className="text-[7px] opacity-70 leading-none mt-0.5">{day.fullName.slice(0,3)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 ) : (
-                  <p className="text-sm text-white font-medium">
-                    {(() => {
-                      const daysMap: Record<string, string> = {
-                        '1': 'Segunda-feira',
-                        '2': 'Terça-feira',
-                        '3': 'Quarta-feira',
-                        '4': 'Quinta-feira',
-                        '5': 'Sexta-feira',
-                        '6': 'Sábado',
-                        '0': 'Domingo'
-                      };
-                      return daysMap[recurrenceDay] || 'Segunda-feira';
-                    })()}
-                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { value: '1', fullName: 'Segunda-feira' },
+                      { value: '2', fullName: 'Terça-feira' },
+                      { value: '3', fullName: 'Quarta-feira' },
+                      { value: '4', fullName: 'Quinta-feira' },
+                      { value: '5', fullName: 'Sexta-feira' },
+                      { value: '6', fullName: 'Sábado' },
+                      { value: '0', fullName: 'Domingo' },
+                    ].map(day => {
+                      const isSelected = recurrenceDays.includes(day.value);
+                      if (!isSelected) return null;
+                      return (
+                        <span key={day.value} className="px-3 py-1 bg-[#7C5CFF]/10 text-[#7C5CFF] rounded-full text-xs font-medium border border-[#7C5CFF]/20">
+                          {day.fullName}
+                        </span>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             )}
