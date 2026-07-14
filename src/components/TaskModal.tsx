@@ -31,10 +31,14 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
   const handleSave = () => {
     if (!title.trim()) return;
     
+    const finalDate = recurrence === 'semanal' 
+      ? '' 
+      : (date || new Date().toISOString().split('T')[0]);
+
     onSave({
       id: task?.id || Date.now().toString(),
       title,
-      date,
+      date: finalDate,
       time,
       category: category || 'Geral',
       icon,
@@ -73,7 +77,7 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
               </button>
             )}
             {isEditing && (
-              <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 bg-[#7C5CFF] hover:bg-[#6b4ce6] text-white rounded-[12px] text-sm font-medium transition-colors">
+              <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 bg-brand-primary hover:bg-brand-hover text-white rounded-[12px] text-sm font-semibold transition-colors shadow-md shadow-brand-primary/10 cursor-pointer">
                 <Save size={16} />
                 Salvar
               </button>
@@ -113,10 +117,10 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="bg-[#0F1115] border border-white/5 rounded-[12px] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C5CFF] transition-colors w-full"
+                    className="bg-app-bg border border-white/5 rounded-[12px] px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-primary transition-colors w-full"
                   />
                 ) : (
-                  <p className="text-sm text-white bg-[#0F1115] border border-white/5 rounded-[12px] px-3 py-2">
+                  <p className="text-sm text-white bg-app-bg border border-white/5 rounded-[12px] px-3 py-2">
                     {date.split('-').reverse().join('/')}
                   </p>
                 )}
@@ -133,10 +137,10 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
                   type="time"
                   value={time}
                   onChange={(e) => setTime(e.target.value)}
-                  className="bg-[#0F1115] border border-white/5 rounded-[12px] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C5CFF] transition-colors w-full"
+                  className="bg-app-bg border border-white/5 rounded-[12px] px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-primary transition-colors w-full"
                 />
               ) : (
-                <p className="text-sm text-white bg-[#0F1115] border border-white/5 rounded-[12px] px-3 py-2">
+                <p className="text-sm text-white bg-app-bg border border-white/5 rounded-[12px] px-3 py-2">
                   {time}
                 </p>
               )}
@@ -153,10 +157,10 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   placeholder="Ex: Trabalho, Saúde"
-                  className="bg-[#0F1115] border border-white/5 rounded-[12px] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C5CFF] transition-colors w-full"
+                  className="bg-app-bg border border-white/5 rounded-[12px] px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-primary transition-colors w-full"
                 />
               ) : (
-                <p className="text-sm text-white bg-[#0F1115] border border-white/5 rounded-[12px] px-3 py-2">
+                <p className="text-sm text-white bg-app-bg border border-white/5 rounded-[12px] px-3 py-2">
                   {category}
                 </p>
               )}
@@ -166,16 +170,22 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
             <div className="flex flex-col gap-1 justify-center pt-5">
               {isEditing ? (
                 <label className="flex items-center gap-3 cursor-pointer group">
-                  <div className={`w-10 h-6 rounded-full transition-colors relative flex items-center ${priority ? 'bg-[#7C5CFF]' : 'bg-[#0F1115] border border-white/10'}`}>
+                  <input 
+                    type="checkbox" 
+                    className="sr-only" 
+                    checked={priority} 
+                    onChange={() => setPriority(!priority)} 
+                  />
+                  <div className={`w-10 h-6 rounded-full transition-colors relative flex items-center ${priority ? 'bg-brand-primary' : 'bg-app-bg border border-white/10'}`}>
                     <div className={`w-4 h-4 bg-white rounded-full absolute transition-transform ${priority ? 'translate-x-5' : 'translate-x-1'}`} />
                   </div>
-                  <span className={`text-sm font-medium transition-colors ${priority ? 'text-[#7C5CFF]' : 'text-[#A1A1AA]'}`}>
+                  <span className={`text-sm font-medium transition-colors ${priority ? 'text-brand-primary' : 'text-[#A1A1AA]'}`}>
                     Prioridade
                   </span>
                 </label>
               ) : (
                 priority && (
-                  <div className="flex items-center gap-2 text-[#7C5CFF] bg-[#7C5CFF]/10 w-max px-3 py-1.5 rounded-[10px]">
+                  <div className="flex items-center gap-2 text-brand-primary bg-brand-primary/10 w-max px-3 py-1.5 rounded-[10px]">
                     <Flame size={16} />
                     <span className="text-sm font-medium">Prioridade</span>
                   </div>
@@ -193,7 +203,7 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
                   <button
                     key={i}
                     onClick={() => setIcon(i)}
-                    className={`w-10 h-10 rounded-[12px] flex items-center justify-center transition-colors ${icon === i ? 'bg-[#7C5CFF] text-white' : 'bg-[#0F1115] text-[#A1A1AA] hover:bg-white/5'}`}
+                    className={`w-10 h-10 rounded-[12px] flex items-center justify-center transition-colors ${icon === i ? 'bg-brand-primary text-white' : 'bg-app-bg text-[#A1A1AA] hover:bg-white/5'}`}
                   >
                     {getIcon(i)}
                   </button>
@@ -202,14 +212,14 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
             </div>
           )}
           {!isEditing && (
-            <div className="flex items-center gap-3 bg-[#0F1115] p-3 rounded-[12px] border border-white/5 w-max">
-               <div className="text-[#7C5CFF]">{getIcon(icon)}</div>
+            <div className="flex items-center gap-3 bg-app-bg p-3 rounded-[12px] border border-white/5 w-max">
+               <div className="text-brand-primary">{getIcon(icon)}</div>
                <span className="text-sm font-medium text-[#A1A1AA]">Ícone selecionado</span>
             </div>
           )}
 
           {/* Recorrência */}
-          <div className="bg-[#0F1115] p-4 rounded-[16px] border border-white/5 space-y-3">
+          <div className="bg-app-bg p-4 rounded-[16px] border border-white/5 space-y-3">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-[#A1A1AA]">Recorrência</label>
               {isEditing ? (
@@ -224,7 +234,7 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
                       setRecurrenceDay('1'); // Dia 1 por padrão
                     }
                   }}
-                  className="bg-[#171A21] border border-white/5 rounded-[12px] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C5CFF] transition-colors w-full"
+                  className="bg-app-card border border-white/5 rounded-[12px] px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-primary transition-colors w-full"
                 >
                   <option value="none">Não se repete</option>
                   <option value="semanal">Semanal</option>
@@ -243,7 +253,7 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-medium text-[#A1A1AA]">Dias da Semana</label>
                 {isEditing ? (
-                  <div className="flex flex-wrap gap-2 justify-between bg-[#171A21] p-2 rounded-[16px] border border-white/5">
+                  <div className="flex flex-wrap gap-2 justify-between bg-app-card p-2 rounded-[16px] border border-white/5">
                     {[
                       { value: '1', label: 'S', fullName: 'Segunda' },
                       { value: '2', label: 'T', fullName: 'Terça' },
@@ -264,13 +274,15 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
                                 setRecurrenceDays(recurrenceDays.filter(d => d !== day.value));
                               }
                             } else {
-                              setRecurrenceDays([...recurrenceDays, day.value]);
+                              const order = ['1', '2', '3', '4', '5', '6', '0'];
+                              const newDays = [...recurrenceDays, day.value].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+                              setRecurrenceDays(newDays);
                             }
                           }}
                           className={`w-10 h-10 rounded-full flex flex-col items-center justify-center text-xs font-semibold transition-all ${
                             isSelected 
-                              ? 'bg-[#7C5CFF] text-white shadow-md shadow-[#7C5CFF]/15' 
-                              : 'bg-[#0F1115] text-[#A1A1AA] hover:bg-white/5'
+                              ? 'bg-brand-primary text-white shadow-md shadow-brand-primary/15' 
+                              : 'bg-app-bg text-[#A1A1AA] hover:bg-white/5'
                           }`}
                         >
                           <span>{day.label}</span>
@@ -293,7 +305,7 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
                       const isSelected = recurrenceDays.includes(day.value);
                       if (!isSelected) return null;
                       return (
-                        <span key={day.value} className="px-3 py-1 bg-[#7C5CFF]/10 text-[#7C5CFF] rounded-full text-xs font-medium border border-[#7C5CFF]/20">
+                        <span key={day.value} className="px-3 py-1 bg-brand-primary/10 text-brand-primary rounded-full text-xs font-medium border border-brand-primary/20">
                           {day.fullName}
                         </span>
                       );
@@ -310,7 +322,7 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
                   <select
                     value={recurrenceDay}
                     onChange={(e) => setRecurrenceDay(e.target.value)}
-                    className="bg-[#171A21] border border-white/5 rounded-[12px] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C5CFF] transition-colors w-full"
+                    className="bg-app-card border border-white/5 rounded-[12px] px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-primary transition-colors w-full"
                   >
                     {Array.from({ length: 31 }, (_, i) => i + 1).map(num => (
                       <option key={num} value={num.toString()}>{num}</option>
@@ -335,10 +347,10 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Adicione detalhes importantes sobre esta tarefa..."
-                className="bg-[#0F1115] border border-white/5 rounded-[12px] px-4 py-3 text-sm text-white focus:outline-none focus:border-[#7C5CFF] transition-colors w-full min-h-[120px] resize-none"
+                className="bg-app-bg border border-white/5 rounded-[12px] px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-primary transition-colors w-full min-h-[120px] resize-none"
               />
             ) : (
-              <div className="bg-[#0F1115] border border-white/5 rounded-[12px] px-4 py-3 text-sm text-white min-h-[120px] whitespace-pre-wrap">
+              <div className="bg-app-bg border border-white/5 rounded-[12px] px-4 py-3 text-sm text-white min-h-[120px] whitespace-pre-wrap">
                 {notes || <span className="text-[#A1A1AA] italic">Nenhuma observação adicionada.</span>}
               </div>
             )}
