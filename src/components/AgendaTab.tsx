@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw, Trash2, Mic, MicOff, Loader2 } from 'lucide-react';
+import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw, Trash2, Mic, MicOff, Loader2, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Task } from '../types';
 import { getIcon } from '../utils/icons';
@@ -197,6 +197,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
 
     recognition.onerror = (e: any) => {
       console.error('Erro no reconhecimento de voz:', e);
+      alert('Erro no microfone. Verifique as permissões de gravação do navegador.');
       setIsListening(false);
     };
 
@@ -376,13 +377,23 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
                   handleParseAiTask(aiInput);
                 }
               }}
-              placeholder="Treino de pernas hoje às 18h prioridade máxima..."
+              placeholder="Treino de pernas hoje às 18h..."
               disabled={isParsing}
-              className="w-full bg-transparent px-4 py-3.5 pr-12 text-sm text-white placeholder-text-meta outline-none disabled:opacity-50"
+              className="w-full bg-transparent px-4 py-3.5 pr-20 text-sm text-white placeholder-text-meta outline-none disabled:opacity-50"
             />
-            {isParsing && (
-              <Loader2 size={16} className="absolute right-4 text-brand-primary animate-spin" />
-            )}
+            <div className="absolute right-2 flex items-center gap-1">
+              {isParsing ? (
+                <Loader2 size={16} className="text-brand-primary animate-spin mr-2" />
+              ) : (
+                <button
+                  onClick={() => handleParseAiTask(aiInput)}
+                  disabled={!aiInput.trim()}
+                  className="w-8 h-8 flex items-center justify-center rounded-[10px] text-brand-primary hover:bg-brand-primary/10 disabled:opacity-30 transition-all cursor-pointer"
+                >
+                  <Send size={16} />
+                </button>
+              )}
+            </div>
           </div>
           
           <button
