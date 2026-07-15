@@ -2,15 +2,15 @@
 @import "tailwindcss";
 
 :root {
-  --app-bg: #121317;
-  --app-card: #232631;
-  --app-card-sec: #2D313F;
-  --brand-primary: #7B6DFF;
-  --brand-hover: #8A79FF;
-  --text-sec: #C7CBD6;
-  --text-meta: #AEB4C3;
-  --text-sub: #E7E9EE;
-  --border-discreet: rgba(255, 255, 255, 0.10);
+  --app-bg: #18181A;
+  --app-card: #27272A;
+  --app-card-sec: #3F3F46;
+  --brand-primary: #A29BFE;
+  --brand-hover: #B8B2FF;
+  --text-sec: #A1A1AA;
+  --text-meta: #71717A;
+  --text-sub: #D4D4D8;
+  --border-discreet: rgba(255, 255, 255, 0.08);
   
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);

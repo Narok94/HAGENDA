@@ -60,7 +60,7 @@ Instruções para os campos:
 10. notes: Observações ou descrição complementar extraída.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: `Frase para extrair: "${text}"`,
       config: {
         systemInstruction,
@@ -82,7 +82,7 @@ Instruções para os campos:
             },
             notes: { type: Type.STRING }
           },
-          required: ["title", "date", "time", "category", "priority", "icon", "recurrence"]
+          required: ["title", "time", "category", "priority", "icon", "recurrence"]
         }
       }
     });
@@ -114,7 +114,7 @@ Gere uma frase de motivação e foco ultra-personalizada de apenas uma linha (no
 Misture o foco físico, mental ou profissional dependendo das categorias de tarefas (ex: misture treinos e trabalho se houver ambos). Seja enérgico, direto, empático e focado em ação e autodisciplina. Chame o usuário pelo nome se fizer sentido. Não use aspas na resposta final.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         systemInstruction: "Gere apenas uma única linha inspiradora de até 150 caracteres para motivar o usuário baseado em suas tarefas do dia. Seja extremamente direto, evite introduções ou conclusões ou aspas.",

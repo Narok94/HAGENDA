@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw, Trash2, Mic, MicOff, Loader2, Send } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw, Trash2, Mic, MicOff, Loader2, Send, X, BoxSelect, RotateCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Task } from '../types';
 import { getIcon } from '../utils/icons';
@@ -119,12 +119,45 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   const [aiInput, setAiInput] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
 
   // Coach Inspiration State
   const [inspiration, setInspiration] = useState(() => {
     return localStorage.getItem('momentum_coach_quote') || 'A disciplina é a ponte entre metas e realizações.';
   });
   const [loadingInspiration, setLoadingInspiration] = useState(false);
+
+  // Long press logic for FAB
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPress = useRef(false);
+
+  const handlePointerDown = () => {
+    isLongPress.current = false;
+    timerRef.current = setTimeout(() => {
+      isLongPress.current = true;
+      setIsAssistantOpen(true);
+    }, 500); // 500ms trigger for long press
+  };
+
+  const handlePointerUp = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+  };
+
+  const handlePointerLeave = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+  };
+
+  const handleFabClick = (e: React.MouseEvent) => {
+    if (isLongPress.current) {
+      e.preventDefault();
+      return;
+    }
+    openCreateModal();
+  };
 
   // Parse Text with IA (POST to backend)
   const handleParseAiTask = async (textToParse: string) => {
@@ -142,9 +175,9 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       if (!response.ok) throw new Error('Falha no servidor');
       const parsed = await response.json();
 
-      // Pre-fill a new task with temporary ID
-      const prefilledTask: Task = {
-        id: 'temp',
+      // Create a new task directly and save to list
+      const newTask: Task = {
+        id: Date.now().toString(),
         title: parsed.title || textClean,
         date: parsed.date || todayStr,
         time: parsed.time || '12:00',
@@ -158,10 +191,9 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         recurrenceDays: parsed.recurrenceDays,
       };
 
-      setSelectedTask(prefilledTask);
-      setIsCreating(true);
-      setIsModalOpen(true);
+      setTasks(prev => [...prev, newTask]);
       setAiInput(''); // Clear input
+      setIsAssistantOpen(false);
     } catch (error) {
       console.error('Erro ao analisar tarefa com IA:', error);
     } finally {
@@ -197,7 +229,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
 
     recognition.onerror = (e: any) => {
       console.error('Erro no reconhecimento de voz:', e);
-      alert('Erro no microfone. Verifique as permissões de gravação do navegador.');
+      alert('Erro no microfone. Verifique as permissões ou tente abrir o app em uma nova aba (Fora do iFrame).');
       setIsListening(false);
     };
 
@@ -304,6 +336,26 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     return true;
   }).sort((a, b) => a.time.localeCompare(b.time) || a.date.localeCompare(b.date));
 
+  // Group tasks by date for "semana" and "mes" views
+  const groupedTasks = React.useMemo(() => {
+    if (viewFilter === 'hoje') {
+      return [{ date: todayStr, tasks: filteredTasks }];
+    }
+    const groups: Record<string, Task[]> = {};
+    filteredTasks.forEach(task => {
+      const targetDate = getTaskTargetDateForFilter(task, viewFilter, todayStr);
+      if (!groups[targetDate]) {
+        groups[targetDate] = [];
+      }
+      groups[targetDate].push(task);
+    });
+    
+    return Object.keys(groups).sort().map(date => ({
+      date,
+      tasks: groups[date]
+    }));
+  }, [filteredTasks, viewFilter, todayStr]);
+
   const priorityTask = tasks.find(t => t.priority && isTaskOnDate(t, todayStr) && !isTaskCompletedOnDate(t, todayStr))
     || tasks.find(t => t.priority && isTaskOnDate(t, todayStr));
 
@@ -337,10 +389,8 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
             Bom dia, {userName} <span className="text-xl md:text-2xl animate-bounce-slow">👋</span>
           </h1>
-          <div className="flex items-center gap-2 text-xs md:text-sm font-semibold">
-            <span className="text-text-sub">{dateDisplay}</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-brand-primary" />
-            <span className="text-brand-primary font-bold">{headerSubtitle}</span>
+          <div className="text-xs md:text-sm font-medium text-text-sec">
+            {dateDisplay} {headerSubtitle}
           </div>
         </div>
         
@@ -356,65 +406,86 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         </button>
       </header>
 
-      {/* INPUT INTELIGENTE DE TAREFAS COM IA (NLP + VOZ) */}
-      <section className="bg-app-card rounded-[22px] p-4.5 border border-border-discreet flex flex-col gap-3 relative overflow-hidden shadow-md">
-        {/* Subtle decorative glow */}
-        <div className="absolute right-0 top-0 w-32 h-32 bg-brand-primary/5 rounded-full blur-2xl pointer-events-none" />
-        
-        <div className="flex items-center gap-2 text-xs font-bold text-text-sec">
-          <Sparkles size={14} className="text-brand-primary animate-pulse" />
-          <span>Criar Tarefa por IA (NLP & Voz)</span>
-        </div>
-        
-        <div className="flex gap-2.5 items-center">
-          <div className="flex-1 relative flex items-center bg-app-card-sec rounded-[16px] border border-border-discreet focus-within:border-brand-primary/50 transition-all">
-            <input 
-              type="text"
-              value={aiInput}
-              onChange={(e) => setAiInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleParseAiTask(aiInput);
-                }
-              }}
-              placeholder="Treino de pernas hoje às 18h..."
-              disabled={isParsing}
-              className="w-full bg-transparent px-4 py-3.5 pr-20 text-sm text-white placeholder-text-meta outline-none disabled:opacity-50"
+      <AnimatePresence>
+        {isAssistantOpen && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAssistantOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
-            <div className="absolute right-2 flex items-center gap-1">
-              {isParsing ? (
-                <Loader2 size={16} className="text-brand-primary animate-spin mr-2" />
-              ) : (
-                <button
-                  onClick={() => handleParseAiTask(aiInput)}
-                  disabled={!aiInput.trim()}
-                  className="w-8 h-8 flex items-center justify-center rounded-[10px] text-brand-primary hover:bg-brand-primary/10 disabled:opacity-30 transition-all cursor-pointer"
-                >
-                  <Send size={16} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-md bg-app-card rounded-[22px] p-5 border border-white/10 shadow-2xl overflow-hidden"
+            >
+              <div className="absolute right-0 top-0 w-32 h-32 bg-brand-primary/10 rounded-full blur-2xl pointer-events-none" />
+              
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2 text-sm font-bold text-white">
+                  <Sparkles size={16} className="text-brand-primary animate-pulse" />
+                  <span>Criar Tarefa por IA (NLP & Voz)</span>
+                </div>
+                <button onClick={() => setIsAssistantOpen(false)} className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/70 transition-colors">
+                  <X size={16} />
                 </button>
+              </div>
+              
+              <div className="flex gap-2.5 items-center">
+                <div className="flex-1 relative flex items-center bg-app-card-sec rounded-[16px] border border-border-discreet focus-within:border-brand-primary/50 transition-all">
+                  <input 
+                    type="text"
+                    value={aiInput}
+                    onChange={(e) => setAiInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleParseAiTask(aiInput);
+                      }
+                    }}
+                    placeholder="Ex: Treino hoje às 18h..."
+                    disabled={isParsing}
+                    className="w-full bg-transparent px-4 py-3.5 pr-14 text-sm text-white placeholder-text-meta outline-none disabled:opacity-50"
+                  />
+                  <div className="absolute right-2 flex items-center">
+                    {isParsing ? (
+                      <Loader2 size={18} className="text-brand-primary animate-spin mr-1" />
+                    ) : (
+                      <button
+                        onClick={() => handleParseAiTask(aiInput)}
+                        disabled={!aiInput.trim()}
+                        className="w-8 h-8 flex items-center justify-center rounded-[10px] text-brand-primary hover:bg-white/5 disabled:opacity-30 transition-all cursor-pointer"
+                      >
+                        <Send size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                <button
+                  onClick={handleVoiceInput}
+                  type="button"
+                  className={`w-[48px] h-[48px] rounded-[16px] flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                    isListening 
+                      ? 'bg-[#FF5252] text-white animate-pulse shadow-[0_0_12px_rgba(255,82,82,0.4)]' 
+                      : 'bg-brand-primary/10 border border-brand-primary/20 text-brand-primary hover:bg-brand-primary/15'
+                  }`}
+                  title={isListening ? "Ouvindo... Toque para parar" : "Falar comando de voz"}
+                >
+                  {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+                </button>
+              </div>
+              {isListening && (
+                <p className="text-[11px] text-[#FF5252] font-semibold animate-pulse mt-3 text-center">
+                  🎙️ Ouvindo sua voz em tempo real...
+                </p>
               )}
-            </div>
+            </motion.div>
           </div>
-          
-          <button
-            onClick={handleVoiceInput}
-            type="button"
-            className={`w-[48px] h-[48px] rounded-[16px] flex items-center justify-center transition-all cursor-pointer shrink-0 ${
-              isListening 
-                ? 'bg-[#FF5252] text-white animate-pulse shadow-[0_0_12px_rgba(255,82,82,0.4)]' 
-                : 'bg-brand-primary/10 border border-brand-primary/20 text-brand-primary hover:bg-brand-primary/15'
-            }`}
-            title={isListening ? "Ouvindo... Toque para parar" : "Falar comando de voz"}
-          >
-            {isListening ? <MicOff size={18} /> : <Mic size={18} />}
-          </button>
-        </div>
-        {isListening && (
-          <p className="text-[11px] text-[#FF5252] font-semibold animate-pulse ml-1">
-            🎙️ Ouvindo sua voz em tempo real... Fale e ao terminar, analisaremos seu comando.
-          </p>
         )}
-      </section>
+      </AnimatePresence>
 
       {/* 1. PRÓXIMA TAREFA (PRIORITY / NEXT TASK) */}
       {priorityTask && (
@@ -479,7 +550,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         </div>
         
         {/* Segmented Control */}
-        <div className="flex p-1 bg-app-card-sec rounded-[18px] border border-border-discreet w-full relative">
+        <div className="flex p-1 bg-app-card-sec/50 rounded-xl border border-border-discreet w-full relative">
           {['hoje', 'semana', 'mes'].map(filter => {
             const isActive = viewFilter === filter;
             const labelMap: Record<string, string> = { hoje: 'Hoje', semana: 'Semana', mes: 'Mês' };
@@ -487,14 +558,14 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
               <button
                 key={filter}
                 onClick={() => setViewFilter(filter as any)}
-                className={`relative flex-1 text-xs md:text-sm font-bold py-2.5 rounded-[14px] transition-all z-10 capitalize cursor-pointer ${
-                  isActive ? 'text-white' : 'text-text-meta hover:text-white'
+                className={`relative flex-1 text-xs md:text-sm font-medium py-2 rounded-lg transition-all z-10 capitalize cursor-pointer ${
+                  isActive ? 'text-brand-primary' : 'text-text-meta hover:text-white'
                 }`}
               >
                 {isActive && (
                   <motion.div 
                     layoutId="activeFilterTab"
-                    className="absolute inset-0 bg-gradient-to-r from-[#7B6DFF] to-[#8A79FF] rounded-[14px] shadow-md shadow-brand-primary/20"
+                    className="absolute inset-0 bg-brand-primary/20 rounded-lg shadow-sm"
                     transition={{ type: "spring", stiffness: 350, damping: 28 }}
                   />
                 )}
@@ -507,112 +578,119 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         {/* Task List */}
         <div className="flex flex-col gap-3">
           {filteredTasks.length === 0 ? (
-            <div className="text-center py-12 text-text-sec text-xs md:text-sm bg-app-card/20 rounded-[20px] border border-border-discreet">
-              Nenhuma tarefa para este período.
+            <div className="flex flex-col items-center justify-center py-10 md:py-14 text-text-sec bg-app-card/30 rounded-[16px] border border-border-discreet/50">
+              <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center mb-3">
+                <BoxSelect size={24} className="text-text-meta opacity-50" />
+              </div>
+              <p className="text-sm font-medium">Nenhuma tarefa para este período.</p>
             </div>
           ) : (
             <AnimatePresence initial={false}>
-              {filteredTasks.map(task => {
-                const targetDate = getTaskTargetDateForFilter(task, viewFilter, todayStr);
-                const isCompleted = isTaskCompletedOnDate(task, targetDate);
+              {groupedTasks.map(group => {
+                const dateHeader = new Date(group.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
                 return (
-                  <div key={task.id} className="relative overflow-hidden rounded-[20px] w-full">
-                    {/* Background swipe reveals */}
-                    <div className="absolute inset-0 flex items-center justify-between rounded-[20px] pointer-events-none select-none overflow-hidden z-0">
-                      {/* Left Side: Green Concluir (Drag Right) */}
-                      <div className="absolute inset-y-0 left-0 bg-emerald-500/20 flex items-center pl-6 pr-12 rounded-[20px] w-1/2 justify-start">
-                        <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
-                          <CheckCircle2 size={16} strokeWidth={3} className="animate-pulse" />
-                          <span>Concluir</span>
-                        </div>
-                      </div>
+                  <div key={group.date} className="flex flex-col gap-2">
+                    {viewFilter !== 'hoje' && (
+                      <h3 className="text-[10px] font-bold text-text-sec uppercase tracking-widest mt-2 ml-1">
+                        {dateHeader}
+                      </h3>
+                    )}
+                    {group.tasks.map(task => {
+                      const targetDate = group.date;
+                      const isCompleted = isTaskCompletedOnDate(task, targetDate);
+                      return (
+                        <div key={`${task.id}-${targetDate}`} className="relative overflow-hidden rounded-[16px] w-full">
+                          {/* Background swipe reveals */}
+                          <div className="absolute inset-0 flex items-center justify-between rounded-[16px] pointer-events-none select-none overflow-hidden z-0">
+                            {/* Left Side: Green Concluir (Drag Right) */}
+                            <div className="absolute inset-y-0 left-0 bg-emerald-500/20 flex items-center pl-5 pr-12 rounded-[16px] w-1/2 justify-start">
+                              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                                <CheckCircle2 size={16} strokeWidth={3} className="animate-pulse" />
+                                <span>Concluir</span>
+                              </div>
+                            </div>
 
-                      {/* Right Side: Red Excluir (Drag Left) */}
-                      <div className="absolute inset-y-0 right-0 bg-rose-500/20 flex items-center pr-6 pl-12 rounded-[20px] w-1/2 justify-end">
-                        <div className="flex items-center gap-2 text-rose-400 font-bold text-xs">
-                          <Trash2 size={16} className="animate-pulse" />
-                          <span>Excluir</span>
-                        </div>
-                      </div>
-                    </div>
+                            {/* Right Side: Red Adiar (Drag Left) */}
+                            <div className="absolute inset-y-0 right-0 bg-rose-500/20 flex items-center pr-5 pl-12 rounded-[16px] w-1/2 justify-end">
+                              <div className="flex items-center gap-2 text-rose-400 font-bold text-xs">
+                                <RotateCw size={16} className="animate-pulse" />
+                                <span>Adiar</span>
+                              </div>
+                            </div>
+                          </div>
 
-                    <motion.div 
-                      layout
-                      drag="x"
-                      dragConstraints={{ left: 0, right: 0 }}
-                      dragElastic={{ left: 0.5, right: 0.5 }}
-                      onDragEnd={(event, info) => {
-                        if (info.offset.x > 120) {
-                          // Swipe right to toggle completion
-                          toggleTaskOnDate(task.id, targetDate);
-                        } else if (info.offset.x < -120) {
-                          // Swipe left to delete task
-                          setTasks(prev => prev.filter(t => t.id !== task.id));
-                        }
-                      }}
-                      whileTap={{ scale: 0.985 }}
-                      onClick={() => openTaskDetails(task)}
-                      className="relative z-10 group flex items-center gap-4 bg-app-card p-4 md:p-5 rounded-[20px] border border-border-discreet cursor-pointer hover:border-white/20 transition-all shadow-sm hover:shadow-md"
-                    >
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); toggleTaskOnDate(task.id, targetDate); }}
-                        className={`shrink-0 flex items-center justify-center w-6 h-6 rounded-full border-[2px] transition-all duration-200 cursor-pointer ${
-                          isCompleted 
-                            ? 'bg-brand-primary border-brand-primary text-white scale-105 shadow-[0_0_8px_rgba(123,109,255,0.4)]' 
-                            : 'border-text-sec text-transparent hover:border-brand-primary hover:scale-105'
-                        }`}
-                      >
-                        <CheckCircle2 size={15} strokeWidth={3.5} className={isCompleted ? 'opacity-100' : 'opacity-0'} />
-                      </button>
-                      
-                      <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${isCompleted ? 'opacity-40' : 'opacity-100'}`}>
-                        <div className="flex items-center gap-2">
-                          <h3 className={`text-sm md:text-base font-bold text-white truncate ${isCompleted ? 'line-through decoration-white/30 text-white/50' : ''}`}>
-                            {task.title}
-                          </h3>
-                          {task.priority && !isCompleted && (
-                            <Flame size={14} className="text-[#FF5252] shrink-0 animate-pulse" />
-                          )}
+                          <motion.div 
+                            layout
+                            drag="x"
+                            dragConstraints={{ left: 0, right: 0 }}
+                            dragElastic={{ left: 0.5, right: 0.5 }}
+                            onDragEnd={(event, info) => {
+                              if (info.offset.x > 120) {
+                                // Swipe right to toggle completion
+                                toggleTaskOnDate(task.id, targetDate);
+                              } else if (info.offset.x < -120) {
+                                // Swipe left to postpone task (example action: open modal or alert)
+                                alert("Funcionalidade Adiar: " + task.title);
+                              }
+                            }}
+                            whileTap={{ scale: 0.985 }}
+                            onClick={() => openTaskDetails(task)}
+                            className="relative z-10 group flex items-center gap-3.5 bg-app-card p-3.5 md:p-4 rounded-[16px] border border-border-discreet cursor-pointer hover:border-white/20 transition-all shadow-sm"
+                          >
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); toggleTaskOnDate(task.id, targetDate); }}
+                              className={`shrink-0 flex items-center justify-center w-5 h-5 rounded-full border-[2px] transition-all duration-200 cursor-pointer ${
+                                isCompleted 
+                                  ? 'bg-brand-primary border-brand-primary text-white scale-105 shadow-[0_0_8px_rgba(162,155,254,0.4)]' 
+                                  : 'border-text-meta text-transparent hover:border-brand-primary hover:scale-105'
+                              }`}
+                            >
+                              <CheckCircle2 size={14} strokeWidth={3.5} className={isCompleted ? 'opacity-100' : 'opacity-0'} />
+                            </button>
+                            
+                            <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${isCompleted ? 'opacity-40' : 'opacity-100'}`}>
+                              <div className="flex items-center gap-2">
+                                <h3 className={`text-sm md:text-base font-semibold text-white truncate ${isCompleted ? 'line-through decoration-white/30 text-white/50' : ''}`}>
+                                  {task.title}
+                                </h3>
+                                {task.priority && !isCompleted && (
+                                  <Flame size={12} className="text-[#FF5252] shrink-0 animate-pulse" />
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                <span className="text-[11px] text-text-sec font-medium flex items-center gap-1 shrink-0">
+                                  <Clock size={10} className="text-text-meta" />
+                                  {task.time}
+                                </span>
+                                <span className="w-1 h-1 rounded-full bg-white/10 shrink-0" />
+                                <span className="text-[11px] text-text-sec font-medium flex items-center gap-1 shrink-0">
+                                  <Tag size={10} className="text-text-meta" />
+                                  {task.category}
+                                </span>
+                                {task.recurrence === 'semanal' && (
+                                  <>
+                                    <span className="w-1 h-1 rounded-full bg-white/10 shrink-0" />
+                                    <span className="text-[11px] text-brand-primary font-medium shrink-0 flex items-center gap-1">
+                                      <RefreshCw size={10} />
+                                      {task.recurrenceDays && task.recurrenceDays.length > 0
+                                        ? `Semanal (${task.recurrenceDays.map(d => {
+                                            const names = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+                                            return names[Number(d)];
+                                          }).join(', ')})`
+                                        : 'Semanal'}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-200 ${isCompleted ? 'bg-white/5 text-white/30' : 'bg-brand-primary/10 text-brand-primary group-hover:bg-brand-primary/20'}`}>
+                              {getIcon(task.icon)}
+                            </div>
+                          </motion.div>
                         </div>
-                        <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          <span className="text-xs text-text-sub font-semibold bg-white/10 px-2.5 py-1 rounded-md flex items-center gap-1 shrink-0 border border-white/5">
-                            <Clock size={11} className="text-brand-primary" />
-                            {task.time}
-                          </span>
-                          <span className="w-1 h-1 rounded-full bg-white/15 shrink-0" />
-                          <span className="text-xs text-white font-bold bg-white/10 px-2.5 py-1 rounded-md flex items-center gap-1 shrink-0 border border-white/5">
-                            <Tag size={11} className="text-brand-primary" />
-                            {task.category}
-                          </span>
-                          {task.recurrence === 'semanal' && (
-                            <>
-                              <span className="w-1 h-1 rounded-full bg-white/15 shrink-0" />
-                              <span className="text-xs text-brand-primary font-bold shrink-0 flex items-center gap-1">
-                                <RefreshCw size={11} className="animate-spin-slow" />
-                                {task.recurrenceDays && task.recurrenceDays.length > 0
-                                  ? `Semanal (${task.recurrenceDays.map(d => {
-                                      const names = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-                                      return names[Number(d)];
-                                    }).join(', ')})`
-                                  : 'Semanal'}
-                              </span>
-                            </>
-                          )}
-                          {viewFilter !== 'hoje' && task.recurrence !== 'semanal' && task.date && (
-                            <>
-                              <span className="w-1 h-1 rounded-full bg-white/15 shrink-0" />
-                              <span className="text-xs text-text-sub font-semibold font-mono shrink-0 bg-white/10 px-2.5 py-1 rounded-md border border-white/5">
-                                {task.date.split('-').reverse().slice(0,2).join('/')}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className={`w-9 h-9 md:w-10 md:h-10 rounded-[12px] flex items-center justify-center shrink-0 transition-colors duration-200 ${isCompleted ? 'bg-white/5 text-white/30' : 'bg-brand-primary/10 text-brand-primary group-hover:bg-brand-primary/15'}`}>
-                        {getIcon(task.icon)}
-                      </div>
-                    </motion.div>
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -623,24 +701,24 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
 
       {/* 3. PROGRESSO DIÁRIO */}
       {viewFilter === 'hoje' && (
-        <section className="bg-app-card rounded-[22px] p-5 border border-border-discreet shadow-md">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-xs font-bold text-text-sub uppercase tracking-wider">Progresso de Hoje</span>
-            <span className="text-xs font-extrabold text-white bg-brand-primary/20 border border-brand-primary/30 px-3 py-1 rounded-full">
-              {completedCount} de {filteredTasks.length} {filteredTasks.length === 1 ? 'tarefa' : 'tarefas'}
+        <section className="px-1 flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+            <span className="text-[11px] font-bold text-text-sec uppercase tracking-wider">Progresso de Hoje</span>
+            <span className="text-[11px] font-bold text-text-sec">
+              {completedCount} de {filteredTasks.length}
             </span>
           </div>
           
-          <div className="flex items-center gap-4">
-            <div className="h-[10px] flex-1 bg-app-card-sec border border-white/10 rounded-full overflow-hidden relative">
+          <div className="flex items-center gap-3">
+            <div className="h-1.5 flex-1 bg-white/5 rounded-full overflow-hidden relative">
               <motion.div 
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPercentage}%` }}
                 transition={{ duration: 0.6, ease: "easeOut" }}
-                className="h-full bg-gradient-to-r from-[#7B6DFF] to-[#8A79FF] rounded-full relative shadow-[0_0_12px_rgba(123,109,255,0.4)]"
+                className="h-full bg-brand-primary rounded-full relative"
               />
             </div>
-            <span className="text-sm font-black text-white font-mono w-10 text-right shrink-0">
+            <span className="text-xs font-bold text-white shrink-0">
               {progressPercentage}%
             </span>
           </div>
@@ -648,20 +726,17 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       )}
 
       {/* 4. CARD DE INSPIRAÇÃO (SMALL MENSAGEM MOTIVACIONAL) */}
-      <section className="bg-app-card-sec/40 rounded-[20px] p-4.5 border border-border-discreet flex items-center gap-3.5 relative overflow-hidden">
-        {/* Subtle background blur accent */}
-        <div className="absolute -left-6 -top-6 w-16 h-16 bg-brand-primary/10 rounded-full blur-xl pointer-events-none" />
-        
-        <div className={`w-8 h-8 rounded-lg bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-brand-primary shrink-0 ${loadingInspiration ? 'animate-pulse' : ''}`}>
+      <section className="px-1 flex items-start gap-3 mt-2">
+        <div className={`mt-0.5 text-brand-primary shrink-0 ${loadingInspiration ? 'animate-pulse' : ''}`}>
           <Sparkles size={14} className={loadingInspiration ? 'animate-spin' : 'opacity-100'} />
         </div>
         
-        <div className="flex flex-col gap-1 min-w-0 flex-1">
-          <span className="text-[10px] font-bold text-brand-primary uppercase tracking-wider flex items-center gap-1">
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+          <span className="text-[10px] font-bold text-text-sec uppercase tracking-widest flex items-center gap-1">
             Coach de IA
             {loadingInspiration && <span className="text-[8px] lowercase font-normal text-text-meta animate-pulse">(recalculando...)</span>}
           </span>
-          <p className="text-xs font-semibold text-white leading-relaxed italic">
+          <p className="text-xs font-medium text-text-sub leading-relaxed">
             "{inspiration}"
           </p>
         </div>
@@ -671,7 +746,10 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       <motion.button 
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        onClick={openCreateModal}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerLeave}
+        onClick={handleFabClick}
         className="fixed bottom-[100px] md:bottom-8 right-6 md:right-10 w-14 h-14 md:w-16 md:h-16 bg-gradient-to-r from-brand-primary to-brand-hover text-white rounded-full flex items-center justify-center shadow-lg shadow-brand-primary/30 hover:shadow-xl hover:shadow-brand-primary/40 transition-all z-40 cursor-pointer"
       >
         <Plus size={24} className="md:w-7 md:h-7" />
