@@ -211,20 +211,20 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     <div className="w-full min-h-full p-5 pt-8 md:p-8 md:pt-14 flex flex-col gap-6 md:gap-8 max-w-3xl mx-auto pb-32">
       {/* HEADER */}
       <header className="flex justify-between items-center px-1">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            Bom dia, {userName} <span className="text-lg md:text-xl">👋</span>
+        <div className="flex flex-col gap-1.5">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
+            Bom dia, {userName} <span className="text-xl md:text-2xl animate-bounce-slow">👋</span>
           </h1>
-          <div className="flex items-center gap-2 text-xs md:text-sm font-medium">
-            <span className="text-text-sec">{dateDisplay}</span>
-            <span className="w-1 h-1 rounded-full bg-brand-primary" />
-            <span className="text-brand-primary font-semibold">{headerSubtitle}</span>
+          <div className="flex items-center gap-2 text-xs md:text-sm font-semibold">
+            <span className="text-text-sub">{dateDisplay}</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-brand-primary" />
+            <span className="text-brand-primary font-bold">{headerSubtitle}</span>
           </div>
         </div>
         
         <button 
           onClick={onOpenSettings}
-          className="w-11 h-11 md:w-12 md:h-12 rounded-full overflow-hidden bg-app-card border border-white/5 flex items-center justify-center shrink-0 hover:border-brand-primary transition-all duration-300 shadow-lg hover:scale-105 active:scale-95 cursor-pointer"
+          className="w-11 h-11 md:w-12 md:h-12 rounded-full overflow-hidden bg-app-card border border-border-discreet flex items-center justify-center shrink-0 hover:border-brand-primary transition-all duration-300 shadow-lg hover:scale-105 active:scale-95 cursor-pointer"
         >
           {avatarUrl ? (
             <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -245,7 +245,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
             whileHover={{ y: -2 }}
             whileTap={{ scale: 0.995 }}
             onClick={() => openTaskDetails(priorityTask)}
-            className="group flex items-center gap-4 bg-app-card p-4 md:p-5 rounded-[22px] border border-white/5 cursor-pointer hover:border-white/10 transition-all shadow-md relative overflow-hidden"
+            className="group flex items-center gap-4 bg-app-card p-4 md:p-5 rounded-[22px] border border-border-discreet cursor-pointer hover:border-white/20 transition-all shadow-md relative overflow-hidden"
           >
             {/* Subtle light glow */}
             <div className="absolute right-0 top-0 w-24 h-24 bg-brand-primary/5 rounded-full blur-2xl pointer-events-none" />
@@ -254,25 +254,25 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
               onClick={(e) => { e.stopPropagation(); toggleTaskOnDate(priorityTask.id, todayStr); }}
               className={`shrink-0 flex items-center justify-center w-6 h-6 rounded-full border-[2px] transition-all duration-200 cursor-pointer ${
                 isTaskCompletedOnDate(priorityTask, todayStr) 
-                  ? 'bg-brand-primary border-brand-primary text-white scale-105' 
-                  : 'border-text-sec/40 text-transparent hover:border-brand-primary hover:scale-105'
+                  ? 'bg-brand-primary border-brand-primary text-white scale-105 shadow-[0_0_8px_rgba(123,109,255,0.4)]' 
+                  : 'border-text-sec text-transparent hover:border-brand-primary hover:scale-105'
               }`}
             >
               <CheckCircle2 size={16} strokeWidth={3.5} className={isTaskCompletedOnDate(priorityTask, todayStr) ? 'opacity-100' : 'opacity-0'} />
             </button>
             
             <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${isTaskCompletedOnDate(priorityTask, todayStr) ? 'opacity-40' : 'opacity-100'}`}>
-              <h3 className={`text-sm md:text-base font-semibold text-white truncate ${isTaskCompletedOnDate(priorityTask, todayStr) ? 'line-through decoration-white/30' : ''}`}>
+              <h3 className={`text-base font-bold text-white truncate ${isTaskCompletedOnDate(priorityTask, todayStr) ? 'line-through decoration-white/30 text-white/50' : ''}`}>
                 {priorityTask.title}
               </h3>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-[10px] md:text-xs text-text-sec font-mono bg-white/5 px-2 py-0.5 rounded-md flex items-center gap-1">
-                  <Clock size={11} className="text-text-sec" />
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs text-text-sub font-semibold bg-white/10 px-2.5 py-1 rounded-md flex items-center gap-1 border border-white/5 shrink-0">
+                  <Clock size={11} className="text-brand-primary" />
                   {priorityTask.time}
                 </span>
-                <span className="w-1 h-1 rounded-full bg-white/10" />
-                <span className="text-[10px] md:text-xs text-text-sec bg-white/5 px-2 py-0.5 rounded-md flex items-center gap-1">
-                  <Tag size={11} className="text-text-sec" />
+                <span className="w-1 h-1 rounded-full bg-white/15" />
+                <span className="text-xs text-white font-bold bg-white/10 px-2.5 py-1 rounded-md flex items-center gap-1 border border-white/5 shrink-0">
+                  <Tag size={11} className="text-brand-primary" />
                   {priorityTask.category}
                 </span>
               </div>
@@ -297,7 +297,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         </div>
         
         {/* Segmented Control */}
-        <div className="flex p-1 bg-app-card-sec rounded-[18px] border border-white/5 w-full relative">
+        <div className="flex p-1 bg-app-card-sec rounded-[18px] border border-border-discreet w-full relative">
           {['hoje', 'semana', 'mes'].map(filter => {
             const isActive = viewFilter === filter;
             const labelMap: Record<string, string> = { hoje: 'Hoje', semana: 'Semana', mes: 'Mês' };
@@ -305,14 +305,14 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
               <button
                 key={filter}
                 onClick={() => setViewFilter(filter as any)}
-                className={`relative flex-1 text-xs md:text-sm font-semibold py-2.5 rounded-[14px] transition-all z-10 capitalize cursor-pointer ${
-                  isActive ? 'text-white' : 'text-text-sec hover:text-white'
+                className={`relative flex-1 text-xs md:text-sm font-bold py-2.5 rounded-[14px] transition-all z-10 capitalize cursor-pointer ${
+                  isActive ? 'text-white' : 'text-text-meta hover:text-white'
                 }`}
               >
                 {isActive && (
                   <motion.div 
                     layoutId="activeFilterTab"
-                    className="absolute inset-0 bg-gradient-to-r from-brand-primary to-brand-hover rounded-[14px] shadow-sm shadow-brand-primary/10"
+                    className="absolute inset-0 bg-gradient-to-r from-[#7B6DFF] to-[#8A79FF] rounded-[14px] shadow-md shadow-brand-primary/20"
                     transition={{ type: "spring", stiffness: 350, damping: 28 }}
                   />
                 )}
@@ -325,7 +325,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         {/* Task List */}
         <div className="flex flex-col gap-3">
           {filteredTasks.length === 0 ? (
-            <div className="text-center py-12 text-text-sec text-xs md:text-sm bg-app-card/20 rounded-[20px] border border-white/5">
+            <div className="text-center py-12 text-text-sec text-xs md:text-sm bg-app-card/20 rounded-[20px] border border-border-discreet">
               Nenhuma tarefa para este período.
             </div>
           ) : (
@@ -342,14 +342,14 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
                     transition={{ duration: 0.18 }}
                     key={task.id}
                     onClick={() => openTaskDetails(task)}
-                    className="group flex items-center gap-4 bg-app-card p-4 md:p-5 rounded-[20px] border border-white/5 cursor-pointer hover:border-white/10 transition-all active:scale-[0.99] shadow-sm hover:shadow-md"
+                    className="group flex items-center gap-4 bg-app-card p-4 md:p-5 rounded-[20px] border border-border-discreet cursor-pointer hover:border-white/20 transition-all active:scale-[0.99] shadow-sm hover:shadow-md"
                   >
                     <button 
                       onClick={(e) => { e.stopPropagation(); toggleTaskOnDate(task.id, targetDate); }}
                       className={`shrink-0 flex items-center justify-center w-6 h-6 rounded-full border-[2px] transition-all duration-200 cursor-pointer ${
                         isCompleted 
-                          ? 'bg-brand-primary border-brand-primary text-white scale-105' 
-                          : 'border-text-sec/40 text-transparent hover:border-brand-primary hover:scale-105'
+                          ? 'bg-brand-primary border-brand-primary text-white scale-105 shadow-[0_0_8px_rgba(123,109,255,0.4)]' 
+                          : 'border-text-sec text-transparent hover:border-brand-primary hover:scale-105'
                       }`}
                     >
                       <CheckCircle2 size={15} strokeWidth={3.5} className={isCompleted ? 'opacity-100' : 'opacity-0'} />
@@ -357,27 +357,27 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
                     
                     <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${isCompleted ? 'opacity-40' : 'opacity-100'}`}>
                       <div className="flex items-center gap-2">
-                        <h3 className={`text-sm md:text-base font-semibold text-white truncate ${isCompleted ? 'line-through decoration-white/30' : ''}`}>
+                        <h3 className={`text-sm md:text-base font-bold text-white truncate ${isCompleted ? 'line-through decoration-white/30 text-white/50' : ''}`}>
                           {task.title}
                         </h3>
                         {task.priority && !isCompleted && (
                           <Flame size={14} className="text-[#FF5252] shrink-0 animate-pulse" />
                         )}
                       </div>
-                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        <span className="text-[10px] md:text-xs text-text-sec font-mono bg-white/5 px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
-                          <Clock size={11} className="text-text-sec" />
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        <span className="text-xs text-text-sub font-semibold bg-white/10 px-2.5 py-1 rounded-md flex items-center gap-1 shrink-0 border border-white/5">
+                          <Clock size={11} className="text-brand-primary" />
                           {task.time}
                         </span>
-                        <span className="w-1 h-1 rounded-full bg-white/10 shrink-0" />
-                        <span className="text-[10px] md:text-xs text-text-sec bg-white/5 px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
-                          <Tag size={11} className="text-text-sec" />
+                        <span className="w-1 h-1 rounded-full bg-white/15 shrink-0" />
+                        <span className="text-xs text-white font-bold bg-white/10 px-2.5 py-1 rounded-md flex items-center gap-1 shrink-0 border border-white/5">
+                          <Tag size={11} className="text-brand-primary" />
                           {task.category}
                         </span>
                         {task.recurrence === 'semanal' && (
                           <>
-                            <span className="w-1 h-1 rounded-full bg-white/10 shrink-0" />
-                            <span className="text-[10px] md:text-xs text-brand-primary font-medium shrink-0 flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-white/15 shrink-0" />
+                            <span className="text-xs text-brand-primary font-bold shrink-0 flex items-center gap-1">
                               <RefreshCw size={11} className="animate-spin-slow" />
                               {task.recurrenceDays && task.recurrenceDays.length > 0
                                 ? `Semanal (${task.recurrenceDays.map(d => {
@@ -390,8 +390,8 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
                         )}
                         {viewFilter !== 'hoje' && task.recurrence !== 'semanal' && task.date && (
                           <>
-                            <span className="w-1 h-1 rounded-full bg-white/10 shrink-0" />
-                            <span className="text-[10px] md:text-xs text-text-sec font-mono shrink-0">
+                            <span className="w-1 h-1 rounded-full bg-white/15 shrink-0" />
+                            <span className="text-xs text-text-sub font-semibold font-mono shrink-0 bg-white/10 px-2.5 py-1 rounded-md border border-white/5">
                               {task.date.split('-').reverse().slice(0,2).join('/')}
                             </span>
                           </>
@@ -412,24 +412,24 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
 
       {/* 3. PROGRESSO DIÁRIO */}
       {viewFilter === 'hoje' && (
-        <section className="bg-app-card rounded-[22px] p-5 border border-white/5 shadow-md">
+        <section className="bg-app-card rounded-[22px] p-5 border border-border-discreet shadow-md">
           <div className="flex justify-between items-center mb-3">
-            <span className="text-[10px] font-bold text-text-sec uppercase tracking-wider">Progresso de Hoje</span>
-            <span className="text-[11px] font-bold text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-bold text-text-sub uppercase tracking-wider">Progresso de Hoje</span>
+            <span className="text-xs font-extrabold text-white bg-brand-primary/20 border border-brand-primary/30 px-3 py-1 rounded-full">
               {completedCount} de {filteredTasks.length} {filteredTasks.length === 1 ? 'tarefa' : 'tarefas'}
             </span>
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="h-2.5 flex-1 bg-app-card-sec border border-white/5 rounded-full overflow-hidden relative">
+            <div className="h-[10px] flex-1 bg-app-card-sec border border-white/10 rounded-full overflow-hidden relative">
               <motion.div 
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPercentage}%` }}
                 transition={{ duration: 0.6, ease: "easeOut" }}
-                className="h-full bg-gradient-to-r from-brand-primary to-brand-hover rounded-full relative"
+                className="h-full bg-gradient-to-r from-[#7B6DFF] to-[#8A79FF] rounded-full relative shadow-[0_0_12px_rgba(123,109,255,0.4)]"
               />
             </div>
-            <span className="text-sm font-extrabold text-white font-mono w-10 text-right shrink-0">
+            <span className="text-sm font-black text-white font-mono w-10 text-right shrink-0">
               {progressPercentage}%
             </span>
           </div>
@@ -437,17 +437,17 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       )}
 
       {/* 4. CARD DE INSPIRAÇÃO (SMALL MENSAGEM MOTIVACIONAL) */}
-      <section className="bg-app-card-sec/30 rounded-[20px] p-4 border border-white/5 flex items-center gap-3.5 relative overflow-hidden">
+      <section className="bg-app-card-sec/40 rounded-[20px] p-4.5 border border-border-discreet flex items-center gap-3.5 relative overflow-hidden">
         {/* Subtle background blur accent */}
         <div className="absolute -left-6 -top-6 w-16 h-16 bg-brand-primary/10 rounded-full blur-xl pointer-events-none" />
         
         <div className="w-8 h-8 rounded-lg bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-brand-primary shrink-0">
-          <Flame size={14} className="opacity-80" />
+          <Flame size={14} className="opacity-100" />
         </div>
         
-        <div className="flex flex-col gap-0.5 min-w-0">
-          <span className="text-[9px] font-bold text-brand-primary uppercase tracking-wider">Foco & Inspiração</span>
-          <p className="text-xs font-medium text-white/80 leading-relaxed truncate-2-lines">
+        <div className="flex flex-col gap-1 min-w-0">
+          <span className="text-[10px] font-bold text-brand-primary uppercase tracking-wider">Foco & Inspiração</span>
+          <p className="text-xs font-semibold text-white leading-relaxed truncate-2-lines">
             "A disciplina é a ponte entre metas e realizações."
           </p>
         </div>

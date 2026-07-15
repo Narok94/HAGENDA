@@ -15,6 +15,20 @@ export default function App() {
     return localStorage.getItem('momentum_avatar_url');
   });
 
+  // Contrast Settings State
+  const [isHighContrast, setIsHighContrast] = useState(() => {
+    return localStorage.getItem('momentum_high_contrast') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('momentum_high_contrast', String(isHighContrast));
+    if (isHighContrast) {
+      document.documentElement.classList.add('high-contrast');
+    } else {
+      document.documentElement.classList.remove('high-contrast');
+    }
+  }, [isHighContrast]);
+
   useEffect(() => {
     localStorage.setItem('momentum_user_name', userName);
   }, [userName]);
@@ -383,18 +397,38 @@ export default function App() {
 
                   {/* Name Input */}
                   <div className="space-y-2">
-                    <label className="text-xs text-text-sec font-medium uppercase tracking-wider ml-1">Nome do usuário</label>
+                    <label className="text-xs text-text-sec font-semibold uppercase tracking-wider ml-1">Nome do usuário</label>
                     <input 
                       type="text" 
                       value={userName}
                       onChange={(e) => setUserName(e.target.value)}
-                      className="w-full bg-app-bg border border-white/10 rounded-[14px] px-4 py-3.5 text-white focus:outline-none focus:border-brand-primary focus:shadow-[0_0_0_2px_rgba(108,92,231,0.2)] transition-all font-medium text-sm"
+                      className="w-full bg-app-bg border border-white/10 rounded-[14px] px-4 py-3.5 text-white focus:outline-none focus:border-brand-primary focus:shadow-[0_0_0_2px_rgba(123,109,255,0.2)] transition-all font-semibold text-sm"
                       placeholder="Seu nome"
                     />
                   </div>
+
+                  {/* Contrast / Theme Toggle */}
+                  <div className="space-y-3 pt-2">
+                    <label className="text-xs text-text-sec font-semibold uppercase tracking-wider ml-1">Estilo & Contraste</label>
+                    <div className="flex items-center justify-between p-3.5 bg-app-bg border border-white/5 rounded-[16px] shadow-inner">
+                      <div className="flex flex-col gap-0.5 pr-2">
+                        <span className="text-sm font-bold text-white">Dark Alto Contraste</span>
+                        <span className="text-[10px] text-text-meta font-medium leading-tight">Ideal para uso em ambientes externos / luz do sol</span>
+                      </div>
+                      <label className="relative flex items-center cursor-pointer select-none shrink-0">
+                        <input 
+                          type="checkbox" 
+                          checked={isHighContrast}
+                          onChange={() => setIsHighContrast(!isHighContrast)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary shadow-sm" />
+                      </label>
+                    </div>
+                  </div>
                   
-                  <div className="pt-4 pb-1 text-center">
-                    <p className="text-[10px] font-medium text-text-sec/40 uppercase tracking-widest">Momentum v1.1.0</p>
+                  <div className="pt-2 pb-1 text-center">
+                    <p className="text-[10px] font-bold text-text-sec/50 uppercase tracking-widest">Momentum v1.1.0</p>
                   </div>
                 </div>
               </motion.div>
