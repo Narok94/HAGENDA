@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw } from 'lucide-react';
+import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw, Trash2, Mic, MicOff, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Task } from '../types';
 import { getIcon } from '../utils/icons';
@@ -114,6 +114,127 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+
+  // AI & Voice State
+  const [aiInput, setAiInput] = useState('');
+  const [isParsing, setIsParsing] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+
+  // Coach Inspiration State
+  const [inspiration, setInspiration] = useState(() => {
+    return localStorage.getItem('momentum_coach_quote') || 'A disciplina é a ponte entre metas e realizações.';
+  });
+  const [loadingInspiration, setLoadingInspiration] = useState(false);
+
+  // Parse Text with IA (POST to backend)
+  const handleParseAiTask = async (textToParse: string) => {
+    const textClean = textToParse || aiInput;
+    if (!textClean.trim()) return;
+
+    setIsParsing(true);
+    try {
+      const response = await fetch('/api/parse-task', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: textClean, currentDate: todayStr })
+      });
+
+      if (!response.ok) throw new Error('Falha no servidor');
+      const parsed = await response.json();
+
+      // Pre-fill a new task with temporary ID
+      const prefilledTask: Task = {
+        id: 'temp',
+        title: parsed.title || textClean,
+        date: parsed.date || todayStr,
+        time: parsed.time || '12:00',
+        category: parsed.category || 'Geral',
+        icon: parsed.icon || 'Circle',
+        priority: parsed.priority || false,
+        completed: false,
+        notes: parsed.notes || '',
+        recurrence: parsed.recurrence || 'none',
+        recurrenceDay: parsed.recurrenceDay,
+        recurrenceDays: parsed.recurrenceDays,
+      };
+
+      setSelectedTask(prefilledTask);
+      setIsCreating(true);
+      setIsModalOpen(true);
+      setAiInput(''); // Clear input
+    } catch (error) {
+      console.error('Erro ao analisar tarefa com IA:', error);
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  // Voice recognition via SpeechRecognition
+  const handleVoiceInput = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Seu celular ou navegador não suporta reconhecimento de voz nativo.');
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'pt-BR';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.onerror = (e: any) => {
+      console.error('Erro no reconhecimento de voz:', e);
+      setIsListening(false);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setAiInput(transcript);
+      handleParseAiTask(transcript);
+    };
+
+    recognition.start();
+  };
+
+  // Fetch Coach inspiration phrase based on today's tasks
+  const fetchInspiration = async () => {
+    setLoadingInspiration(true);
+    try {
+      const todayTasks = tasks.filter(t => isTaskOnDate(t, todayStr));
+      const response = await fetch('/api/generate-inspiration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tasks: todayTasks, userName })
+      });
+      const data = await response.json();
+      if (data.text) {
+        setInspiration(data.text);
+        localStorage.setItem('momentum_coach_quote', data.text);
+      }
+    } catch (err) {
+      console.error('Erro ao gerar inspiração:', err);
+    } finally {
+      setLoadingInspiration(false);
+    }
+  };
+
+  // Fetch inspiration quote when tasks array changes
+  useEffect(() => {
+    fetchInspiration();
+  }, [tasks, userName]);
 
   useEffect(() => {
     localStorage.setItem('momentum_tasks', JSON.stringify(tasks));
@@ -234,6 +355,56 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         </button>
       </header>
 
+      {/* INPUT INTELIGENTE DE TAREFAS COM IA (NLP + VOZ) */}
+      <section className="bg-app-card rounded-[22px] p-4.5 border border-border-discreet flex flex-col gap-3 relative overflow-hidden shadow-md">
+        {/* Subtle decorative glow */}
+        <div className="absolute right-0 top-0 w-32 h-32 bg-brand-primary/5 rounded-full blur-2xl pointer-events-none" />
+        
+        <div className="flex items-center gap-2 text-xs font-bold text-text-sec">
+          <Sparkles size={14} className="text-brand-primary animate-pulse" />
+          <span>Criar Tarefa por IA (NLP & Voz)</span>
+        </div>
+        
+        <div className="flex gap-2.5 items-center">
+          <div className="flex-1 relative flex items-center bg-app-card-sec rounded-[16px] border border-border-discreet focus-within:border-brand-primary/50 transition-all">
+            <input 
+              type="text"
+              value={aiInput}
+              onChange={(e) => setAiInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleParseAiTask(aiInput);
+                }
+              }}
+              placeholder="Treino de pernas hoje às 18h prioridade máxima..."
+              disabled={isParsing}
+              className="w-full bg-transparent px-4 py-3.5 pr-12 text-sm text-white placeholder-text-meta outline-none disabled:opacity-50"
+            />
+            {isParsing && (
+              <Loader2 size={16} className="absolute right-4 text-brand-primary animate-spin" />
+            )}
+          </div>
+          
+          <button
+            onClick={handleVoiceInput}
+            type="button"
+            className={`w-[48px] h-[48px] rounded-[16px] flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+              isListening 
+                ? 'bg-[#FF5252] text-white animate-pulse shadow-[0_0_12px_rgba(255,82,82,0.4)]' 
+                : 'bg-brand-primary/10 border border-brand-primary/20 text-brand-primary hover:bg-brand-primary/15'
+            }`}
+            title={isListening ? "Ouvindo... Toque para parar" : "Falar comando de voz"}
+          >
+            {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+          </button>
+        </div>
+        {isListening && (
+          <p className="text-[11px] text-[#FF5252] font-semibold animate-pulse ml-1">
+            🎙️ Ouvindo sua voz em tempo real... Fale e ao terminar, analisaremos seu comando.
+          </p>
+        )}
+      </section>
+
       {/* 1. PRÓXIMA TAREFA (PRIORITY / NEXT TASK) */}
       {priorityTask && (
         <section className="flex flex-col gap-2">
@@ -334,75 +505,104 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
                 const targetDate = getTaskTargetDateForFilter(task, viewFilter, todayStr);
                 const isCompleted = isTaskCompletedOnDate(task, targetDate);
                 return (
-                  <motion.div 
-                    layout
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.18 }}
-                    key={task.id}
-                    onClick={() => openTaskDetails(task)}
-                    className="group flex items-center gap-4 bg-app-card p-4 md:p-5 rounded-[20px] border border-border-discreet cursor-pointer hover:border-white/20 transition-all active:scale-[0.99] shadow-sm hover:shadow-md"
-                  >
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); toggleTaskOnDate(task.id, targetDate); }}
-                      className={`shrink-0 flex items-center justify-center w-6 h-6 rounded-full border-[2px] transition-all duration-200 cursor-pointer ${
-                        isCompleted 
-                          ? 'bg-brand-primary border-brand-primary text-white scale-105 shadow-[0_0_8px_rgba(123,109,255,0.4)]' 
-                          : 'border-text-sec text-transparent hover:border-brand-primary hover:scale-105'
-                      }`}
+                  <div key={task.id} className="relative overflow-hidden rounded-[20px] w-full">
+                    {/* Background swipe reveals */}
+                    <div className="absolute inset-0 flex items-center justify-between rounded-[20px] pointer-events-none select-none overflow-hidden z-0">
+                      {/* Left Side: Green Concluir (Drag Right) */}
+                      <div className="absolute inset-y-0 left-0 bg-emerald-500/20 flex items-center pl-6 pr-12 rounded-[20px] w-1/2 justify-start">
+                        <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                          <CheckCircle2 size={16} strokeWidth={3} className="animate-pulse" />
+                          <span>Concluir</span>
+                        </div>
+                      </div>
+
+                      {/* Right Side: Red Excluir (Drag Left) */}
+                      <div className="absolute inset-y-0 right-0 bg-rose-500/20 flex items-center pr-6 pl-12 rounded-[20px] w-1/2 justify-end">
+                        <div className="flex items-center gap-2 text-rose-400 font-bold text-xs">
+                          <Trash2 size={16} className="animate-pulse" />
+                          <span>Excluir</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <motion.div 
+                      layout
+                      drag="x"
+                      dragConstraints={{ left: 0, right: 0 }}
+                      dragElastic={{ left: 0.5, right: 0.5 }}
+                      onDragEnd={(event, info) => {
+                        if (info.offset.x > 120) {
+                          // Swipe right to toggle completion
+                          toggleTaskOnDate(task.id, targetDate);
+                        } else if (info.offset.x < -120) {
+                          // Swipe left to delete task
+                          setTasks(prev => prev.filter(t => t.id !== task.id));
+                        }
+                      }}
+                      whileTap={{ scale: 0.985 }}
+                      onClick={() => openTaskDetails(task)}
+                      className="relative z-10 group flex items-center gap-4 bg-app-card p-4 md:p-5 rounded-[20px] border border-border-discreet cursor-pointer hover:border-white/20 transition-all shadow-sm hover:shadow-md"
                     >
-                      <CheckCircle2 size={15} strokeWidth={3.5} className={isCompleted ? 'opacity-100' : 'opacity-0'} />
-                    </button>
-                    
-                    <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${isCompleted ? 'opacity-40' : 'opacity-100'}`}>
-                      <div className="flex items-center gap-2">
-                        <h3 className={`text-sm md:text-base font-bold text-white truncate ${isCompleted ? 'line-through decoration-white/30 text-white/50' : ''}`}>
-                          {task.title}
-                        </h3>
-                        {task.priority && !isCompleted && (
-                          <Flame size={14} className="text-[#FF5252] shrink-0 animate-pulse" />
-                        )}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); toggleTaskOnDate(task.id, targetDate); }}
+                        className={`shrink-0 flex items-center justify-center w-6 h-6 rounded-full border-[2px] transition-all duration-200 cursor-pointer ${
+                          isCompleted 
+                            ? 'bg-brand-primary border-brand-primary text-white scale-105 shadow-[0_0_8px_rgba(123,109,255,0.4)]' 
+                            : 'border-text-sec text-transparent hover:border-brand-primary hover:scale-105'
+                        }`}
+                      >
+                        <CheckCircle2 size={15} strokeWidth={3.5} className={isCompleted ? 'opacity-100' : 'opacity-0'} />
+                      </button>
+                      
+                      <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${isCompleted ? 'opacity-40' : 'opacity-100'}`}>
+                        <div className="flex items-center gap-2">
+                          <h3 className={`text-sm md:text-base font-bold text-white truncate ${isCompleted ? 'line-through decoration-white/30 text-white/50' : ''}`}>
+                            {task.title}
+                          </h3>
+                          {task.priority && !isCompleted && (
+                            <Flame size={14} className="text-[#FF5252] shrink-0 animate-pulse" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <span className="text-xs text-text-sub font-semibold bg-white/10 px-2.5 py-1 rounded-md flex items-center gap-1 shrink-0 border border-white/5">
+                            <Clock size={11} className="text-brand-primary" />
+                            {task.time}
+                          </span>
+                          <span className="w-1 h-1 rounded-full bg-white/15 shrink-0" />
+                          <span className="text-xs text-white font-bold bg-white/10 px-2.5 py-1 rounded-md flex items-center gap-1 shrink-0 border border-white/5">
+                            <Tag size={11} className="text-brand-primary" />
+                            {task.category}
+                          </span>
+                          {task.recurrence === 'semanal' && (
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-white/15 shrink-0" />
+                              <span className="text-xs text-brand-primary font-bold shrink-0 flex items-center gap-1">
+                                <RefreshCw size={11} className="animate-spin-slow" />
+                                {task.recurrenceDays && task.recurrenceDays.length > 0
+                                  ? `Semanal (${task.recurrenceDays.map(d => {
+                                      const names = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+                                      return names[Number(d)];
+                                    }).join(', ')})`
+                                  : 'Semanal'}
+                              </span>
+                            </>
+                          )}
+                          {viewFilter !== 'hoje' && task.recurrence !== 'semanal' && task.date && (
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-white/15 shrink-0" />
+                              <span className="text-xs text-text-sub font-semibold font-mono shrink-0 bg-white/10 px-2.5 py-1 rounded-md border border-white/5">
+                                {task.date.split('-').reverse().slice(0,2).join('/')}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <span className="text-xs text-text-sub font-semibold bg-white/10 px-2.5 py-1 rounded-md flex items-center gap-1 shrink-0 border border-white/5">
-                          <Clock size={11} className="text-brand-primary" />
-                          {task.time}
-                        </span>
-                        <span className="w-1 h-1 rounded-full bg-white/15 shrink-0" />
-                        <span className="text-xs text-white font-bold bg-white/10 px-2.5 py-1 rounded-md flex items-center gap-1 shrink-0 border border-white/5">
-                          <Tag size={11} className="text-brand-primary" />
-                          {task.category}
-                        </span>
-                        {task.recurrence === 'semanal' && (
-                          <>
-                            <span className="w-1 h-1 rounded-full bg-white/15 shrink-0" />
-                            <span className="text-xs text-brand-primary font-bold shrink-0 flex items-center gap-1">
-                              <RefreshCw size={11} className="animate-spin-slow" />
-                              {task.recurrenceDays && task.recurrenceDays.length > 0
-                                ? `Semanal (${task.recurrenceDays.map(d => {
-                                    const names = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-                                    return names[Number(d)];
-                                  }).join(', ')})`
-                                : 'Semanal'}
-                            </span>
-                          </>
-                        )}
-                        {viewFilter !== 'hoje' && task.recurrence !== 'semanal' && task.date && (
-                          <>
-                            <span className="w-1 h-1 rounded-full bg-white/15 shrink-0" />
-                            <span className="text-xs text-text-sub font-semibold font-mono shrink-0 bg-white/10 px-2.5 py-1 rounded-md border border-white/5">
-                              {task.date.split('-').reverse().slice(0,2).join('/')}
-                            </span>
-                          </>
-                        )}
+                      
+                      <div className={`w-9 h-9 md:w-10 md:h-10 rounded-[12px] flex items-center justify-center shrink-0 transition-colors duration-200 ${isCompleted ? 'bg-white/5 text-white/30' : 'bg-brand-primary/10 text-brand-primary group-hover:bg-brand-primary/15'}`}>
+                        {getIcon(task.icon)}
                       </div>
-                    </div>
-                    
-                    <div className={`w-9 h-9 md:w-10 md:h-10 rounded-[12px] flex items-center justify-center shrink-0 transition-colors duration-200 ${isCompleted ? 'bg-white/5 text-white/30' : 'bg-brand-primary/10 text-brand-primary group-hover:bg-brand-primary/15'}`}>
-                      {getIcon(task.icon)}
-                    </div>
-                  </motion.div>
+                    </motion.div>
+                  </div>
                 );
               })}
             </AnimatePresence>
@@ -441,14 +641,17 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         {/* Subtle background blur accent */}
         <div className="absolute -left-6 -top-6 w-16 h-16 bg-brand-primary/10 rounded-full blur-xl pointer-events-none" />
         
-        <div className="w-8 h-8 rounded-lg bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-brand-primary shrink-0">
-          <Flame size={14} className="opacity-100" />
+        <div className={`w-8 h-8 rounded-lg bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-brand-primary shrink-0 ${loadingInspiration ? 'animate-pulse' : ''}`}>
+          <Sparkles size={14} className={loadingInspiration ? 'animate-spin' : 'opacity-100'} />
         </div>
         
-        <div className="flex flex-col gap-1 min-w-0">
-          <span className="text-[10px] font-bold text-brand-primary uppercase tracking-wider">Foco & Inspiração</span>
-          <p className="text-xs font-semibold text-white leading-relaxed truncate-2-lines">
-            "A disciplina é a ponte entre metas e realizações."
+        <div className="flex flex-col gap-1 min-w-0 flex-1">
+          <span className="text-[10px] font-bold text-brand-primary uppercase tracking-wider flex items-center gap-1">
+            Coach de IA
+            {loadingInspiration && <span className="text-[8px] lowercase font-normal text-text-meta animate-pulse">(recalculando...)</span>}
+          </span>
+          <p className="text-xs font-semibold text-white leading-relaxed italic">
+            "{inspiration}"
           </p>
         </div>
       </section>

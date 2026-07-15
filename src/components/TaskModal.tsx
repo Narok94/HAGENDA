@@ -11,7 +11,7 @@ interface TaskModalProps {
 }
 
 export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModalProps) {
-  const isCreateMode = !task;
+  const isCreateMode = !task || !task.id || task.id === 'temp';
   const [isEditing, setIsEditing] = useState(isCreateMode);
 
   // Form State
