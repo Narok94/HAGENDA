@@ -11,6 +11,8 @@ const PORT = 3000;
 
 app.use(express.json());
 
+const apiRouter = express.Router();
+
 // In-memory fallback
 let memoryTasks: any[] = [];
 
@@ -64,7 +66,7 @@ async function setupDatabase() {
 }
 
 // Endpoint 0: Check Database Connection status
-app.get("/api/db-status", async (req, res) => {
+apiRouter.get("/db-status", async (req, res) => {
   const sql = getDb();
   if (!sql) {
     return res.json({ connected: false, mode: "memory" });
@@ -90,7 +92,7 @@ const ai = new GoogleGenAI({
 });
 
 // Endpoint 1: Parse Task with NLP (Gemini Structured Outputs)
-app.post("/api/parse-task", async (req, res) => {
+apiRouter.post("/parse-task", async (req, res) => {
   try {
     const { text, currentDate } = req.body;
     if (!text) {
@@ -162,7 +164,7 @@ Instruções para os campos:
 });
 
 // Endpoint 1.5: Transcribe and Parse Task from Audio
-app.post("/api/transcribe-task", async (req, res) => {
+apiRouter.post("/transcribe-task", async (req, res) => {
   try {
     const { audio, currentDate, mimeType } = req.body;
     if (!audio) {
@@ -231,7 +233,7 @@ Instruções para os campos:
 });
 
 // Endpoint 2: Generate Coach Motivation based on today's tasks
-app.post("/api/generate-inspiration", async (req, res) => {
+apiRouter.post("/generate-inspiration", async (req, res) => {
   try {
     const { tasks, userName } = req.body;
     if (!apiKey) {
@@ -265,7 +267,7 @@ Misture o foco físico, mental ou profissional dependendo das categorias de tare
 });
 
 // Endpoint 3: CRUD for Tasks (Neon DB / Memory Fallback)
-app.get("/api/tasks", async (req, res) => {
+apiRouter.get("/tasks", async (req, res) => {
   try {
     const sql = getDb();
     if (sql) {
@@ -295,7 +297,7 @@ app.get("/api/tasks", async (req, res) => {
   }
 });
 
-app.post("/api/tasks", async (req, res) => {
+apiRouter.post("/tasks", async (req, res) => {
   try {
     const task = req.body;
     if (!task.id) {
@@ -351,7 +353,7 @@ app.post("/api/tasks", async (req, res) => {
   }
 });
 
-app.delete("/api/tasks/:id", async (req, res) => {
+apiRouter.delete("/tasks/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const sql = getDb();
@@ -365,6 +367,9 @@ app.delete("/api/tasks/:id", async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 });
+
+app.use("/api", apiRouter);
+app.use("/", apiRouter);
 
 // Vite middleware and serving app
 async function initServer() {
