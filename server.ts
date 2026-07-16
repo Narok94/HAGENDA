@@ -370,6 +370,12 @@ app.delete("/api/tasks/:id", async (req, res) => {
 // Vite middleware and serving app
 async function initServer() {
   await setupDatabase();
+
+  if (process.env.VERCEL) {
+    console.log("Servidor rodando no ambiente Vercel Serverless");
+    return;
+  }
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -390,3 +396,6 @@ async function initServer() {
 }
 
 initServer();
+
+export { app, setupDatabase };
+export default app;
