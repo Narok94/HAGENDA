@@ -120,6 +120,11 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   const [isParsing, setIsParsing] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+  const [voiceError, setVoiceError] = useState('');
+  
+  // MediaRecorder Ref
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
 
   // Coach Inspiration State
   const [inspiration, setInspiration] = useState(() => {
@@ -127,36 +132,22 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   });
   const [loadingInspiration, setLoadingInspiration] = useState(false);
 
-  // Long press logic for FAB
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const isLongPress = useRef(false);
+  // Undo Delete State
+  const [undoDeleteState, setUndoDeleteState] = useState<{ task: Task | null, timeoutId: NodeJS.Timeout | null }>({ task: null, timeoutId: null });
 
-  const handlePointerDown = () => {
-    isLongPress.current = false;
-    timerRef.current = setTimeout(() => {
-      isLongPress.current = true;
-      setIsAssistantOpen(true);
-    }, 500); // 500ms trigger for long press
-  };
+  // Postpone State
+  const [postponeTask, setPostponeTask] = useState<Task | null>(null);
 
-  const handlePointerUp = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-  };
+  // Helper to trigger UI refresh
+  const [forceRender, setForceRender] = useState(0);
 
-  const handlePointerLeave = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-  };
-
-  const handleFabClick = (e: React.MouseEvent) => {
-    if (isLongPress.current) {
-      e.preventDefault();
-      return;
-    }
+  const handleFabClick = () => {
     openCreateModal();
+  };
+
+  const handleAssistantClick = () => {
+    setIsAssistantOpen(true);
+    setVoiceError('');
   };
 
   // Parse Text with IA (POST to backend)
@@ -175,7 +166,6 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       if (!response.ok) throw new Error('Falha no servidor');
       const parsed = await response.json();
 
-      // Create a new task directly and save to list
       const newTask: Task = {
         id: Date.now().toString(),
         title: parsed.title || textClean,
@@ -192,7 +182,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       };
 
       setTasks(prev => [...prev, newTask]);
-      setAiInput(''); // Clear input
+      setAiInput('');
       setIsAssistantOpen(false);
     } catch (error) {
       console.error('Erro ao analisar tarefa com IA:', error);
@@ -201,49 +191,97 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     }
   };
 
-  // Voice recognition via SpeechRecognition
-  const handleVoiceInput = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Seu celular ou navegador não suporta reconhecimento de voz nativo.');
-      return;
-    }
+  // Voice recognition via MediaRecorder and Backend
+  const startRecording = async () => {
+    setVoiceError('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
 
-    if (isListening) {
-      setIsListening(false);
-      return;
-    }
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'pt-BR';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
+      mediaRecorder.onstop = async () => {
+        const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        // Clean up tracks
+        stream.getTracks().forEach(track => track.stop());
+        
+        // Convert Blob to Base64
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          const base64Audio = reader.result?.toString().split(',')[1];
+          if (!base64Audio) return;
+          
+          setIsParsing(true);
+          try {
+            const response = await fetch('/api/transcribe-task', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                audio: base64Audio, 
+                currentDate: todayStr,
+                mimeType: audioBlob.type
+              })
+            });
 
-    recognition.onstart = () => {
+            if (!response.ok) throw new Error('Falha na transcrição');
+            const parsed = await response.json();
+
+            const newTask: Task = {
+              id: Date.now().toString(),
+              title: parsed.title || 'Tarefa de áudio não compreendida',
+              date: parsed.date || todayStr,
+              time: parsed.time || '12:00',
+              category: parsed.category || 'Geral',
+              icon: parsed.icon || 'Circle',
+              priority: parsed.priority || false,
+              completed: false,
+              notes: parsed.notes || '',
+              recurrence: parsed.recurrence || 'none',
+              recurrenceDay: parsed.recurrenceDay,
+              recurrenceDays: parsed.recurrenceDays,
+            };
+
+            setTasks(prev => [...prev, newTask]);
+            setIsAssistantOpen(false);
+          } catch (error) {
+            console.error('Erro ao transcrever:', error);
+            setVoiceError('Erro ao transcrever o áudio.');
+          } finally {
+            setIsParsing(false);
+          }
+        };
+      };
+
+      mediaRecorder.start();
       setIsListening(true);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.onerror = (e: any) => {
-      console.error('Erro no reconhecimento de voz:', e);
-      alert('Erro no microfone. Verifique as permissões ou tente abrir o app em uma nova aba (Fora do iFrame).');
-      setIsListening(false);
-    };
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setAiInput(transcript);
-      handleParseAiTask(transcript);
-    };
-
-    recognition.start();
+    } catch (err) {
+      console.error('Erro de permissão de microfone', err);
+      setVoiceError('Permissão de microfone negada ou indisponível.');
+    }
   };
 
-  // Fetch Coach inspiration phrase based on today's tasks
-  const fetchInspiration = async () => {
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isListening) {
+      mediaRecorderRef.current.stop();
+      setIsListening(false);
+    }
+  };
+
+  // Fetch Coach inspiration phrase
+  const fetchInspiration = async (forceUpdate = false) => {
+    const cachedDate = localStorage.getItem('momentum_coach_date');
+    if (!forceUpdate && cachedDate === todayStr) {
+      return; // Already generated today
+    }
+
     setLoadingInspiration(true);
     try {
       const todayTasks = tasks.filter(t => isTaskOnDate(t, todayStr));
@@ -256,6 +294,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       if (data.text) {
         setInspiration(data.text);
         localStorage.setItem('momentum_coach_quote', data.text);
+        localStorage.setItem('momentum_coach_date', todayStr);
       }
     } catch (err) {
       console.error('Erro ao gerar inspiração:', err);
@@ -264,10 +303,10 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     }
   };
 
-  // Fetch inspiration quote when tasks array changes
+  // Fetch inspiration quote on mount
   useEffect(() => {
     fetchInspiration();
-  }, [tasks, userName]);
+  }, [userName]);
 
   useEffect(() => {
     localStorage.setItem('momentum_tasks', JSON.stringify(tasks));
@@ -298,8 +337,53 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   };
 
   const handleDeleteTask = (id: string) => {
+    const taskToDelete = tasks.find(t => t.id === id);
+    if (!taskToDelete) return;
+
+    if (undoDeleteState.timeoutId) {
+      clearTimeout(undoDeleteState.timeoutId);
+    }
+
     setTasks(tasks.filter(t => t.id !== id));
     closeModal();
+
+    const timeoutId = setTimeout(() => {
+      setUndoDeleteState({ task: null, timeoutId: null });
+    }, 5000);
+
+    setUndoDeleteState({ task: taskToDelete, timeoutId });
+  };
+
+  const handleUndoDelete = () => {
+    if (undoDeleteState.task) {
+      setTasks([...tasks, undoDeleteState.task]);
+    }
+    if (undoDeleteState.timeoutId) {
+      clearTimeout(undoDeleteState.timeoutId);
+    }
+    setUndoDeleteState({ task: null, timeoutId: null });
+  };
+
+  const handlePostpone = (days: number) => {
+    if (!postponeTask) return;
+    const task = postponeTask;
+    
+    // Calcula a nova data
+    const newDate = new Date(todayStr);
+    newDate.setDate(newDate.getDate() + days);
+    const newDateStr = newDate.toISOString().split('T')[0];
+
+    if (!task.recurrence || task.recurrence === 'none') {
+      setTasks(tasks.map(t => t.id === task.id ? { ...t, date: newDateStr } : t));
+    } else {
+      // Se for recorrente, esconde hoje adicionando aos completedDates
+      const completedDates = task.completedDates || [];
+      const updatedTask = { ...task, completedDates: [...completedDates, todayStr] };
+      // Cria uma nova tarefa apenas para a nova data, não recorrente
+      const newTask: Task = { ...task, id: Date.now().toString(), date: newDateStr, recurrence: 'none', completedDates: [] };
+      setTasks([...tasks.filter(t => t.id !== task.id), updatedTask, newTask]);
+    }
+    setPostponeTask(null);
   };
 
   const openCreateModal = () => {
@@ -336,13 +420,23 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     return true;
   }).sort((a, b) => a.time.localeCompare(b.time) || a.date.localeCompare(b.date));
 
+  const priorityTask = tasks.find(t => t.priority && isTaskOnDate(t, todayStr) && !isTaskCompletedOnDate(t, todayStr))
+    || tasks.find(t => t.priority && isTaskOnDate(t, todayStr));
+
+  // Remove priority duplicate if it's highlighted at the top (i.e. if it's the priorityTask and viewFilter is 'hoje')
+  const finalFilteredTasks = filteredTasks.filter(t => {
+    if (viewFilter !== 'hoje') return true;
+    if (priorityTask && t.id === priorityTask.id && !isTaskCompletedOnDate(priorityTask, todayStr)) return false;
+    return true;
+  });
+
   // Group tasks by date for "semana" and "mes" views
   const groupedTasks = React.useMemo(() => {
     if (viewFilter === 'hoje') {
-      return [{ date: todayStr, tasks: filteredTasks }];
+      return [{ date: todayStr, tasks: finalFilteredTasks }];
     }
     const groups: Record<string, Task[]> = {};
-    filteredTasks.forEach(task => {
+    finalFilteredTasks.forEach(task => {
       const targetDate = getTaskTargetDateForFilter(task, viewFilter, todayStr);
       if (!groups[targetDate]) {
         groups[targetDate] = [];
@@ -354,16 +448,13 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       date,
       tasks: groups[date]
     }));
-  }, [filteredTasks, viewFilter, todayStr]);
+  }, [finalFilteredTasks, viewFilter, todayStr]);
 
-  const priorityTask = tasks.find(t => t.priority && isTaskOnDate(t, todayStr) && !isTaskCompletedOnDate(t, todayStr))
-    || tasks.find(t => t.priority && isTaskOnDate(t, todayStr));
-
-  const completedCount = filteredTasks.filter(t => {
+  const completedCount = finalFilteredTasks.filter(t => {
     const targetDate = getTaskTargetDateForFilter(t, viewFilter, todayStr);
     return isTaskCompletedOnDate(t, targetDate);
   }).length;
-  const progressPercentage = filteredTasks.length === 0 ? 0 : Math.round((completedCount / filteredTasks.length) * 100);
+  const progressPercentage = finalFilteredTasks.length === 0 ? 0 : Math.round((completedCount / finalFilteredTasks.length) * 100);
 
   const dateOptions: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'short' };
   const todayFormatted = new Date().toLocaleDateString('pt-BR', dateOptions);
@@ -387,7 +478,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       <header className="flex justify-between items-center px-1">
         <div className="flex flex-col gap-1.5">
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
-            Bom dia, {userName} <span className="text-xl md:text-2xl animate-bounce-slow">👋</span>
+            Bom dia, {userName} <span className="text-xl md:text-2xl">👋</span>
           </h1>
           <div className="text-xs md:text-sm font-medium text-text-sec">
             {dateDisplay} {headerSubtitle}
@@ -429,7 +520,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
                   <Sparkles size={16} className="text-brand-primary animate-pulse" />
                   <span>Criar Tarefa por IA (NLP & Voz)</span>
                 </div>
-                <button onClick={() => setIsAssistantOpen(false)} className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/70 transition-colors">
+                <button onClick={() => setIsAssistantOpen(false)} className="min-w-11 min-h-11 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/70 transition-colors -mr-2">
                   <X size={16} />
                 </button>
               </div>
@@ -446,7 +537,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
                       }
                     }}
                     placeholder="Ex: Treino hoje às 18h..."
-                    disabled={isParsing}
+                    disabled={isParsing || isListening}
                     className="w-full bg-transparent px-4 py-3.5 pr-14 text-sm text-white placeholder-text-meta outline-none disabled:opacity-50"
                   />
                   <div className="absolute right-2 flex items-center">
@@ -455,8 +546,8 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
                     ) : (
                       <button
                         onClick={() => handleParseAiTask(aiInput)}
-                        disabled={!aiInput.trim()}
-                        className="w-8 h-8 flex items-center justify-center rounded-[10px] text-brand-primary hover:bg-white/5 disabled:opacity-30 transition-all cursor-pointer"
+                        disabled={!aiInput.trim() || isListening}
+                        className="w-11 h-11 flex items-center justify-center rounded-[10px] text-brand-primary hover:bg-white/5 disabled:opacity-30 transition-all cursor-pointer"
                       >
                         <Send size={16} />
                       </button>
@@ -465,7 +556,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
                 </div>
                 
                 <button
-                  onClick={handleVoiceInput}
+                  onClick={isListening ? stopRecording : startRecording}
                   type="button"
                   className={`w-[48px] h-[48px] rounded-[16px] flex items-center justify-center transition-all cursor-pointer shrink-0 ${
                     isListening 
@@ -482,6 +573,11 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
                   🎙️ Ouvindo sua voz em tempo real...
                 </p>
               )}
+              {voiceError && (
+                <p className="text-[11px] text-[#FF5252] font-semibold mt-3 text-center">
+                  {voiceError}
+                </p>
+              )}
             </motion.div>
           </div>
         )}
@@ -491,7 +587,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       {priorityTask && (
         <section className="flex flex-col gap-2">
           <div className="flex items-center gap-1.5 text-[#FF5252] font-bold text-[10px] md:text-xs uppercase tracking-wider ml-1">
-            <Flame size={14} className="animate-pulse" />
+            <Flame size={14} />
             <span>Próxima Tarefa Relevante</span>
           </div>
           <motion.div 
@@ -500,18 +596,18 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
             onClick={() => openTaskDetails(priorityTask)}
             className="group flex items-center gap-4 bg-app-card p-4 md:p-5 rounded-[22px] border border-border-discreet cursor-pointer hover:border-white/20 transition-all shadow-md relative overflow-hidden"
           >
-            {/* Subtle light glow */}
-            <div className="absolute right-0 top-0 w-24 h-24 bg-brand-primary/5 rounded-full blur-2xl pointer-events-none" />
             
             <button 
               onClick={(e) => { e.stopPropagation(); toggleTaskOnDate(priorityTask.id, todayStr); }}
-              className={`shrink-0 flex items-center justify-center w-6 h-6 rounded-full border-[2px] transition-all duration-200 cursor-pointer ${
-                isTaskCompletedOnDate(priorityTask, todayStr) 
-                  ? 'bg-brand-primary border-brand-primary text-white scale-105 shadow-[0_0_8px_rgba(123,109,255,0.4)]' 
-                  : 'border-text-sec text-transparent hover:border-brand-primary hover:scale-105'
-              }`}
+              className={`shrink-0 flex items-center justify-center min-w-11 min-h-11 cursor-pointer`}
             >
-              <CheckCircle2 size={16} strokeWidth={3.5} className={isTaskCompletedOnDate(priorityTask, todayStr) ? 'opacity-100' : 'opacity-0'} />
+              <div className={`w-6 h-6 flex items-center justify-center rounded-full border-[2px] transition-all duration-200 ${
+                isTaskCompletedOnDate(priorityTask, todayStr) 
+                  ? 'bg-brand-primary border-brand-primary text-white scale-105' 
+                  : 'border-text-sec text-transparent hover:border-brand-primary group-hover:border-brand-primary'
+              }`}>
+                <CheckCircle2 size={16} strokeWidth={3.5} className={isTaskCompletedOnDate(priorityTask, todayStr) ? 'opacity-100' : 'opacity-0'} />
+              </div>
             </button>
             
             <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${isTaskCompletedOnDate(priorityTask, todayStr) ? 'opacity-40' : 'opacity-100'}`}>
@@ -544,7 +640,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
           <h2 className="text-base md:text-lg font-bold text-white tracking-tight flex items-center gap-2">
             Tarefas
             <span className="text-xs font-semibold bg-brand-primary/10 text-brand-primary px-2.5 py-0.5 rounded-full">
-              {filteredTasks.length}
+              {finalFilteredTasks.length}
             </span>
           </h2>
         </div>
@@ -577,7 +673,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
 
         {/* Task List */}
         <div className="flex flex-col gap-3">
-          {filteredTasks.length === 0 ? (
+          {finalFilteredTasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 md:py-14 text-text-sec bg-app-card/30 rounded-[16px] border border-border-discreet/50">
               <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center mb-3">
                 <BoxSelect size={24} className="text-text-meta opacity-50" />
@@ -626,11 +722,9 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
                             dragElastic={{ left: 0.5, right: 0.5 }}
                             onDragEnd={(event, info) => {
                               if (info.offset.x > 120) {
-                                // Swipe right to toggle completion
                                 toggleTaskOnDate(task.id, targetDate);
                               } else if (info.offset.x < -120) {
-                                // Swipe left to postpone task (example action: open modal or alert)
-                                alert("Funcionalidade Adiar: " + task.title);
+                                setPostponeTask(task);
                               }
                             }}
                             whileTap={{ scale: 0.985 }}
@@ -639,13 +733,15 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
                           >
                             <button 
                               onClick={(e) => { e.stopPropagation(); toggleTaskOnDate(task.id, targetDate); }}
-                              className={`shrink-0 flex items-center justify-center w-5 h-5 rounded-full border-[2px] transition-all duration-200 cursor-pointer ${
-                                isCompleted 
-                                  ? 'bg-brand-primary border-brand-primary text-white scale-105 shadow-[0_0_8px_rgba(162,155,254,0.4)]' 
-                                  : 'border-text-meta text-transparent hover:border-brand-primary hover:scale-105'
-                              }`}
+                              className={`shrink-0 flex items-center justify-center min-w-11 min-h-11 cursor-pointer`}
                             >
-                              <CheckCircle2 size={14} strokeWidth={3.5} className={isCompleted ? 'opacity-100' : 'opacity-0'} />
+                              <div className={`w-5 h-5 flex items-center justify-center rounded-full border-[2px] transition-all duration-200 ${
+                                isCompleted 
+                                  ? 'bg-brand-primary border-brand-primary text-white scale-105' 
+                                  : 'border-text-meta text-transparent group-hover:border-brand-primary hover:scale-105'
+                              }`}>
+                                <CheckCircle2 size={14} strokeWidth={3.5} className={isCompleted ? 'opacity-100' : 'opacity-0'} />
+                              </div>
                             </button>
                             
                             <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${isCompleted ? 'opacity-40' : 'opacity-100'}`}>
@@ -654,7 +750,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
                                   {task.title}
                                 </h3>
                                 {task.priority && !isCompleted && (
-                                  <Flame size={12} className="text-[#FF5252] shrink-0 animate-pulse" />
+                                  <Flame size={12} className="text-[#FF5252] shrink-0" />
                                 )}
                               </div>
                               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -672,12 +768,14 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
                                     <span className="w-1 h-1 rounded-full bg-white/10 shrink-0" />
                                     <span className="text-[11px] text-brand-primary font-medium shrink-0 flex items-center gap-1">
                                       <RefreshCw size={10} />
-                                      {task.recurrenceDays && task.recurrenceDays.length > 0
-                                        ? `Semanal (${task.recurrenceDays.map(d => {
-                                            const names = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-                                            return names[Number(d)];
-                                          }).join(', ')})`
-                                        : 'Semanal'}
+                                      {(() => {
+                                        if (!task.recurrenceDays || task.recurrenceDays.length === 0) return 'Semanal';
+                                        if (task.recurrenceDays.length === 7) return 'Todos os dias';
+                                        const isWeekdays = ['1','2','3','4','5'].every(d => task.recurrenceDays!.includes(d)) && task.recurrenceDays.length === 5;
+                                        if (isWeekdays) return 'Dias úteis';
+                                        const names = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+                                        return task.recurrenceDays.map(d => names[Number(d)]).join(', ');
+                                      })()}
                                     </span>
                                   </>
                                 )}
@@ -732,28 +830,106 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         </div>
         
         <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-          <span className="text-[10px] font-bold text-text-sec uppercase tracking-widest flex items-center gap-1">
-            Coach de IA
-            {loadingInspiration && <span className="text-[8px] lowercase font-normal text-text-meta animate-pulse">(recalculando...)</span>}
-          </span>
-          <p className="text-xs font-medium text-text-sub leading-relaxed">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-bold text-text-sec uppercase tracking-widest flex items-center gap-1">
+              Coach de IA
+              {loadingInspiration && <span className="text-[8px] lowercase font-normal text-text-meta animate-pulse">(recalculando...)</span>}
+            </span>
+            <button 
+              onClick={() => fetchInspiration(true)}
+              className="p-1 min-w-11 min-h-11 flex items-center justify-end text-text-meta hover:text-brand-primary cursor-pointer transition-colors"
+            >
+              <RefreshCw size={12} className={loadingInspiration ? 'animate-spin text-brand-primary' : ''} />
+            </button>
+          </div>
+          <p className="text-xs font-medium text-text-sub leading-relaxed -mt-1">
             "{inspiration}"
           </p>
         </div>
       </section>
 
-      {/* FAB (Add Task) */}
-      <motion.button 
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerLeave}
-        onClick={handleFabClick}
-        className="fixed bottom-[100px] md:bottom-8 right-6 md:right-10 w-14 h-14 md:w-16 md:h-16 bg-gradient-to-r from-brand-primary to-brand-hover text-white rounded-full flex items-center justify-center shadow-lg shadow-brand-primary/30 hover:shadow-xl hover:shadow-brand-primary/40 transition-all z-40 cursor-pointer"
-      >
-        <Plus size={24} className="md:w-7 md:h-7" />
-      </motion.button>
+      {/* FABs */}
+      <div className="fixed bottom-[100px] md:bottom-8 right-6 md:right-10 flex flex-col gap-3 z-40 items-center">
+        <button 
+          onClick={handleAssistantClick}
+          className="w-12 h-12 bg-app-card border border-brand-primary/40 text-brand-primary rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 cursor-pointer"
+        >
+          <Sparkles size={20} />
+        </button>
+        <button 
+          onClick={handleFabClick}
+          className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-r from-brand-primary to-brand-hover text-white rounded-full flex items-center justify-center shadow-lg shadow-brand-primary/30 transition-all cursor-pointer active:scale-95"
+        >
+          <Plus size={24} className="md:w-7 md:h-7" />
+        </button>
+      </div>
+
+      {/* Undo Delete Toast */}
+      <AnimatePresence>
+        {undoDeleteState.task && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className="fixed bottom-[110px] md:bottom-10 left-1/2 -translate-x-1/2 bg-app-card-sec/90 backdrop-blur-md border border-white/10 px-4 py-3 rounded-full flex items-center gap-4 shadow-xl z-50 w-max"
+          >
+            <span className="text-sm font-medium text-white">Tarefa excluída</span>
+            <button 
+              onClick={handleUndoDelete}
+              className="text-brand-primary font-bold text-sm hover:underline cursor-pointer min-w-11 min-h-11 flex items-center justify-center -my-2 -mr-2"
+            >
+              Desfazer
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Postpone Bottom Sheet */}
+      <AnimatePresence>
+        {postponeTask && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPostponeTask(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-md bg-app-card rounded-t-[24px] border-t border-white/10 p-6 shadow-2xl"
+            >
+              <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mb-6" />
+              <h3 className="text-lg font-bold text-white mb-4">Adiar Tarefa</h3>
+              <p className="text-sm text-text-sec mb-6 line-clamp-1">{postponeTask.title}</p>
+              
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={() => handlePostpone(1)}
+                  className="w-full bg-app-card-sec hover:bg-white/5 border border-white/5 text-white font-semibold py-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <RefreshCw size={16} className="text-brand-primary" /> Amanhã
+                </button>
+                <button 
+                  onClick={() => handlePostpone(7)}
+                  className="w-full bg-app-card-sec hover:bg-white/5 border border-white/5 text-white font-semibold py-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <RefreshCw size={16} className="text-brand-primary" /> Próxima Semana
+                </button>
+                <button 
+                  onClick={() => setPostponeTask(null)}
+                  className="w-full bg-transparent hover:bg-white/5 text-text-sec font-bold py-4 rounded-xl transition-all mt-2 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Task Modal */}
       {isModalOpen && (

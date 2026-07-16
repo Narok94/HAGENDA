@@ -177,10 +177,7 @@ export default function App() {
 
                     {/* Main Card */}
                     <div className="bg-app-card border border-white/5 rounded-[24px] p-6 md:p-10 flex flex-col items-center text-center relative overflow-hidden shadow-xl mt-4">
-                      {/* Glowing background decor */}
-                      <div className="absolute -top-24 -left-24 w-64 h-64 rounded-full bg-brand-primary/10 blur-3xl pointer-events-none"></div>
-                      <div className="absolute -bottom-24 -right-24 w-64 h-64 rounded-full bg-violet-500/5 blur-3xl pointer-events-none"></div>
-
+                      
                       <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-brand-primary shadow-lg shadow-brand-primary/10 mb-6">
                         <Dumbbell size={32} strokeWidth={2.5} className="md:w-10 md:h-10" />
                       </div>
@@ -247,10 +244,7 @@ export default function App() {
 
                     {/* Main Card */}
                     <div className="bg-app-card border border-white/5 rounded-[24px] p-6 md:p-10 flex flex-col items-center text-center relative overflow-hidden shadow-xl mt-4">
-                      {/* Glowing background decor */}
-                      <div className="absolute -top-24 -left-24 w-64 h-64 rounded-full bg-[#FF5252]/10 blur-3xl pointer-events-none"></div>
-                      <div className="absolute -bottom-24 -right-24 w-64 h-64 rounded-full bg-[#FF7A00]/5 blur-3xl pointer-events-none"></div>
-
+                      
                       <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-[#FF5252]/10 border border-[#FF5252]/20 flex items-center justify-center text-[#FF5252] shadow-lg shadow-[#FF5252]/10 mb-6">
                         <Target size={32} strokeWidth={2.5} className="md:w-10 md:h-10" />
                       </div>

@@ -17,20 +17,26 @@
 }
 
 :root.high-contrast {
-  --app-bg: #15171C;
-  --app-card: #2D3142;
-  --app-card-sec: #3B3F54;
-  --brand-primary: #8B73FF;
-  --brand-hover: #9F8BFF;
-  --text-sec: #E2E6F0;
-  --text-meta: #D0D4DE;
+  --app-bg: #000000;
+  --app-card: #000000;
+  --app-card-sec: #000000;
+  --brand-primary: #FFFFFF;
+  --brand-hover: #E5E5E5;
+  --text-sec: #FFFFFF;
+  --text-meta: #E5E5E5;
   --text-sub: #FFFFFF;
-  --border-discreet: rgba(255, 255, 255, 0.18);
+  --border-discreet: #FFFFFF;
 }
 
 html, body {
   overflow: hidden;
   height: 100%;
+}
+
+:root.high-contrast * {
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  filter: none !important;
 }
 
 @theme {

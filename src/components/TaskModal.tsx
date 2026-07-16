@@ -58,7 +58,7 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
         {/* Header */}
         <div className="flex justify-between items-center p-5 border-b border-border-discreet bg-app-card sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <button onClick={onClose} className="p-2 rounded-full hover:bg-white/5 text-[#AEB4C3] hover:text-white transition-colors">
+            <button onClick={onClose} className="p-3 min-w-11 min-h-11 rounded-full hover:bg-white/5 text-[#AEB4C3] hover:text-white transition-colors flex items-center justify-center -ml-3">
               <X size={20} />
             </button>
             <h2 className="text-lg font-semibold text-white">
@@ -67,12 +67,12 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
           </div>
           <div className="flex items-center gap-2">
             {!isCreateMode && !isEditing && onDelete && (
-              <button onClick={() => onDelete(task.id)} className="p-2 rounded-full hover:bg-red-500/10 text-[#AEB4C3] hover:text-red-400 transition-colors">
+              <button onClick={() => onDelete(task.id)} className="p-3 min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-red-500/10 text-[#AEB4C3] hover:text-red-400 transition-colors">
                 <Trash2 size={18} />
               </button>
             )}
             {!isCreateMode && !isEditing && (
-              <button onClick={() => setIsEditing(true)} className="p-2 rounded-full hover:bg-white/5 text-[#AEB4C3] hover:text-white transition-colors">
+              <button onClick={() => setIsEditing(true)} className="p-3 min-w-11 min-h-11 flex items-center justify-center rounded-full hover:bg-white/5 text-[#AEB4C3] hover:text-white transition-colors -mr-2">
                 <Edit3 size={18} />
               </button>
             )}
@@ -169,7 +169,7 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
             {/* Priority Flag */}
             <div className="flex flex-col gap-1 justify-center pt-5">
               {isEditing ? (
-                <label className="flex items-center gap-3 cursor-pointer group">
+                <label className="flex items-center gap-3 cursor-pointer group min-h-11">
                   <input 
                     type="checkbox" 
                     className="sr-only" 

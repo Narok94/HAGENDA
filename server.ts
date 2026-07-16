@@ -29,13 +29,11 @@ app.post("/api/parse-task", async (req, res) => {
     if (!text) {
       return res.status(400).json({ error: "O texto para análise é obrigatório." });
     }
-
     if (!apiKey) {
       return res.status(500).json({ error: "Chave de API do Gemini não configurada no servidor." });
     }
 
     const today = currentDate || new Date().toISOString().split('T')[0];
-
     const systemInstruction = `Você é um assistente de IA especialista em produtividade e organização.
 Sua missão é extrair as informações de uma frase em português e gerar um JSON estruturado para uma tarefa da agenda.
 Data atual de referência (hoje): ${today}.
@@ -89,9 +87,79 @@ Instruções para os campos:
 
     const parsedJson = JSON.parse(response.text || "{}");
     res.json(parsedJson);
+
   } catch (error: any) {
     console.error("Erro em /api/parse-task:", error);
     res.status(500).json({ error: "Erro ao processar criação de tarefa com IA: " + error.message });
+  }
+});
+
+// Endpoint 1.5: Transcribe and Parse Task from Audio
+app.post("/api/transcribe-task", async (req, res) => {
+  try {
+    const { audio, currentDate, mimeType } = req.body;
+    if (!audio) {
+      return res.status(400).json({ error: "Áudio é obrigatório." });
+    }
+    if (!apiKey) {
+      return res.status(500).json({ error: "Chave de API não configurada." });
+    }
+
+    const today = currentDate || new Date().toISOString().split('T')[0];
+    const systemInstruction = `Você é um assistente de IA especialista em produtividade e organização.
+Sua missão é transcrever o áudio fornecido em português e gerar um JSON estruturado para uma tarefa da agenda baseado na transcrição.
+Data atual de referência (hoje): ${today}.
+
+Instruções para os campos:
+1. title: O que precisa ser feito (título curto, claro, bem escrito baseado no áudio).
+2. date: Calcule a data absoluta (YYYY-MM-DD) com base em expressões relativas como "hoje", "amanhã", etc. Se for uma tarefa recorrente semanal ou sem data fixa, deixe em branco.
+3. time: Formato HH:MM de 24 horas. Se não mencionado, use "12:00".
+4. category: Defina uma categoria coerente.
+5. priority: boolean (true se houver urgência).
+6. icon: Escolha um da lista: 'Circle', 'Sparkles', 'BookOpen', 'Briefcase', 'Coffee', 'Dumbbell', 'Target', 'Star', 'Zap', 'ShoppingBag', 'Flame'.
+7. recurrence: 'none', 'semanal' ou 'mensal'.
+8. recurrenceDay: se recurrence for 'mensal', defina o dia do mês.
+9. recurrenceDays: se recurrence for 'semanal', forneça os dias da semana desejados ('0' a '6').
+10. notes: Adicione a transcrição exata e completa do áudio ao final das notas para referência do usuário.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [
+        {
+          inlineData: {
+            mimeType: mimeType || "audio/webm",
+            data: audio
+          }
+        },
+        { text: "Extraia a tarefa do áudio em anexo." }
+      ],
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            date: { type: Type.STRING },
+            time: { type: Type.STRING },
+            category: { type: Type.STRING },
+            priority: { type: Type.BOOLEAN },
+            icon: { type: Type.STRING },
+            recurrence: { type: Type.STRING },
+            recurrenceDay: { type: Type.STRING },
+            recurrenceDays: { type: Type.ARRAY, items: { type: Type.STRING } },
+            notes: { type: Type.STRING }
+          },
+          required: ["title", "time", "category", "priority", "icon", "recurrence"]
+        }
+      }
+    });
+
+    const parsedJson = JSON.parse(response.text || "{}");
+    res.json(parsedJson);
+  } catch (error: any) {
+    console.error("Erro em /api/transcribe-task:", error);
+    res.status(500).json({ error: "Erro ao transcrever áudio: " + error.message });
   }
 });
 
