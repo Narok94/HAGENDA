@@ -974,7 +974,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         <div className="flex flex-col gap-0.5 min-w-0 flex-1">
           <div className="flex justify-between items-center">
             <span className="text-[10px] font-bold text-[#69708A] uppercase tracking-widest flex items-center gap-1 font-display">
-              Coach de IA
+              Foco Diário
               {loadingInspiration && <span className="text-[8px] lowercase font-normal text-[#9AA1B8] animate-pulse">(recalculando...)</span>}
             </span>
             <button 
