@@ -552,8 +552,13 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     return true;
   }).sort((a, b) => a.time.localeCompare(b.time) || a.date.localeCompare(b.date));
 
-  const priorityTask = tasks.find(t => t.priority && isTaskOnDate(t, todayStr) && !isTaskCompletedOnDate(t, todayStr))
-    || tasks.find(t => t.priority && isTaskOnDate(t, todayStr));
+  const uncompletedTodayTasksList = tasks.filter(t => isTaskOnDate(t, todayStr) && !isTaskCompletedOnDate(t, todayStr));
+  const todayTasksList = tasks.filter(t => isTaskOnDate(t, todayStr));
+  const isTodayFullyCompleted = todayTasksList.length > 0 && uncompletedTodayTasksList.length === 0;
+
+  const priorityTask = uncompletedTodayTasksList.find(t => t.priority)
+    || uncompletedTodayTasksList.sort((a, b) => a.time.localeCompare(b.time))[0]
+    || null;
 
   // Remove priority duplicate if it's highlighted at the top (i.e. if it's the priorityTask and viewFilter is 'hoje')
   const finalFilteredTasks = filteredTasks.filter(t => {
@@ -727,54 +732,86 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       </AnimatePresence>
 
       {/* 1. PRÓXIMA TAREFA (PRIORITY / NEXT TASK) - HERO COMPACTO */}
-      {priorityTask && (
+      {(priorityTask || isTodayFullyCompleted) && (
         <section className="flex flex-col gap-2">
           <div className="flex items-center gap-1.5 text-[#FF8A24] font-bold text-[10px] md:text-xs uppercase tracking-wider ml-1">
-            <Flame size={14} className="text-[#FF8A24]" />
-            <span>Próxima Tarefa Relevante</span>
+            {isTodayFullyCompleted ? (
+              <Trophy size={14} className="text-[#FF8A24]" />
+            ) : (
+              <Flame size={14} className="text-[#FF8A24]" />
+            )}
+            <span>{isTodayFullyCompleted ? 'Parabéns!' : 'Próxima Tarefa Relevante'}</span>
           </div>
-          <motion.div 
-            whileHover={{ y: -2 }}
-            whileTap={{ scale: 0.995 }}
-            onClick={() => openTaskDetails(priorityTask)}
-            className="group flex items-center gap-4 bg-gradient-to-br from-[#1E3FD6] to-[#0B1440] h-[90px] px-4 rounded-[22px] cursor-pointer transition-all shadow-md relative overflow-hidden text-white"
-          >
-            {/* Watermark icon */}
-            <div className="absolute right-3 bottom-[-14px] text-white/10 scale-[2.2] pointer-events-none transition-transform group-hover:scale-[2.4] duration-300">
-              {getIcon(priorityTask.icon)}
-            </div>
-            
-            {/* Translucent Checkbox */}
-            <button 
-              onClick={(e) => { e.stopPropagation(); toggleTaskOnDate(priorityTask.id, todayStr); }}
-              className="shrink-0 flex items-center justify-center w-10 h-10 cursor-pointer"
+          {priorityTask ? (
+            <motion.div 
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.995 }}
+              onClick={() => openTaskDetails(priorityTask)}
+              className="group flex items-center gap-4 bg-gradient-to-br from-[#1E3FD6] to-[#0B1440] h-[90px] px-4 rounded-[22px] cursor-pointer transition-all shadow-md relative overflow-hidden text-white"
             >
-              <div className={`w-5 h-5 flex items-center justify-center rounded-full border-[2px] transition-all duration-200 ${
-                isTaskCompletedOnDate(priorityTask, todayStr) 
-                  ? 'bg-[#16A34A] border-[#16A34A] text-white scale-105' 
-                  : 'border-white/30 text-transparent hover:border-white/70 bg-white/10'
-              }`}>
-                <CheckCircle2 size={12} strokeWidth={3.5} className={isTaskCompletedOnDate(priorityTask, todayStr) ? 'opacity-100' : 'opacity-0'} />
+              {/* Watermark icon */}
+              <div className="absolute right-3 bottom-[-14px] text-white/10 scale-[2.2] pointer-events-none transition-transform group-hover:scale-[2.4] duration-300">
+                {getIcon(priorityTask.icon)}
               </div>
-            </button>
-            
-            {/* Title + horizontal chips */}
-            <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${isTaskCompletedOnDate(priorityTask, todayStr) ? 'opacity-40' : 'opacity-100'}`}>
-              <h3 className={`text-sm md:text-base font-bold text-white font-display truncate ${isTaskCompletedOnDate(priorityTask, todayStr) ? 'line-through decoration-white/30 text-white/50' : ''}`}>
-                {priorityTask.title}
-              </h3>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-[10px] md:text-xs text-white/95 font-medium bg-white/10 px-2 py-0.5 rounded flex items-center gap-1 shrink-0">
-                  <Clock size={10} className="text-[#FF8A24]" />
-                  {priorityTask.time}
-                </span>
-                <span className="text-[10px] md:text-xs text-white/95 font-medium bg-white/10 px-2 py-0.5 rounded flex items-center gap-1 shrink-0">
-                  <Tag size={10} className="text-white/70" />
-                  {priorityTask.category}
-                </span>
+              
+              {/* Translucent Checkbox */}
+              <button 
+                onClick={(e) => { e.stopPropagation(); toggleTaskOnDate(priorityTask.id, todayStr); }}
+                className="shrink-0 flex items-center justify-center w-10 h-10 cursor-pointer"
+              >
+                <div className={`w-5 h-5 flex items-center justify-center rounded-full border-[2px] transition-all duration-200 ${
+                  isTaskCompletedOnDate(priorityTask, todayStr) 
+                    ? 'bg-[#16A34A] border-[#16A34A] text-white scale-105' 
+                    : 'border-white/30 text-transparent hover:border-white/70 bg-white/10'
+                }`}>
+                  <CheckCircle2 size={12} strokeWidth={3.5} className={isTaskCompletedOnDate(priorityTask, todayStr) ? 'opacity-100' : 'opacity-0'} />
+                </div>
+              </button>
+              
+              {/* Title + horizontal chips */}
+              <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${isTaskCompletedOnDate(priorityTask, todayStr) ? 'opacity-40' : 'opacity-100'}`}>
+                <h3 className={`text-sm md:text-base font-bold text-white font-display truncate ${isTaskCompletedOnDate(priorityTask, todayStr) ? 'line-through decoration-white/30 text-white/50' : ''}`}>
+                  {priorityTask.title}
+                </h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] md:text-xs text-white/95 font-medium bg-white/10 px-2 py-0.5 rounded flex items-center gap-1 shrink-0">
+                    <Clock size={10} className="text-[#FF8A24]" />
+                    {priorityTask.time}
+                  </span>
+                  <span className="text-[10px] md:text-xs text-white/95 font-medium bg-white/10 px-2 py-0.5 rounded flex items-center gap-1 shrink-0">
+                    <Tag size={10} className="text-white/70" />
+                    {priorityTask.category}
+                  </span>
+                </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          ) : (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="group flex items-center gap-4 bg-gradient-to-br from-[#1E3FD6] to-[#0B1440] h-[90px] px-6 rounded-[22px] transition-all shadow-md relative overflow-hidden text-white"
+            >
+              {/* Watermark icon */}
+              <div className="absolute right-4 bottom-[-10px] text-white/10 scale-[2.2] pointer-events-none">
+                <Trophy size={40} />
+              </div>
+              
+              {/* Trophy Icon */}
+              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-[#FF8A24] shrink-0">
+                <Trophy size={20} className="animate-bounce" />
+              </div>
+              
+              {/* Text */}
+              <div className="flex flex-col flex-1 min-w-0">
+                <h3 className="text-sm md:text-base font-bold text-white font-display">
+                  Dia concluído! 🎉
+                </h3>
+                <p className="text-xs text-white/70 mt-0.5">
+                  Todas as tarefas de hoje foram feitas.
+                </p>
+              </div>
+            </motion.div>
+          )}
         </section>
       )}
 

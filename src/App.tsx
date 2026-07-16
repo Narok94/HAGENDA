@@ -298,7 +298,7 @@ export default function App() {
         </main>
 
         {/* BOTTOM NAVIGATION (Mobile Only) */}
-        <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-border-discreet pb-[calc(env(safe-area-inset-bottom)+8px)] pt-3 px-8 flex justify-around items-center z-40 shadow-lg">
+        <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-border-discreet pb-[env(safe-area-inset-bottom,12px)] pt-3 px-8 flex justify-around items-center z-40 shadow-lg">
           {['agenda', 'academia', 'desafio'].map((tab) => {
             const isActive = activeTab === tab;
             let icon = <Calendar size={isActive ? 22 : 20} strokeWidth={isActive ? 2.2 : 1.8} />;
