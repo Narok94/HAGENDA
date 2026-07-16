@@ -479,6 +479,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tasks: todayTasks, userName })
       });
+      if (!response.ok) throw new Error(`Erro do servidor: ${response.status}`);
       const data = await response.json();
       if (data.text) {
         setInspiration(data.text);
