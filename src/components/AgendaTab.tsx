@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw, Trash2, Mic, MicOff, Loader2, Send, X, BoxSelect, RotateCw, Check, Bell, Trophy } from 'lucide-react';
+import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw, Trash2, Mic, MicOff, Loader2, Send, X, BoxSelect, RotateCw, Check, Bell, Trophy, Cloud, CloudOff } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { Task } from '../types';
 import { getIcon } from '../utils/icons';
@@ -236,11 +236,66 @@ const getTaskTargetDateForFilter = (task: Task, filter: 'hoje' | 'semana' | 'mes
 export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: AgendaTabProps) {
   const todayStr = getTodayStr();
   
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    const saved = localStorage.getItem('momentum_tasks');
-    if (saved) return JSON.parse(saved);
-    return [];
-  });
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [dbStatus, setDbStatus] = useState<{ connected: boolean; mode: string }>({ connected: false, mode: 'loading' });
+
+  const checkDbStatus = async () => {
+    try {
+      const res = await fetch('/api/db-status');
+      if (res.ok) {
+        const status = await res.json();
+        setDbStatus(status);
+      } else {
+        setDbStatus({ connected: false, mode: 'error' });
+      }
+    } catch (error) {
+      console.error('Erro ao verificar conexão do banco:', error);
+      setDbStatus({ connected: false, mode: 'offline' });
+    }
+  };
+
+  // Synchronize tasks state with DB and local state
+  const syncTaskToDb = async (task: Task) => {
+    try {
+      await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(task)
+      });
+    } catch (error) {
+      console.error('Erro ao sincronizar tarefa com o banco:', error);
+    }
+  };
+
+  const syncDeleteToDb = async (id: string) => {
+    try {
+      await fetch(`/api/tasks/${id}`, {
+        method: 'DELETE'
+      });
+    } catch (error) {
+      console.error('Erro ao excluir tarefa do banco:', error);
+    }
+  };
+
+  useEffect(() => {
+    const loadTasks = async () => {
+      try {
+        const res = await fetch('/api/tasks');
+        if (res.ok) {
+          const data = await res.json();
+          setTasks(data);
+        } else {
+          throw new Error('Falha ao obter dados do banco');
+        }
+      } catch (error) {
+        console.error('Erro ao carregar tarefas do banco:', error);
+        const saved = localStorage.getItem('momentum_tasks');
+        if (saved) setTasks(JSON.parse(saved));
+      }
+    };
+    loadTasks();
+    checkDbStatus();
+  }, []);
 
   const [viewFilter, setViewFilter] = useState<'hoje' | 'semana' | 'mes'>('hoje');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -314,6 +369,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       };
 
       setTasks(prev => [...prev, newTask]);
+      syncTaskToDb(newTask);
       setAiInput('');
       setIsAssistantOpen(false);
     } catch (error) {
@@ -382,6 +438,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
             };
 
             setTasks(prev => [...prev, newTask]);
+            syncTaskToDb(newTask);
             setIsAssistantOpen(false);
           } catch (error) {
             console.error('Erro ao transcrever:', error);
@@ -445,18 +502,23 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   }, [tasks]);
 
   const toggleTaskOnDate = (id: string, dateStr: string) => {
-    setTasks(tasks.map(t => {
+    const updatedTasks = tasks.map(t => {
       if (t.id !== id) return t;
+      let updated: Task;
       if (!t.recurrence || t.recurrence === 'none') {
-        return { ...t, completed: !t.completed };
+        updated = { ...t, completed: !t.completed };
+      } else {
+        const completedDates = t.completedDates || [];
+        const exists = completedDates.includes(dateStr);
+        const newCompletedDates = exists 
+          ? completedDates.filter(d => d !== dateStr) 
+          : [...completedDates, dateStr];
+        updated = { ...t, completedDates: newCompletedDates };
       }
-      const completedDates = t.completedDates || [];
-      const exists = completedDates.includes(dateStr);
-      const newCompletedDates = exists 
-        ? completedDates.filter(d => d !== dateStr) 
-        : [...completedDates, dateStr];
-      return { ...t, completedDates: newCompletedDates };
-    }));
+      syncTaskToDb(updated);
+      return updated;
+    });
+    setTasks(updatedTasks);
   };
 
   const handleSaveTask = (task: Task) => {
@@ -465,6 +527,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     } else {
       setTasks(tasks.map(t => t.id === task.id ? task : t));
     }
+    syncTaskToDb(task);
     closeModal();
   };
 
@@ -477,6 +540,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     }
 
     setTasks(tasks.filter(t => t.id !== id));
+    syncDeleteToDb(id);
     closeModal();
 
     const timeoutId = setTimeout(() => {
@@ -489,6 +553,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   const handleUndoDelete = () => {
     if (undoDeleteState.task) {
       setTasks([...tasks, undoDeleteState.task]);
+      syncTaskToDb(undoDeleteState.task);
     }
     if (undoDeleteState.timeoutId) {
       clearTimeout(undoDeleteState.timeoutId);
@@ -506,7 +571,9 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     const newDateStr = newDate.toISOString().split('T')[0];
 
     if (!task.recurrence || task.recurrence === 'none') {
-      setTasks(tasks.map(t => t.id === task.id ? { ...t, date: newDateStr } : t));
+      const updated = { ...task, date: newDateStr };
+      setTasks(tasks.map(t => t.id === task.id ? updated : t));
+      syncTaskToDb(updated);
     } else {
       // Se for recorrente, esconde hoje adicionando aos completedDates
       const completedDates = task.completedDates || [];
@@ -514,6 +581,8 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       // Cria uma nova tarefa apenas para a nova data, não recorrente
       const newTask: Task = { ...task, id: Date.now().toString(), date: newDateStr, recurrence: 'none', completedDates: [] };
       setTasks([...tasks.filter(t => t.id !== task.id), updatedTask, newTask]);
+      syncTaskToDb(updatedTask);
+      syncTaskToDb(newTask);
     }
     setPostponeTask(null);
   };
@@ -614,9 +683,35 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       {/* HEADER */}
       <header className="flex justify-between items-center px-1">
         <div className="flex flex-col">
-          <span className="text-[11px] font-bold text-[#69708A] uppercase tracking-wider font-display">
-            {dateDisplay}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-[#69708A] uppercase tracking-wider font-display">
+              {dateDisplay}
+            </span>
+            
+            <button 
+              onClick={checkDbStatus}
+              title="Clique para testar a conexão com o Neon PostgreSQL"
+              className="inline-flex items-center gap-1.5 text-[10px] font-medium normal-case tracking-normal px-2 py-0.5 rounded-full bg-[#F3F5FA] hover:bg-[#E3E8F1] transition-all cursor-pointer border border-[#E3E8F1] select-none"
+            >
+              {dbStatus.connected ? (
+                <>
+                  <Cloud size={11} className="text-[#16A34A] fill-[#16A34A]/20" />
+                  <span className="text-[#16A34A] font-bold">Neon Conectado</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] animate-ping" />
+                </>
+              ) : dbStatus.mode === 'loading' ? (
+                <>
+                  <Cloud size={11} className="text-[#9AA1B8] animate-pulse" />
+                  <span className="text-[#9AA1B8]">Verificando...</span>
+                </>
+              ) : (
+                <>
+                  <CloudOff size={11} className="text-[#69708A]" />
+                  <span className="text-[#69708A] font-medium">Local (Offline)</span>
+                </>
+              )}
+            </button>
+          </div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#0E1730] flex items-center gap-2 mt-1 font-display">
             Bom dia, {userName} <span className="text-xl md:text-2xl">👋</span>
           </h1>

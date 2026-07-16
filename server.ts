@@ -3,6 +3,7 @@ import path from "path";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
+import { neon } from "@neondatabase/serverless";
 
 dotenv.config();
 
@@ -10,6 +11,73 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// In-memory fallback
+let memoryTasks: any[] = [];
+
+// Helper for database queries
+let dbClient: any = null;
+
+function getDb() {
+  if (!process.env.DATABASE_URL) {
+    return null;
+  }
+  if (!dbClient) {
+    try {
+      dbClient = neon(process.env.DATABASE_URL);
+    } catch (err) {
+      console.error("Erro ao inicializar o cliente Neon:", err);
+      return null;
+    }
+  }
+  return dbClient;
+}
+
+async function setupDatabase() {
+  const sql = getDb();
+  if (!sql) {
+    console.log("DATABASE_URL não configurada ou inválida. O aplicativo usará persistência em memória no servidor.");
+    return;
+  }
+  try {
+    // Create database tables if they do not exist
+    await sql`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id VARCHAR(255) PRIMARY KEY,
+        title TEXT NOT NULL,
+        time VARCHAR(5) NOT NULL,
+        date VARCHAR(10) NOT NULL,
+        category TEXT NOT NULL,
+        icon TEXT NOT NULL,
+        completed BOOLEAN NOT NULL DEFAULT FALSE,
+        priority BOOLEAN NOT NULL DEFAULT FALSE,
+        notes TEXT,
+        recurrence VARCHAR(50) DEFAULT 'none',
+        recurrence_day VARCHAR(10),
+        recurrence_days TEXT, -- Armazenado como string JSON array
+        completed_dates TEXT  -- Armazenado como string JSON array
+      )
+    `;
+    console.log("Neon PostgreSQL conectado com sucesso! Tabela 'tasks' criada ou já existente.");
+  } catch (error) {
+    console.error("Erro ao configurar tabela no Neon PostgreSQL:", error);
+  }
+}
+
+// Endpoint 0: Check Database Connection status
+app.get("/api/db-status", async (req, res) => {
+  const sql = getDb();
+  if (!sql) {
+    return res.json({ connected: false, mode: "memory" });
+  }
+  try {
+    await sql`SELECT 1`;
+    return res.json({ connected: true, mode: "neon" });
+  } catch (error: any) {
+    console.error("Erro ao verificar conexao do banco:", error);
+    return res.json({ connected: false, mode: "neon_error", error: error.message });
+  }
+});
 
 // Initialize Google Gen AI
 const apiKey = process.env.GEMINI_API_KEY;
@@ -197,8 +265,111 @@ Misture o foco físico, mental ou profissional dependendo das categorias de tare
   }
 });
 
+// Endpoint 3: CRUD for Tasks (Neon DB / Memory Fallback)
+app.get("/api/tasks", async (req, res) => {
+  try {
+    const sql = getDb();
+    if (sql) {
+      const rows = await sql`SELECT * FROM tasks`;
+      const tasks = rows.map((row: any) => ({
+        id: row.id,
+        title: row.title,
+        time: row.time,
+        date: row.date,
+        category: row.category,
+        icon: row.icon,
+        completed: !!row.completed,
+        priority: !!row.priority,
+        notes: row.notes || "",
+        recurrence: row.recurrence || "none",
+        recurrenceDay: row.recurrence_day || "",
+        recurrenceDays: row.recurrence_days ? JSON.parse(row.recurrence_days) : [],
+        completedDates: row.completed_dates ? JSON.parse(row.completed_dates) : []
+      }));
+      return res.json(tasks);
+    } else {
+      return res.json(memoryTasks);
+    }
+  } catch (error: any) {
+    console.error("Erro ao buscar tarefas:", error);
+    return res.json(memoryTasks);
+  }
+});
+
+app.post("/api/tasks", async (req, res) => {
+  try {
+    const task = req.body;
+    if (!task.id) {
+      return res.status(400).json({ error: "O id da tarefa é obrigatório." });
+    }
+    const sql = getDb();
+    if (sql) {
+      await sql`
+        INSERT INTO tasks (
+          id, title, time, date, category, icon, completed, priority, notes, recurrence, recurrence_day, recurrence_days, completed_dates
+        ) VALUES (
+          ${task.id},
+          ${task.title},
+          ${task.time},
+          ${task.date},
+          ${task.category},
+          ${task.icon},
+          ${!!task.completed},
+          ${!!task.priority},
+          ${task.notes || ""},
+          ${task.recurrence || "none"},
+          ${task.recurrenceDay || ""},
+          ${JSON.stringify(task.recurrenceDays || [])},
+          ${JSON.stringify(task.completedDates || [])}
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          title = EXCLUDED.title,
+          time = EXCLUDED.time,
+          date = EXCLUDED.date,
+          category = EXCLUDED.category,
+          icon = EXCLUDED.icon,
+          completed = EXCLUDED.completed,
+          priority = EXCLUDED.priority,
+          notes = EXCLUDED.notes,
+          recurrence = EXCLUDED.recurrence,
+          recurrence_day = EXCLUDED.recurrence_day,
+          recurrence_days = EXCLUDED.recurrence_days,
+          completed_dates = EXCLUDED.completed_dates
+      `;
+      return res.json({ success: true, task });
+    } else {
+      const idx = memoryTasks.findIndex(t => t.id === task.id);
+      if (idx >= 0) {
+        memoryTasks[idx] = task;
+      } else {
+        memoryTasks.push(task);
+      }
+      return res.json({ success: true, task });
+    }
+  } catch (error: any) {
+    console.error("Erro ao salvar tarefa:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete("/api/tasks/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sql = getDb();
+    if (sql) {
+      await sql`DELETE FROM tasks WHERE id = ${id}`;
+    }
+    memoryTasks = memoryTasks.filter(t => t.id !== id);
+    return res.json({ success: true });
+  } catch (error: any) {
+    console.error("Erro ao deletar tarefa:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 // Vite middleware and serving app
 async function initServer() {
+  await setupDatabase();
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
