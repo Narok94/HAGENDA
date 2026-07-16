@@ -1,29 +1,29 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
-  --app-bg: #18181A;
-  --app-card: #27272A;
-  --app-card-sec: #3F3F46;
-  --brand-primary: #A29BFE;
-  --brand-hover: #B8B2FF;
-  --text-sec: #A1A1AA;
-  --text-meta: #71717A;
-  --text-sub: #D4D4D8;
-  --border-discreet: rgba(255, 255, 255, 0.08);
+  --app-bg: #EEF1F7;
+  --app-card: #FFFFFF;
+  --app-card-sec: #F3F5FA;
+  --brand-primary: #2F5CFF;
+  --brand-hover: #1E3FD6;
+  --text-sec: #69708A;
+  --text-meta: #9AA1B8;
+  --text-sub: #0E1730;
+  --border-discreet: #E3E8F1;
   
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
 :root.high-contrast {
-  --app-bg: #000000;
+  --app-bg: #050A1E;
   --app-card: #000000;
-  --app-card-sec: #000000;
+  --app-card-sec: #0E1730;
   --brand-primary: #FFFFFF;
-  --brand-hover: #E5E5E5;
+  --brand-hover: #FFFFFF;
   --text-sec: #FFFFFF;
-  --text-meta: #E5E5E5;
+  --text-meta: #FFFFFF;
   --text-sub: #FFFFFF;
   --border-discreet: #FFFFFF;
 }
@@ -40,7 +40,8 @@ html, body {
 }
 
 @theme {
-  --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Space Grotesk", var(--font-sans);
   
   --color-app-bg: var(--app-bg);
   --color-app-card: var(--app-card);
@@ -55,7 +56,10 @@ html, body {
 
 @layer base {
   body {
-    @apply font-sans antialiased bg-app-bg text-white selection:bg-brand-primary selection:text-white;
+    @apply font-sans antialiased bg-app-bg text-text-sub selection:bg-brand-primary selection:text-white;
+    color-scheme: light;
+  }
+  :root.high-contrast body {
     color-scheme: dark;
   }
   input, textarea, select {
