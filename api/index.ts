@@ -13,6 +13,7 @@ const apiRouter = express.Router();
 
 // In-memory fallback
 let memoryTasks: any[] = [];
+let memorySubscriptions: any[] = [];
 
 // Helper for database queries
 let dbClient: any = null;
@@ -57,7 +58,16 @@ async function setupDatabase() {
         completed_dates TEXT  -- Armazenado como string JSON array
       )
     `;
-    console.log("Neon PostgreSQL conectado com sucesso! Tabela 'tasks' criada ou já existente.");
+    await sql`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id SERIAL PRIMARY KEY,
+        endpoint TEXT NOT NULL,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+    console.log("Neon PostgreSQL conectado com sucesso! Tabelas verificadas/criadas.");
   } catch (error) {
     console.error("Erro ao configurar tabela no Neon PostgreSQL:", error);
   }
@@ -385,6 +395,46 @@ apiRouter.delete("/tasks/:id", async (req, res) => {
     return res.json({ success: true });
   } catch (error: any) {
     console.error("Erro ao deletar tarefa:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// Endpoint 4: Subscribe to Push Notifications
+apiRouter.post("/subscribe", async (req, res) => {
+  try {
+    const { endpoint, p256dh, auth, keys } = req.body;
+    const actualP256dh = p256dh || keys?.p256dh;
+    const actualAuth = auth || keys?.auth;
+
+    if (!endpoint || !actualP256dh || !actualAuth) {
+      return res.status(400).json({ error: "endpoint, p256dh e auth são obrigatórios." });
+    }
+
+    const sql = getDb();
+    if (!sql) {
+      return res.status(500).json({ error: "O banco de dados Neon não está configurado ou não pôde ser conectado. Incrições Push exigem um banco persistente." });
+    }
+
+    // Verificar se a inscrição já existe
+    const existing = await sql`SELECT 1 FROM push_subscriptions WHERE endpoint = ${endpoint}`;
+    if (existing.length > 0) {
+      // Atualizar as chaves caso tenham mudado
+      await sql`
+        UPDATE push_subscriptions
+        SET p256dh = ${actualP256dh}, auth = ${actualAuth}
+        WHERE endpoint = ${endpoint}
+      `;
+    } else {
+      // Inserir nova inscrição
+      await sql`
+        INSERT INTO push_subscriptions (endpoint, p256dh, auth)
+        VALUES (${endpoint}, ${actualP256dh}, ${actualAuth})
+      `;
+    }
+
+    return res.json({ success: true, message: "Inscrição de notificações salva com sucesso!" });
+  } catch (error: any) {
+    console.error("Erro ao registrar inscrição push:", error);
     return res.status(500).json({ error: error.message });
   }
 });

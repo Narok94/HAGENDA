@@ -1,11 +1,151 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Dumbbell, Target, User, Settings, Camera, X, ExternalLink, Flame, Trophy, Sparkles } from 'lucide-react';
+import { Calendar, Dumbbell, Target, User, Settings, Camera, X, ExternalLink, Flame, Trophy, Sparkles, Bell, BellRing } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import AgendaTab from './components/AgendaTab';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'agenda' | 'academia' | 'desafio'>('agenda');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Push Notifications State
+  const [pushStatus, setPushStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'denied'>('idle');
+  const [pushMessage, setPushMessage] = useState<string>('');
+  const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
+
+  // Check initial state
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (!('Notification' in window)) {
+        setPushStatus('denied');
+        setPushMessage('Não suportado');
+        return;
+      }
+      if (Notification.permission === 'granted') {
+        setIsSubscribed(true);
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then(reg => {
+            reg.pushManager.getSubscription().then(sub => {
+              if (sub) {
+                setIsSubscribed(true);
+              } else {
+                setIsSubscribed(false);
+              }
+            }).catch(() => {});
+          });
+        }
+      } else if (Notification.permission === 'denied') {
+        setPushStatus('denied');
+      }
+    }
+  }, []);
+
+  function urlBase64ToUint8Array(base64String: string) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding)
+      .replace(/\-/g, '+')
+      .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  const handleSubscribePush = async () => {
+    setPushStatus('loading');
+    setPushMessage('');
+
+    try {
+      if (!('Notification' in window)) {
+        throw new Error('Notificações não são suportadas por este navegador.');
+      }
+
+      // 1. Request permission
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        setPushStatus('denied');
+        throw new Error('Permissão de notificação negada pelo usuário.');
+      }
+
+      // 2. Check service worker
+      if (!('serviceWorker' in navigator)) {
+        throw new Error('Service Workers não são suportados por este navegador.');
+      }
+
+      // Register or get active service worker
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      
+      // Wait for service worker to be ready
+      await navigator.serviceWorker.ready;
+
+      // 3. Get VAPID public key
+      const vapidPublicKey = (import.meta as any).env.VITE_VAPID_PUBLIC_KEY;
+      if (!vapidPublicKey) {
+        throw new Error('A variável de ambiente VITE_VAPID_PUBLIC_KEY não está configurada no cliente.');
+      }
+
+      // 4. Subscribe
+      const subscribeOptions = {
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+      };
+
+      const subscription = await registration.pushManager.subscribe(subscribeOptions);
+      const subscriptionJson = subscription.toJSON();
+
+      const p256dh = subscriptionJson.keys?.p256dh;
+      const auth = subscriptionJson.keys?.auth;
+
+      if (!p256dh || !auth) {
+        throw new Error('Não foi possível obter as chaves de criptografia da inscrição.');
+      }
+
+      // 5. Send subscription to the server
+      const response = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          endpoint: subscription.endpoint,
+          p256dh,
+          auth
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao enviar a inscrição para o servidor.');
+      }
+
+      setPushStatus('success');
+      setIsSubscribed(true);
+      setPushMessage('Lembretes ativados com sucesso!');
+
+      // Show a self test notification after subscribing
+      try {
+        new Notification('HAGENDA', {
+          body: 'Notificações ativadas com sucesso! Você receberá seus lembretes aqui.',
+          icon: '/icon-180.png'
+        });
+      } catch (e) {
+        if (registration && registration.showNotification) {
+          registration.showNotification('HAGENDA', {
+            body: 'Notificações ativadas com sucesso! Você receberá seus lembretes aqui.',
+            icon: '/icon-180.png'
+          });
+        }
+      }
+
+    } catch (err: any) {
+      console.error('Erro ao registrar push notifications:', err);
+      setPushStatus('error');
+      setPushMessage(err.message || 'Erro ao registrar notificações.');
+    }
+  };
 
   // User Profile State
   const [userName, setUserName] = useState(() => {
@@ -422,6 +562,52 @@ export default function App() {
                         />
                         <div className="w-11 h-6 bg-border-discreet peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary shadow-sm" />
                       </label>
+                    </div>
+                  </div>
+
+                  {/* Push Notifications Block */}
+                  <div className="space-y-3 pt-2">
+                    <label className="text-xs text-text-sec font-semibold uppercase tracking-wider ml-1">Notificações Push</label>
+                    <div className="p-4 bg-[#F3F5FA] border border-border-discreet rounded-[20px] shadow-inner space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-xl shrink-0 mt-0.5 ${isSubscribed ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'}`}>
+                          {isSubscribed ? <BellRing size={18} /> : <Bell size={18} />}
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-sm font-bold text-[#0E1730]">Lembretes Diários</span>
+                          <span className="text-[10px] text-text-sec font-medium leading-tight">
+                            {isSubscribed 
+                              ? 'Ativo • Você receberá notificações das suas tarefas.' 
+                              : 'Receba alertas direto no seu dispositivo para não esquecer nada.'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handleSubscribePush}
+                        disabled={pushStatus === 'loading'}
+                        className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-xs transition-all ${
+                          isSubscribed 
+                            ? 'bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border border-emerald-500/20' 
+                            : 'bg-brand-primary text-white hover:bg-brand-hover shadow-md shadow-brand-primary/10 active:scale-[0.98]'
+                        }`}
+                      >
+                        {pushStatus === 'loading' ? (
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : isSubscribed ? (
+                          'Ativo (Atualizar Cadastro)'
+                        ) : (
+                          'Ativar lembretes'
+                        )}
+                      </button>
+
+                      {pushMessage && (
+                        <p className={`text-[10px] text-center font-semibold mt-1 ${
+                          pushStatus === 'success' || isSubscribed ? 'text-emerald-600' : 'text-rose-500'
+                        }`}>
+                          {pushMessage}
+                        </p>
+                      )}
                     </div>
                   </div>
                   
