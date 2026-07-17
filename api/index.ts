@@ -4,7 +4,13 @@ import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 import { neon } from "@neondatabase/serverless";
 
-dotenv.config();
+if (process.env.NODE_ENV !== "production") {
+  try {
+    dotenv.config();
+  } catch (error) {
+    console.warn("Failed to load .env file, using existing environment variables.");
+  }
+}
 
 const app = express();
 app.use(express.json());
