@@ -691,25 +691,15 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
             
             <button 
               onClick={checkDbStatus}
-              title="Clique para testar a conexão com o Neon PostgreSQL"
-              className="inline-flex items-center gap-1.5 text-[10px] font-medium normal-case tracking-normal px-2 py-0.5 rounded-full bg-[#F3F5FA] hover:bg-[#E3E8F1] transition-all cursor-pointer border border-[#E3E8F1] select-none"
+              title={dbStatus.connected ? "Neon Conectado" : dbStatus.mode === 'loading' ? "Verificando..." : "Local (Offline)"}
+              className="inline-flex items-center justify-center p-1 rounded-md bg-[#F3F5FA] hover:bg-[#E3E8F1] transition-all cursor-pointer border border-[#E3E8F1] select-none"
             >
               {dbStatus.connected ? (
-                <>
-                  <Cloud size={11} className="text-[#16A34A] fill-[#16A34A]/20" />
-                  <span className="text-[#16A34A] font-bold">Neon Conectado</span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] animate-ping" />
-                </>
+                <Cloud size={13} className="text-[#16A34A] fill-[#16A34A]/25" />
               ) : dbStatus.mode === 'loading' ? (
-                <>
-                  <Cloud size={11} className="text-[#9AA1B8] animate-pulse" />
-                  <span className="text-[#9AA1B8]">Verificando...</span>
-                </>
+                <Cloud size={13} className="text-[#9AA1B8] animate-pulse" />
               ) : (
-                <>
-                  <CloudOff size={11} className="text-[#69708A]" />
-                  <span className="text-[#69708A] font-medium">Local (Offline)</span>
-                </>
+                <CloudOff size={13} className="text-[#69708A]" />
               )}
             </button>
           </div>
