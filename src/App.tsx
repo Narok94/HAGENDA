@@ -82,10 +82,14 @@ export default function App() {
       await navigator.serviceWorker.ready;
 
       // 3. Get VAPID public key
-      const vapidPublicKey = (import.meta as any).env.VITE_VAPID_PUBLIC_KEY;
+      let vapidPublicKey = (import.meta as any).env.VITE_VAPID_PUBLIC_KEY;
       if (!vapidPublicKey) {
         throw new Error('A variável de ambiente VITE_VAPID_PUBLIC_KEY não está configurada no cliente.');
       }
+      
+      // Clean up string in case of accidental quotes or whitespace
+      vapidPublicKey = vapidPublicKey.trim().replace(/^"|"$/g, '').replace(/^'|'$/g, '');
+      console.log('VAPID Key (length: ' + vapidPublicKey.length + '):', vapidPublicKey);
 
       // 4. Subscribe
       const subscribeOptions = {
