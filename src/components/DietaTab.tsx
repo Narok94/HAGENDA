@@ -11,82 +11,125 @@ interface DietaTabProps {
   onOpenSettings?: () => void;
 }
 
+const getTodayStr = (): string => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function DietaTab({ userName = 'Henrique', onOpenSettings }: DietaTabProps) {
   // Today's date string for resetting daily states YYYY-MM-DD
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getTodayStr();
 
   // Completed meals state (key: meal.id)
-  const [completedMeals, setCompletedMeals] = useState<Record<string, boolean>>(() => {
-    const savedDate = localStorage.getItem('momentum_diet_date');
-    if (savedDate !== todayStr) {
-      localStorage.setItem('momentum_diet_date', todayStr);
-      return {};
-    }
-    const saved = localStorage.getItem('momentum_diet_completed_meals');
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [completedMeals, setCompletedMeals] = useState<Record<string, boolean>>({});
+
+  // Water intake state in ml
+  const [waterIntakeMl, setWaterIntakeMl] = useState<number>(0);
+
+  // Loading state
+  const [isLoading, setIsLoading] = useState(true);
 
   // Jantar Substitution Toggle (false = standard, true = cuscuz recheado)
   const [useJantarSubstitution, setUseJantarSubstitution] = useState<boolean>(() => {
     return localStorage.getItem('momentum_diet_jantar_sub') === 'true';
   });
 
-  // Water intake state in ml
-  const [waterIntakeMl, setWaterIntakeMl] = useState<number>(() => {
-    const savedDate = localStorage.getItem('momentum_diet_water_date');
-    if (savedDate !== todayStr) {
-      localStorage.setItem('momentum_diet_water_date', todayStr);
-      return 0;
-    }
-    const saved = localStorage.getItem('momentum_diet_water_ml');
-    return saved ? parseInt(saved, 10) : 0;
-  });
+  // Fetch diet state from database/API
+  const fetchDietState = async () => {
+    try {
+      const res = await fetch('/api/diet-state');
+      if (!res.ok) return;
+      const data = await res.json();
+      let meals: Record<string, boolean> = data.completedMeals || {};
+      let water: number = Number(data.waterMl) || 0;
 
-  // Listen for sync events from AgendaTab
+      if (data.dietDate !== todayStr) {
+        // Reset for new day
+        meals = {};
+        water = 0;
+        fetch('/api/diet-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dietDate: todayStr,
+            completedMeals: {},
+            waterMl: 0
+          })
+        }).catch(err => console.error(err));
+      }
+
+      setCompletedMeals(meals);
+      setWaterIntakeMl(water);
+    } catch (err) {
+      console.error('Erro ao buscar estado da dieta:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Sync state to API
+  const syncDietState = async (
+    newMeals: Record<string, boolean>,
+    newWater: number
+  ) => {
+    try {
+      await fetch('/api/diet-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dietDate: todayStr,
+          completedMeals: newMeals,
+          waterMl: newWater
+        })
+      });
+      window.dispatchEvent(new Event('momentum_diet_update'));
+    } catch (err) {
+      console.error('Erro ao salvar estado da dieta no servidor:', err);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    fetchDietState();
+  }, [todayStr]);
+
+  // Listen for sync events from AgendaTab or other tabs
   useEffect(() => {
     const handleSync = () => {
-      const savedDate = localStorage.getItem('momentum_diet_date');
-      if (savedDate === todayStr) {
-        const saved = localStorage.getItem('momentum_diet_completed_meals');
-        if (saved) setCompletedMeals(JSON.parse(saved));
-      }
+      fetchDietState();
     };
 
     window.addEventListener('momentum_diet_update', handleSync);
-    window.addEventListener('storage', handleSync);
     return () => {
       window.removeEventListener('momentum_diet_update', handleSync);
-      window.removeEventListener('storage', handleSync);
     };
   }, [todayStr]);
-
-  // Save states to localStorage
-  useEffect(() => {
-    localStorage.setItem('momentum_diet_completed_meals', JSON.stringify(completedMeals));
-    window.dispatchEvent(new Event('momentum_diet_update'));
-  }, [completedMeals]);
 
   useEffect(() => {
     localStorage.setItem('momentum_diet_jantar_sub', String(useJantarSubstitution));
   }, [useJantarSubstitution]);
 
-  useEffect(() => {
-    localStorage.setItem('momentum_diet_water_ml', String(waterIntakeMl));
-  }, [waterIntakeMl]);
-
   const handleToggleMeal = (mealId: string) => {
-    setCompletedMeals(prev => ({
-      ...prev,
-      [mealId]: !prev[mealId]
-    }));
+    const next = {
+      ...completedMeals,
+      [mealId]: !completedMeals[mealId]
+    };
+    setCompletedMeals(next);
+    syncDietState(next, waterIntakeMl);
   };
 
   const handleAddWater = (amount: number) => {
-    setWaterIntakeMl(prev => Math.min(prev + amount, 5000));
+    const nextWater = Math.min(waterIntakeMl + amount, 5000);
+    setWaterIntakeMl(nextWater);
+    syncDietState(completedMeals, nextWater);
   };
 
   const handleResetWater = () => {
     setWaterIntakeMl(0);
+    syncDietState(completedMeals, 0);
   };
 
   const totalMeals = MEAL_PLAN.length;

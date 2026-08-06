@@ -254,54 +254,62 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; mode: string }>({ connected: false, mode: 'loading' });
 
   // Workout & Diet states for virtual task synthesis
-  const [todayCompletedExercises, setTodayCompletedExercises] = useState<Record<string, boolean>>(() => {
-    const savedDate = localStorage.getItem('momentum_workout_date');
-    if (savedDate !== todayStr) return {};
-    const saved = localStorage.getItem('momentum_workout_completed_exercises');
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [todayCompletedExercises, setTodayCompletedExercises] = useState<Record<string, boolean>>({});
+  const [activeGroupId, setActiveGroupId] = useState<'A' | 'B' | 'C' | 'D' | 'E'>('A');
+  const [workoutWeights, setWorkoutWeights] = useState<Record<string, string>>({});
+  const [completedMeals, setCompletedMeals] = useState<Record<string, boolean>>({});
+  const [waterIntakeMl, setWaterIntakeMl] = useState<number>(0);
 
-  const [activeGroupId, setActiveGroupId] = useState<'A' | 'B' | 'C' | 'D' | 'E'>(() => {
-    return (localStorage.getItem('momentum_workout_active_group') as 'A' | 'B' | 'C' | 'D' | 'E') || 'A';
-  });
-
-  const [completedMeals, setCompletedMeals] = useState<Record<string, boolean>>(() => {
-    const savedDate = localStorage.getItem('momentum_diet_date');
-    if (savedDate !== todayStr) return {};
-    const saved = localStorage.getItem('momentum_diet_completed_meals');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  // Listen for workout/diet sync events across tabs/components
-  useEffect(() => {
-    const handleSync = () => {
-      const wDate = localStorage.getItem('momentum_workout_date');
-      if (wDate === todayStr) {
-        const savedEx = localStorage.getItem('momentum_workout_completed_exercises');
-        setTodayCompletedExercises(savedEx ? JSON.parse(savedEx) : {});
+  const fetchWorkoutState = async () => {
+    try {
+      const res = await fetch('/api/workout-state');
+      if (!res.ok) return;
+      const data = await res.json();
+      setActiveGroupId((data.activeGroupId as 'A' | 'B' | 'C' | 'D' | 'E') || 'A');
+      if (data.workoutDate === todayStr) {
+        setTodayCompletedExercises(data.completedExercises || {});
       } else {
         setTodayCompletedExercises({});
       }
-      const savedGroup = localStorage.getItem('momentum_workout_active_group') as 'A' | 'B' | 'C' | 'D' | 'E';
-      if (savedGroup) setActiveGroupId(savedGroup);
+      setWorkoutWeights(data.weights || {});
+    } catch (e) {
+      console.error('Erro ao buscar workout state em AgendaTab:', e);
+    }
+  };
 
-      const dDate = localStorage.getItem('momentum_diet_date');
-      if (dDate === todayStr) {
-        const savedMeals = localStorage.getItem('momentum_diet_completed_meals');
-        setCompletedMeals(savedMeals ? JSON.parse(savedMeals) : {});
+  const fetchDietState = async () => {
+    try {
+      const res = await fetch('/api/diet-state');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.dietDate === todayStr) {
+        setCompletedMeals(data.completedMeals || {});
+        setWaterIntakeMl(Number(data.waterMl) || 0);
       } else {
         setCompletedMeals({});
+        setWaterIntakeMl(0);
       }
-    };
+    } catch (e) {
+      console.error('Erro ao buscar diet state em AgendaTab:', e);
+    }
+  };
 
-    window.addEventListener('momentum_workout_update', handleSync);
-    window.addEventListener('momentum_diet_update', handleSync);
-    window.addEventListener('storage', handleSync);
+  useEffect(() => {
+    fetchWorkoutState();
+    fetchDietState();
+  }, [todayStr]);
+
+  // Listen for workout/diet sync events across tabs/components
+  useEffect(() => {
+    const handleWorkoutSync = () => fetchWorkoutState();
+    const handleDietSync = () => fetchDietState();
+
+    window.addEventListener('momentum_workout_update', handleWorkoutSync);
+    window.addEventListener('momentum_diet_update', handleDietSync);
 
     return () => {
-      window.removeEventListener('momentum_workout_update', handleSync);
-      window.removeEventListener('momentum_diet_update', handleSync);
-      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('momentum_workout_update', handleWorkoutSync);
+      window.removeEventListener('momentum_diet_update', handleDietSync);
     };
   }, [todayStr]);
 
@@ -718,9 +726,18 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         [exId]: !todayCompletedExercises[exId]
       };
       setTodayCompletedExercises(updated);
-      localStorage.setItem('momentum_workout_date', todayStr);
-      localStorage.setItem('momentum_workout_completed_exercises', JSON.stringify(updated));
-      window.dispatchEvent(new Event('momentum_workout_update'));
+      fetch('/api/workout-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          activeGroupId,
+          workoutDate: todayStr,
+          completedExercises: updated,
+          weights: workoutWeights
+        })
+      }).then(() => {
+        window.dispatchEvent(new Event('momentum_workout_update'));
+      }).catch(err => console.error(err));
       return;
     }
 
@@ -731,9 +748,17 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         [mealId]: !completedMeals[mealId]
       };
       setCompletedMeals(updated);
-      localStorage.setItem('momentum_diet_date', todayStr);
-      localStorage.setItem('momentum_diet_completed_meals', JSON.stringify(updated));
-      window.dispatchEvent(new Event('momentum_diet_update'));
+      fetch('/api/diet-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dietDate: todayStr,
+          completedMeals: updated,
+          waterMl: waterIntakeMl
+        })
+      }).then(() => {
+        window.dispatchEvent(new Event('momentum_diet_update'));
+      }).catch(err => console.error(err));
       return;
     }
 

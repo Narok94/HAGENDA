@@ -11,94 +11,130 @@ interface AcademiaTabProps {
   onOpenSettings?: () => void;
 }
 
+const getTodayStr = (): string => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function AcademiaTab({ userName = 'Henrique', onOpenSettings }: AcademiaTabProps) {
+  const todayStr = getTodayStr();
+
   // Active group that represents today's current workout session
-  const [activeGroupId, setActiveGroupId] = useState<'A' | 'B' | 'C' | 'D' | 'E'>(() => {
-    const saved = localStorage.getItem('momentum_workout_active_group');
-    return (saved as 'A' | 'B' | 'C' | 'D' | 'E') || 'A';
-  });
+  const [activeGroupId, setActiveGroupId] = useState<'A' | 'B' | 'C' | 'D' | 'E'>('A');
 
   // Selected tab group in view (defaults to active group)
-  const [selectedGroupId, setSelectedGroupId] = useState<'A' | 'B' | 'C' | 'D' | 'E'>(activeGroupId);
+  const [selectedGroupId, setSelectedGroupId] = useState<'A' | 'B' | 'C' | 'D' | 'E'>('A');
 
   // Completed exercises for today: key is `exerciseId`
-  const [todayCompletedExercises, setTodayCompletedExercises] = useState<Record<string, boolean>>(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const savedDate = localStorage.getItem('momentum_workout_date');
-    if (savedDate !== today) {
-      // New day, reset daily checked exercises
-      localStorage.setItem('momentum_workout_date', today);
-      return {};
-    }
-    const saved = localStorage.getItem('momentum_workout_completed_exercises');
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [todayCompletedExercises, setTodayCompletedExercises] = useState<Record<string, boolean>>({});
 
   // Weights (cargas) saved per exercise
-  const [exerciseWeights, setExerciseWeights] = useState<Record<string, string>>(() => {
-    const saved = localStorage.getItem('momentum_exercise_weights');
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [exerciseWeights, setExerciseWeights] = useState<Record<string, string>>({});
+
+  // Loading state
+  const [isLoading, setIsLoading] = useState(true);
 
   // Celebration modal state
   const [showCelebration, setShowCelebration] = useState(false);
   const [completedStats, setCompletedStats] = useState<{ title: string; subtitle: string; nextGroup: string } | null>(null);
 
-  // Listen for sync events from AgendaTab
+  // Fetch workout state from database/API
+  const fetchWorkoutState = async () => {
+    try {
+      const res = await fetch('/api/workout-state');
+      if (!res.ok) return;
+      const data = await res.json();
+      const group = (data.activeGroupId as 'A' | 'B' | 'C' | 'D' | 'E') || 'A';
+      setActiveGroupId(group);
+
+      let completed: Record<string, boolean> = data.completedExercises || {};
+      if (data.workoutDate !== todayStr) {
+        // New day, reset completed exercises for today in backend
+        completed = {};
+        fetch('/api/workout-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            activeGroupId: group,
+            workoutDate: todayStr,
+            completedExercises: {},
+            weights: data.weights || {}
+          })
+        }).catch(err => console.error(err));
+      }
+
+      setTodayCompletedExercises(completed);
+      setExerciseWeights(data.weights || {});
+      setSelectedGroupId(prev => isLoading ? group : prev);
+    } catch (err) {
+      console.error('Erro ao buscar estado do treino:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Sync state to API
+  const syncWorkoutState = async (
+    newGroup: 'A' | 'B' | 'C' | 'D' | 'E',
+    newCompleted: Record<string, boolean>,
+    newWeights: Record<string, string>
+  ) => {
+    try {
+      await fetch('/api/workout-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          activeGroupId: newGroup,
+          workoutDate: todayStr,
+          completedExercises: newCompleted,
+          weights: newWeights
+        })
+      });
+      window.dispatchEvent(new Event('momentum_workout_update'));
+    } catch (err) {
+      console.error('Erro ao salvar estado do treino no servidor:', err);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    fetchWorkoutState();
+  }, [todayStr]);
+
+  // Listen for sync events from AgendaTab or other tabs
   useEffect(() => {
     const handleSync = () => {
-      const today = new Date().toISOString().split('T')[0];
-      const savedDate = localStorage.getItem('momentum_workout_date');
-      if (savedDate === today) {
-        const saved = localStorage.getItem('momentum_workout_completed_exercises');
-        if (saved) setTodayCompletedExercises(JSON.parse(saved));
-      }
-      const savedGroup = localStorage.getItem('momentum_workout_active_group') as 'A' | 'B' | 'C' | 'D' | 'E';
-      if (savedGroup) {
-        setActiveGroupId(savedGroup);
-      }
+      fetchWorkoutState();
     };
 
     window.addEventListener('momentum_workout_update', handleSync);
-    window.addEventListener('storage', handleSync);
     return () => {
       window.removeEventListener('momentum_workout_update', handleSync);
-      window.removeEventListener('storage', handleSync);
     };
-  }, []);
-
-  // Save active group to localStorage
-  useEffect(() => {
-    localStorage.setItem('momentum_workout_active_group', activeGroupId);
-    window.dispatchEvent(new Event('momentum_workout_update'));
-  }, [activeGroupId]);
-
-  // Save completed exercises
-  useEffect(() => {
-    localStorage.setItem('momentum_workout_completed_exercises', JSON.stringify(todayCompletedExercises));
-    window.dispatchEvent(new Event('momentum_workout_update'));
-  }, [todayCompletedExercises]);
-
-  // Save exercise weights
-  useEffect(() => {
-    localStorage.setItem('momentum_exercise_weights', JSON.stringify(exerciseWeights));
-  }, [exerciseWeights]);
+  }, [todayStr]);
 
   const currentViewGroup = WORKOUT_GROUPS.find(g => g.id === selectedGroupId) || WORKOUT_GROUPS[0];
   const isTodayGroup = selectedGroupId === activeGroupId;
 
   const handleToggleExercise = (exerciseId: string) => {
-    setTodayCompletedExercises(prev => ({
-      ...prev,
-      [exerciseId]: !prev[exerciseId]
-    }));
+    const updated = {
+      ...todayCompletedExercises,
+      [exerciseId]: !todayCompletedExercises[exerciseId]
+    };
+    setTodayCompletedExercises(updated);
+    syncWorkoutState(activeGroupId, updated, exerciseWeights);
   };
 
   const handleWeightChange = (exerciseId: string, weight: string) => {
-    setExerciseWeights(prev => ({
-      ...prev,
+    const updatedWeights = {
+      ...exerciseWeights,
       [exerciseId]: weight
-    }));
+    };
+    setExerciseWeights(updatedWeights);
+    syncWorkoutState(activeGroupId, todayCompletedExercises, updatedWeights);
   };
 
   // Check how many exercises in the active group are completed
@@ -141,6 +177,7 @@ export default function AcademiaTab({ userName = 'Henrique', onOpenSettings }: A
 
     // Clear completed exercises for the new workout day
     setTodayCompletedExercises({});
+    syncWorkoutState(nextGroupId, {}, exerciseWeights);
   };
 
   return (
@@ -280,7 +317,10 @@ export default function AcademiaTab({ userName = 'Henrique', onOpenSettings }: A
 
           {!isTodayGroup && (
             <button
-              onClick={() => setActiveGroupId(currentViewGroup.id)}
+              onClick={() => {
+                setActiveGroupId(currentViewGroup.id);
+                syncWorkoutState(currentViewGroup.id, todayCompletedExercises, exerciseWeights);
+              }}
               className="text-xs text-[#2F5CFF] hover:bg-[#2F5CFF]/10 px-3 py-1.5 rounded-xl font-semibold border border-[#2F5CFF]/30 transition-colors flex items-center gap-1 cursor-pointer"
             >
               Definir como Treino de Hoje

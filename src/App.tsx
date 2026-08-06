@@ -154,31 +154,72 @@ export default function App() {
   };
 
   // User Profile State
-  const [userName, setUserName] = useState(() => {
-    return localStorage.getItem('momentum_user_name') || 'Henrique';
-  });
+  const [userName, setUserName] = useState<string>('Henrique');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
     return localStorage.getItem('momentum_avatar_url');
   });
 
-  // Contrast Settings State
-  const [isHighContrast, setIsHighContrast] = useState(() => {
-    return localStorage.getItem('momentum_high_contrast') === 'true';
-  });
+  // Contrast & Reminder Settings State
+  const [isHighContrast, setIsHighContrast] = useState<boolean>(false);
+  const [reminderMinutes, setReminderMinutes] = useState<number>(15);
+  const [isLoadingSettings, setIsLoadingSettings] = useState<boolean>(true);
+  const isSettingsInitialized = React.useRef(false);
 
+  // Initial fetch settings from API/Database
   useEffect(() => {
-    localStorage.setItem('momentum_high_contrast', String(isHighContrast));
+    let isMounted = true;
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (!isMounted) return;
+        if (data.userName) {
+          setUserName(data.userName);
+        }
+        if (data.reminderMinutes !== undefined) {
+          setReminderMinutes(Number(data.reminderMinutes) || 15);
+        }
+        if (data.highContrast !== undefined) {
+          setIsHighContrast(data.highContrast);
+          if (data.highContrast) {
+            document.documentElement.classList.add('high-contrast');
+          } else {
+            document.documentElement.classList.remove('high-contrast');
+          }
+        }
+        setIsLoadingSettings(false);
+        isSettingsInitialized.current = true;
+      })
+      .catch(err => {
+        console.error('Erro ao carregar configurações do servidor:', err);
+        if (isMounted) {
+          setIsLoadingSettings(false);
+          isSettingsInitialized.current = true;
+        }
+      });
+
+    return () => { isMounted = false; };
+  }, []);
+
+  // Save settings when userName, isHighContrast or reminderMinutes changes after initial load
+  useEffect(() => {
+    if (!isSettingsInitialized.current) return;
+
     if (isHighContrast) {
       document.documentElement.classList.add('high-contrast');
     } else {
       document.documentElement.classList.remove('high-contrast');
     }
-  }, [isHighContrast]);
 
-  useEffect(() => {
-    localStorage.setItem('momentum_user_name', userName);
-  }, [userName]);
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userName, highContrast: isHighContrast, reminderMinutes })
+    }).catch(err => {
+      console.error('Erro ao salvar configurações no servidor:', err);
+    });
+  }, [userName, isHighContrast, reminderMinutes]);
 
+  // Avatar stays in localStorage
   useEffect(() => {
     if (avatarUrl) {
       localStorage.setItem('momentum_avatar_url', avatarUrl);
@@ -582,6 +623,33 @@ export default function App() {
                           {pushMessage}
                         </p>
                       )}
+
+                      {/* Reminder Advance Time Selector */}
+                      <div className="pt-3 border-t border-border-discreet/60 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-[#0E1730]">Antecedência do lembrete</span>
+                          <span className="text-[11px] font-semibold text-brand-primary">{reminderMinutes} min antes</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[5, 10, 15, 30, 60].map((mins) => {
+                            const isSelected = reminderMinutes === mins;
+                            return (
+                              <button
+                                key={mins}
+                                type="button"
+                                onClick={() => setReminderMinutes(mins)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-brand-primary text-white shadow-xs'
+                                    : 'bg-white border border-border-discreet text-text-sec hover:text-text-sub hover:bg-gray-50'
+                                }`}
+                              >
+                                {mins} min
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
                   </div>
                   
