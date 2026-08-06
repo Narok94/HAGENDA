@@ -183,8 +183,8 @@ export default function AcademiaTab({ userName = 'Henrique', onOpenSettings }: A
   return (
     <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto pb-28 md:pb-12">
       {/* HEADER */}
-      <div className="flex items-center justify-between pt-2">
-        <div>
+      <div className="flex items-start justify-between pt-2 relative">
+        <div className="pr-10">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-[#FF8A24] uppercase tracking-wider font-display">
               Programa de Treino
@@ -197,16 +197,14 @@ export default function AcademiaTab({ userName = 'Henrique', onOpenSettings }: A
             Meu Treino
           </h1>
         </div>
-        <div className="flex items-center">
-          {onOpenSettings && (
-            <button
-              onClick={onOpenSettings}
-              className="p-2 -mr-2 text-[#69708A] hover:text-[#0E1730] transition-colors cursor-pointer active:scale-95"
-            >
-              <Settings size={24} strokeWidth={1.5} />
-            </button>
-          )}
-        </div>
+        {onOpenSettings && (
+          <button
+            onClick={onOpenSettings}
+            className="absolute top-2 right-0 p-2 text-[#9AA1B8] hover:text-[#0E1730] transition-colors cursor-pointer active:scale-95"
+          >
+            <Settings size={20} strokeWidth={1.5} />
+          </button>
+        )}
       </div>
 
       {/* TODAY'S WORKOUT BANNER / HERO CARD */}

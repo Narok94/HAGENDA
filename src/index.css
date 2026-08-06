@@ -11,9 +11,6 @@
   --text-meta: #9AA1B8;
   --text-sub: #0E1730;
   --border-discreet: #E3E8F1;
-  
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
 }
 
 :root.high-contrast {

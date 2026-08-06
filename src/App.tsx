@@ -250,7 +250,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-[100dvh] w-screen bg-app-bg flex overflow-hidden font-sans text-text-sub relative">
+    <div className="h-full w-screen bg-app-bg flex overflow-hidden font-sans text-text-sub relative">
       {/* DESKTOP SIDEBAR */}
       <nav className="hidden md:flex w-[260px] lg:w-[280px] bg-app-card border-r border-border-discreet flex-col p-6 z-40 shrink-0 relative">
         {/* Subtle subtle gradient accent at the top */}
@@ -336,7 +336,7 @@ export default function App() {
       </nav>
 
       {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col h-[100dvh] bg-app-bg relative overflow-hidden">
+      <div className="flex-1 flex flex-col h-full bg-app-bg relative overflow-hidden">
         <main className="flex-1 overflow-y-auto w-full md:max-w-4xl md:mx-auto pb-24 md:pb-8 relative">
           <AnimatePresence mode="wait">
             <motion.div
@@ -374,8 +374,8 @@ export default function App() {
 
         {/* BOTTOM NAVIGATION (Mobile Only) */}
         <nav 
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
-          className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-[#E3E8F1] pt-3 px-6 flex justify-center gap-16 items-center z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]"
+          style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}
+          className="md:hidden fixed bottom-0 left-0 right-0 w-full bg-white border-t border-[#E3E8F1] pt-3 px-6 flex justify-center gap-16 items-center z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]"
         >
           {['agenda', 'academia', 'dieta'].map((tab) => {
             const isActive = activeTab === tab;

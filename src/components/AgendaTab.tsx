@@ -946,7 +946,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   return (
     <div className="w-full min-h-full p-5 pt-8 md:p-8 md:pt-14 flex flex-col gap-6 md:gap-8 max-w-3xl mx-auto pb-32">
       {/* HEADER */}
-      <header className="flex justify-between items-center px-1">
+      <header className="flex justify-between items-start px-1 relative">
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold text-[#69708A] uppercase tracking-wider font-display">
@@ -972,14 +972,12 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
           </h1>
         </div>
         
-        <div className="flex items-center">
-          <button 
-            onClick={onOpenSettings}
-            className="p-2 -mr-2 text-[#69708A] hover:text-[#0E1730] transition-colors cursor-pointer active:scale-95"
-          >
-            <Settings size={24} strokeWidth={1.5} />
-          </button>
-        </div>
+        <button 
+          onClick={onOpenSettings}
+          className="absolute top-0 right-1 p-2 text-[#9AA1B8] hover:text-[#0E1730] transition-colors cursor-pointer active:scale-95"
+        >
+          <Settings size={20} strokeWidth={1.5} />
+        </button>
       </header>
 
       <AnimatePresence>
