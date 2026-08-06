@@ -29,9 +29,11 @@ self.addEventListener('push', (event) => {
     body: data.body,
     icon: data.icon,
     badge: data.badge,
-    vibrate: [100, 50, 100],
+    silent: false,
+    vibrate: [200, 100, 200],
     data: data.data || {},
     tag: data.tag || 'hagenda-notification',
+    renotify: true,
     actions: [
       { action: 'open', title: 'Abrir HAGENDA' }
     ]
