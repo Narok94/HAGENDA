@@ -860,9 +860,30 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   const todayTasksList = allCombinedTasks.filter(t => isTaskOnDate(t, todayStr));
   const isTodayFullyCompleted = todayTasksList.length > 0 && uncompletedTodayTasksList.length === 0;
 
-  const priorityTask = uncompletedTodayTasksList.find(t => t.priority)
-    || uncompletedTodayTasksList.sort((a, b) => a.time.localeCompare(b.time))[0]
-    || null;
+  const priorityTask = (() => {
+    if (uncompletedTodayTasksList.length === 0) return null;
+    const nowHourMin = `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`;
+
+    const priorityPending = uncompletedTodayTasksList.filter(t => t.priority);
+    if (priorityPending.length > 0) {
+      const upcoming = priorityPending.filter(t => t.time >= nowHourMin);
+      if (upcoming.length > 0) return upcoming.sort((a, b) => a.time.localeCompare(b.time))[0];
+      return priorityPending.sort((a, b) => a.time.localeCompare(b.time))[0];
+    }
+
+    const upcoming = uncompletedTodayTasksList.filter(t => t.time >= nowHourMin && t.time !== 'Horário flexível' && t.time !== 'Flexível');
+    if (upcoming.length > 0) {
+      return upcoming.sort((a, b) => a.time.localeCompare(b.time))[0];
+    }
+
+    return uncompletedTodayTasksList.sort((a, b) => {
+      const isAFlex = a.time === 'Horário flexível' || a.time === 'Flexível';
+      const isBFlex = b.time === 'Horário flexível' || b.time === 'Flexível';
+      if (isAFlex && !isBFlex) return 1;
+      if (!isAFlex && isBFlex) return -1;
+      return a.time.localeCompare(b.time);
+    })[0];
+  })();
 
   // Remove priority duplicate if it's highlighted at the top (i.e. if it's the priorityTask and viewFilter is 'hoje')
   const finalFilteredTasks = filteredTasks.filter(t => {
