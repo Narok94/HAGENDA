@@ -1,9 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw, Trash2, Mic, MicOff, Loader2, Send, X, BoxSelect, RotateCw, Check, Bell, Trophy, Cloud, CloudOff } from 'lucide-react';
+import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw, Trash2, Mic, MicOff, Loader2, Send, X, BoxSelect, RotateCw, Check, Bell, Trophy, Cloud, CloudOff, Dumbbell, Apple } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { Task } from '../types';
+import { WORKOUT_GROUPS } from '../data/workoutData';
+import { MEAL_PLAN } from '../data/dietData';
 import { getIcon } from '../utils/icons';
 import TaskModal from './TaskModal';
+import ProgressRing from './ProgressRing';
+
+const CATEGORY_META: Record<string, { icon: React.ComponentType<{ size?: number; style?: React.CSSProperties; className?: string }>; accent: string }> = {
+  Estudo: { icon: BookOpen, accent: '#0EA5E9' },
+  Academia: { icon: Dumbbell, accent: '#F97316' },
+  Dieta: { icon: Apple, accent: '#22C55E' },
+  Trabalho: { icon: Briefcase, accent: '#A855F7' },
+};
+
+const CATEGORIES_LIST = ['Estudo', 'Academia', 'Dieta', 'Trabalho'];
 
 const getCategoryColor = (category: string): string => {
   const cat = category.toLowerCase();
@@ -143,17 +155,21 @@ interface AgendaTabProps {
   onOpenSettings: () => void;
 }
 
+const formatDateLocal = (d: Date): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const getTodayStr = () => {
-  const d = new Date();
-  const offset = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - offset).toISOString().split('T')[0];
+  return formatDateLocal(new Date());
 };
 
 const getEndOfWeekStr = () => {
   const d = new Date();
   d.setDate(d.getDate() + 7);
-  const offset = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - offset).toISOString().split('T')[0];
+  return formatDateLocal(d);
 };
 
 const getNext7Days = (startDateStr: string): string[] => {
@@ -161,9 +177,7 @@ const getNext7Days = (startDateStr: string): string[] => {
   const [year, month, day] = startDateStr.split('-').map(Number);
   for (let i = 0; i < 7; i++) {
     const d = new Date(year, month - 1, day + i);
-    const offset = d.getTimezoneOffset() * 60000;
-    const localStr = new Date(d.getTime() - offset).toISOString().split('T')[0];
-    dates.push(localStr);
+    dates.push(formatDateLocal(d));
   }
   return dates;
 };
@@ -239,6 +253,93 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   const [tasks, setTasks] = useState<Task[]>([]);
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; mode: string }>({ connected: false, mode: 'loading' });
 
+  // Workout & Diet states for virtual task synthesis
+  const [todayCompletedExercises, setTodayCompletedExercises] = useState<Record<string, boolean>>(() => {
+    const savedDate = localStorage.getItem('momentum_workout_date');
+    if (savedDate !== todayStr) return {};
+    const saved = localStorage.getItem('momentum_workout_completed_exercises');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  const [activeGroupId, setActiveGroupId] = useState<'A' | 'B' | 'C' | 'D' | 'E'>(() => {
+    return (localStorage.getItem('momentum_workout_active_group') as 'A' | 'B' | 'C' | 'D' | 'E') || 'A';
+  });
+
+  const [completedMeals, setCompletedMeals] = useState<Record<string, boolean>>(() => {
+    const savedDate = localStorage.getItem('momentum_diet_date');
+    if (savedDate !== todayStr) return {};
+    const saved = localStorage.getItem('momentum_diet_completed_meals');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  // Listen for workout/diet sync events across tabs/components
+  useEffect(() => {
+    const handleSync = () => {
+      const wDate = localStorage.getItem('momentum_workout_date');
+      if (wDate === todayStr) {
+        const savedEx = localStorage.getItem('momentum_workout_completed_exercises');
+        setTodayCompletedExercises(savedEx ? JSON.parse(savedEx) : {});
+      } else {
+        setTodayCompletedExercises({});
+      }
+      const savedGroup = localStorage.getItem('momentum_workout_active_group') as 'A' | 'B' | 'C' | 'D' | 'E';
+      if (savedGroup) setActiveGroupId(savedGroup);
+
+      const dDate = localStorage.getItem('momentum_diet_date');
+      if (dDate === todayStr) {
+        const savedMeals = localStorage.getItem('momentum_diet_completed_meals');
+        setCompletedMeals(savedMeals ? JSON.parse(savedMeals) : {});
+      } else {
+        setCompletedMeals({});
+      }
+    };
+
+    window.addEventListener('momentum_workout_update', handleSync);
+    window.addEventListener('momentum_diet_update', handleSync);
+    window.addEventListener('storage', handleSync);
+
+    return () => {
+      window.removeEventListener('momentum_workout_update', handleSync);
+      window.removeEventListener('momentum_diet_update', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, [todayStr]);
+
+  // Generate virtual tasks for today's workout exercises and diet meals
+  const workoutVirtualTasks: Task[] = React.useMemo(() => {
+    const activeGroup = WORKOUT_GROUPS.find(g => g.id === activeGroupId) || WORKOUT_GROUPS[0];
+    return activeGroup.exercises.map(ex => ({
+      id: `workout_${ex.id}`,
+      title: ex.name,
+      date: todayStr,
+      time: '07:00',
+      category: 'Academia',
+      icon: 'Dumbbell',
+      priority: false,
+      completed: !!todayCompletedExercises[ex.id],
+      notes: `${ex.series} séries x ${ex.reps} reps${ex.notes ? ' • ' + ex.notes : ''}`,
+    }));
+  }, [activeGroupId, todayCompletedExercises, todayStr]);
+
+  const dietVirtualTasks: Task[] = React.useMemo(() => {
+    return MEAL_PLAN.map(meal => ({
+      id: `diet_${meal.id}`,
+      title: meal.title,
+      date: todayStr,
+      time: meal.time,
+      category: 'Dieta',
+      icon: 'Apple',
+      priority: false,
+      completed: !!completedMeals[meal.id],
+      notes: meal.options[0]?.items?.slice(0, 2).join(', ') || '',
+    }));
+  }, [completedMeals, todayStr]);
+
+  // Combined tasks list (Custom tasks + Workout + Diet)
+  const allCombinedTasks = React.useMemo(() => {
+    return [...tasks, ...workoutVirtualTasks, ...dietVirtualTasks];
+  }, [tasks, workoutVirtualTasks, dietVirtualTasks]);
+
   const checkDbStatus = async () => {
     try {
       const res = await fetch('/api/db-status');
@@ -298,6 +399,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   }, []);
 
   const [viewFilter, setViewFilter] = useState<'hoje' | 'semana' | 'mes'>('hoje');
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -608,8 +710,41 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     }, 200); // Wait for exit animation
   };
 
-  // Filtering Logic
-  const filteredTasks = tasks.filter(task => {
+  const handleToggleTask = (task: Task) => {
+    if (task.id.startsWith('workout_')) {
+      const exId = task.id.replace('workout_', '');
+      const updated = {
+        ...todayCompletedExercises,
+        [exId]: !todayCompletedExercises[exId]
+      };
+      setTodayCompletedExercises(updated);
+      localStorage.setItem('momentum_workout_date', todayStr);
+      localStorage.setItem('momentum_workout_completed_exercises', JSON.stringify(updated));
+      window.dispatchEvent(new Event('momentum_workout_update'));
+      return;
+    }
+
+    if (task.id.startsWith('diet_')) {
+      const mealId = task.id.replace('diet_', '');
+      const updated = {
+        ...completedMeals,
+        [mealId]: !completedMeals[mealId]
+      };
+      setCompletedMeals(updated);
+      localStorage.setItem('momentum_diet_date', todayStr);
+      localStorage.setItem('momentum_diet_completed_meals', JSON.stringify(updated));
+      window.dispatchEvent(new Event('momentum_diet_update'));
+      return;
+    }
+
+    toggleTaskOnDate(task.id, getTaskTargetDateForFilter(task, viewFilter, todayStr));
+  };
+
+  // Filtering Logic using allCombinedTasks (custom + academia + dieta)
+  const filteredTasks = allCombinedTasks.filter(task => {
+    if (activeCategory && task.category.toLowerCase() !== activeCategory.toLowerCase()) {
+      return false;
+    }
     if (viewFilter === 'hoje') return isTaskOnDate(task, todayStr);
     if (viewFilter === 'semana') {
       const dates = getNext7Days(todayStr);
@@ -622,8 +757,8 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     return true;
   }).sort((a, b) => a.time.localeCompare(b.time) || a.date.localeCompare(b.date));
 
-  const uncompletedTodayTasksList = tasks.filter(t => isTaskOnDate(t, todayStr) && !isTaskCompletedOnDate(t, todayStr));
-  const todayTasksList = tasks.filter(t => isTaskOnDate(t, todayStr));
+  const uncompletedTodayTasksList = allCombinedTasks.filter(t => isTaskOnDate(t, todayStr) && !isTaskCompletedOnDate(t, todayStr));
+  const todayTasksList = allCombinedTasks.filter(t => isTaskOnDate(t, todayStr));
   const isTodayFullyCompleted = todayTasksList.length > 0 && uncompletedTodayTasksList.length === 0;
 
   const priorityTask = uncompletedTodayTasksList.find(t => t.priority)
@@ -668,14 +803,14 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   const dateDisplay = todayFormatted.charAt(0).toUpperCase() + todayFormatted.slice(1);
 
   // Dynamic Header Info Box: "3 tarefas hoje" or "Próxima tarefa às 09:00"
-  const uncompletedTodayTasks = tasks.filter(t => isTaskOnDate(t, todayStr) && !isTaskCompletedOnDate(t, todayStr));
+  const uncompletedTodayTasks = allCombinedTasks.filter(t => isTaskOnDate(t, todayStr) && !isTaskCompletedOnDate(t, todayStr));
   const nextUncompletedTask = uncompletedTodayTasks.sort((a, b) => a.time.localeCompare(b.time))[0];
 
   let headerSubtitle = '';
   if (nextUncompletedTask) {
     headerSubtitle = `• Próxima tarefa às ${nextUncompletedTask.time}`;
   } else {
-    const count = tasks.filter(t => isTaskOnDate(t, todayStr)).length;
+    const count = allCombinedTasks.filter(t => isTaskOnDate(t, todayStr)).length;
     headerSubtitle = `• ${count} ${count === 1 ? 'tarefa' : 'tarefas'} hoje`;
   }
 
@@ -842,7 +977,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
               
               {/* Translucent Checkbox */}
               <button 
-                onClick={(e) => { e.stopPropagation(); toggleTaskOnDate(priorityTask.id, todayStr); }}
+                onClick={(e) => { e.stopPropagation(); handleToggleTask(priorityTask); }}
                 className="shrink-0 flex items-center justify-center w-10 h-10 cursor-pointer"
               >
                 <div className={`w-5 h-5 flex items-center justify-center rounded-full border-[2px] transition-all duration-200 ${
@@ -901,6 +1036,48 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         </section>
       )}
 
+      {/* ANÉIS DE PROGRESSO POR CATEGORIA */}
+      <section className="flex items-center gap-4 bg-white rounded-[22px] border border-[#E3E8F1] p-4 shadow-xs overflow-x-auto">
+        <div className="flex items-center gap-2.5 shrink-0 pr-4 border-r border-[#E3E8F1]">
+          <div className="w-8 h-8 rounded-lg bg-[#2F5CFF]/10 text-[#2F5CFF] flex items-center justify-center shrink-0">
+            <Trophy size={16} strokeWidth={2.5} />
+          </div>
+          <div>
+            <p className="text-[10px] text-[#69708A] font-medium leading-none">Progresso geral</p>
+            <p className="text-xs font-bold text-[#0E1730] font-display mt-1">
+              {allCombinedTasks.filter(t => isTaskOnDate(t, todayStr) && isTaskCompletedOnDate(t, todayStr)).length}/{allCombinedTasks.filter(t => isTaskOnDate(t, todayStr)).length}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 md:gap-3 overflow-x-auto">
+          {CATEGORIES_LIST.map((cat) => {
+            const meta = CATEGORY_META[cat];
+            const Icon = meta.icon;
+            const catTasks = allCombinedTasks.filter(t => t.category.toLowerCase() === cat.toLowerCase() && isTaskOnDate(t, todayStr));
+            const done = catTasks.filter(t => isTaskCompletedOnDate(t, todayStr)).length;
+            const pct = catTasks.length ? Math.round((done / catTasks.length) * 100) : 0;
+            const isActive = activeCategory === cat;
+
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setActiveCategory(isActive ? null : cat)}
+                className="flex flex-col items-center gap-1 shrink-0 rounded-xl px-2.5 py-1.5 transition-all cursor-pointer select-none"
+                style={{ background: isActive ? `${meta.accent}15` : 'transparent' }}
+              >
+                <ProgressRing pct={pct} color={meta.accent} size={44} stroke={4}>
+                  <Icon size={16} style={{ color: meta.accent }} />
+                </ProgressRing>
+                <p className="text-[10px] font-semibold text-[#0E1730] whitespace-nowrap">{cat}</p>
+                <p className="text-[9px] text-[#69708A] font-medium whitespace-nowrap">{done}/{catTasks.length}</p>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       {/* LINHA DE ESTATÍSTICAS */}
       <section className="grid grid-cols-3 gap-3">
         {/* Card 1: Sequência */}
@@ -922,7 +1099,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
           <div className="flex flex-col min-w-0">
             <span className="text-[10px] text-[#69708A] font-medium leading-none">Concluídas</span>
             <span className="text-xs font-bold text-[#0E1730] font-display mt-1">
-              {tasks.filter(t => isTaskOnDate(t, todayStr) && isTaskCompletedOnDate(t, todayStr)).length} / {tasks.filter(t => isTaskOnDate(t, todayStr)).length}
+              {allCombinedTasks.filter(t => isTaskOnDate(t, todayStr) && isTaskCompletedOnDate(t, todayStr)).length} / {allCombinedTasks.filter(t => isTaskOnDate(t, todayStr)).length}
             </span>
           </div>
         </div>
@@ -936,8 +1113,8 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
             <span className="text-[10px] text-[#69708A] font-medium leading-none">Progresso</span>
             <span className="text-xs font-bold text-[#0E1730] font-display mt-1">
               {(() => {
-                const todayTotal = tasks.filter(t => isTaskOnDate(t, todayStr)).length;
-                const todayCompleted = tasks.filter(t => isTaskOnDate(t, todayStr) && isTaskCompletedOnDate(t, todayStr)).length;
+                const todayTotal = allCombinedTasks.filter(t => isTaskOnDate(t, todayStr)).length;
+                const todayCompleted = allCombinedTasks.filter(t => isTaskOnDate(t, todayStr) && isTaskCompletedOnDate(t, todayStr)).length;
                 return todayTotal === 0 ? '0%' : `${Math.round((todayCompleted / todayTotal) * 100)}%`;
               })()}
             </span>
@@ -950,10 +1127,21 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         <div className="flex justify-between items-center px-1">
           <h2 className="text-base md:text-lg font-bold text-[#0E1730] tracking-tight flex items-center gap-2 font-display">
             Tarefas
+            {activeCategory && (
+              <span className="text-xs font-normal text-[#69708A]">({activeCategory})</span>
+            )}
             <span className="text-xs font-semibold bg-[#2F5CFF]/10 text-[#2F5CFF] px-2.5 py-0.5 rounded-full">
               {finalFilteredTasks.length}
             </span>
           </h2>
+          {activeCategory && (
+            <button 
+              onClick={() => setActiveCategory(null)} 
+              className="text-xs font-semibold text-[#69708A] hover:text-[#2F5CFF] flex items-center gap-1 transition-colors cursor-pointer"
+            >
+              Ver todas <ChevronRight size={12} />
+            </button>
+          )}
         </div>
         
         {/* Segmented Control */}
@@ -1011,7 +1199,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
                           task={task}
                           targetDate={targetDate}
                           isCompleted={isCompleted}
-                          onToggle={() => toggleTaskOnDate(task.id, targetDate)}
+                          onToggle={() => handleToggleTask(task)}
                           onPostpone={() => setPostponeTask(task)}
                           onOpenDetails={() => openTaskDetails(task)}
                         />

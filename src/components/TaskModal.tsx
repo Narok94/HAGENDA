@@ -3,6 +3,14 @@ import { X, Trash2, Edit3, Save, Flame, Calendar as CalendarIcon, Clock, AlignLe
 import { Task } from '../types';
 import { getIcon, AVAILABLE_ICONS } from '../utils/icons';
 
+const getLocalTodayStr = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 interface TaskModalProps {
   task?: Task;
   onClose: () => void;
@@ -12,11 +20,14 @@ interface TaskModalProps {
 
 export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModalProps) {
   const isCreateMode = !task || !task.id || task.id === 'temp';
-  const [isEditing, setIsEditing] = useState(isCreateMode);
+  const isEditingState = isCreateMode;
+  const [isEditing, setIsEditing] = useState(isEditingState);
+
+  const localToday = getLocalTodayStr();
 
   // Form State
   const [title, setTitle] = useState(task?.title || '');
-  const [date, setDate] = useState(task?.date || new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(task?.date || localToday);
   const [time, setTime] = useState(task?.time || '12:00');
   const [category, setCategory] = useState(task?.category || '');
   const [icon, setIcon] = useState(task?.icon || 'Circle');
@@ -33,7 +44,7 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
     
     const finalDate = recurrence === 'semanal' 
       ? '' 
-      : (date || new Date().toISOString().split('T')[0]);
+      : (date || localToday);
 
     onSave({
       id: task?.id || Date.now().toString(),
@@ -45,6 +56,7 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
       priority,
       notes,
       completed: task?.completed || false,
+      completedDates: task?.completedDates || [],
       recurrence,
       recurrenceDay: recurrence === 'mensal' ? recurrenceDay : undefined,
       recurrenceDays: recurrence === 'semanal' ? recurrenceDays : undefined,

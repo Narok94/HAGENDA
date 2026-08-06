@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Dumbbell, Target, User, Settings, Camera, X, ExternalLink, Flame, Trophy, Sparkles, Bell, BellRing } from 'lucide-react';
+import { Calendar, Dumbbell, Target, User, Settings, Camera, X, ExternalLink, Flame, Trophy, Sparkles, Bell, BellRing, Apple } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import AgendaTab from './components/AgendaTab';
+import AcademiaTab from './components/AcademiaTab';
+import DietaTab from './components/DietaTab';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'agenda' | 'academia' | 'desafio'>('agenda');
+  const [activeTab, setActiveTab] = useState<'agenda' | 'academia' | 'dieta' | 'desafio'>('agenda');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Push Notifications State
@@ -243,6 +245,22 @@ export default function App() {
             <span className="text-sm">Academia</span>
           </button>
 
+          {/* Dieta Tab Button */}
+          <button 
+            onClick={() => setActiveTab('dieta')}
+            className={`relative flex items-center gap-3 px-4 py-3.5 rounded-[14px] transition-all group ${activeTab === 'dieta' ? 'text-white font-semibold' : 'text-text-sec hover:text-text-sub font-medium'}`}
+          >
+            {activeTab === 'dieta' && (
+              <motion.div 
+                layoutId="activeTabSidebar"
+                className="absolute inset-0 bg-gradient-to-r from-[#1E3FD6] to-[#0B1440] rounded-[14px] shadow-md shadow-brand-primary/10 -z-10"
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              />
+            )}
+            <Apple size={18} strokeWidth={activeTab === 'dieta' ? 2.2 : 1.8} className={activeTab === 'dieta' ? 'text-white' : 'text-text-sec group-hover:text-text-sub transition-colors'} />
+            <span className="text-sm">Dieta</span>
+          </button>
+
           {/* Desafio Tab Button */}
           <button 
             onClick={() => setActiveTab('desafio')}
@@ -303,71 +321,17 @@ export default function App() {
               )}
               
               {activeTab === 'academia' && (
-                <div className="p-6 pt-10 md:p-12 md:pt-16 flex flex-col min-h-full justify-between max-w-4xl mx-auto">
-                  <div className="space-y-8 md:space-y-10">
-                    {/* Header */}
-                    <div className="flex items-center justify-between pt-4">
-                      <div>
-                        <span className="text-xs font-semibold text-brand-primary tracking-wider uppercase font-display">Plataforma</span>
-                        <h1 className="text-2xl md:text-3xl font-bold text-text-sub font-display tracking-tight mt-1">Academia</h1>
-                      </div>
-                      <button 
-                        onClick={() => setIsSettingsOpen(true)}
-                        className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white border border-border-discreet flex items-center justify-center text-text-sec hover:text-text-sub transition-all shadow-xs"
-                      >
-                        <Settings size={18} className="md:w-5 md:h-5" />
-                      </button>
-                    </div>
+                <AcademiaTab 
+                  userName={userName} 
+                  onOpenSettings={() => setIsSettingsOpen(true)} 
+                />
+              )}
 
-                    {/* Main Card */}
-                    <div className="bg-gradient-to-br from-[#1E3FD6] to-[#0B1440] rounded-[24px] p-6 md:p-10 flex flex-col items-center text-center relative overflow-hidden shadow-xl mt-4">
-                      <div className="absolute right-0 top-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
-                      
-                      <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-white/10 border border-white/25 flex items-center justify-center text-[#FF8A24] shadow-md mb-6">
-                        <Dumbbell size={32} strokeWidth={2.5} className="md:w-10 md:h-10" />
-                      </div>
-
-                      <h2 className="text-xl md:text-2xl font-bold text-white font-display">HorusFit Treinos</h2>
-                      <p className="text-sm text-white/80 mt-3 max-w-[320px] md:max-w-md leading-relaxed">
-                        Acesse sua ficha de exercícios personalizada, cronogramas de treino e acompanhamento profissional.
-                      </p>
-
-                      {/* Highlights */}
-                      <div className="w-full mt-8 space-y-4 text-left max-w-[320px] md:max-w-md">
-                        <div className="flex items-start gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
-                          <Sparkles size={18} className="text-[#FF8A24] shrink-0 mt-0.5" />
-                          <div>
-                            <h4 className="text-sm font-semibold text-white font-display">Interface Otimizada</h4>
-                            <p className="text-xs text-white/70 mt-1">Sua planilha em tela cheia sem cortes laterais.</p>
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
-                          <Flame size={18} className="text-[#FF8A24] shrink-0 mt-0.5" />
-                          <div>
-                            <h4 className="text-sm font-semibold text-white font-display">Consistência Diária</h4>
-                            <p className="text-xs text-white/70 mt-1">Marque seus treinos e acompanhe seu rendimento.</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Action Button */}
-                  <div className="space-y-4 mt-8 max-w-[320px] md:max-w-md mx-auto w-full pb-8 md:pb-0">
-                    <a 
-                      href="https://horusfit.vercel.app/" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="w-full py-4 bg-brand-primary hover:bg-brand-hover active:scale-[0.98] rounded-[16px] flex items-center justify-center gap-3 text-white font-bold text-sm transition-all shadow-md shadow-brand-primary/20 group font-display"
-                    >
-                      <span>Abrir Academia HorusFit</span>
-                      <ExternalLink size={16} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                    </a>
-                    <p className="text-[11px] text-text-sec text-center leading-normal">
-                      O aplicativo será aberto em uma nova aba para melhor usabilidade.
-                    </p>
-                  </div>
-                </div>
+              {activeTab === 'dieta' && (
+                <DietaTab 
+                  userName={userName} 
+                  onOpenSettings={() => setIsSettingsOpen(true)} 
+                />
               )}
 
               {activeTab === 'desafio' && (
@@ -444,17 +408,20 @@ export default function App() {
         {/* BOTTOM NAVIGATION (Mobile Only) */}
         <nav 
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) * 0.5 + 8px)' }}
-          className="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-border-discreet pt-2 px-8 flex justify-around items-center z-40 shadow-lg"
+          className="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-border-discreet pt-2 px-4 flex justify-around items-center z-40 shadow-lg"
         >
-          {['agenda', 'academia', 'desafio'].map((tab) => {
+          {['agenda', 'academia', 'dieta', 'desafio'].map((tab) => {
             const isActive = activeTab === tab;
-            let icon = <Calendar size={isActive ? 22 : 20} strokeWidth={isActive ? 2.2 : 1.8} />;
+            let icon = <Calendar size={isActive ? 20 : 18} strokeWidth={isActive ? 2.2 : 1.8} />;
             let label = "Agenda";
             if (tab === 'academia') {
-              icon = <Dumbbell size={isActive ? 22 : 20} strokeWidth={isActive ? 2.2 : 1.8} />;
+              icon = <Dumbbell size={isActive ? 20 : 18} strokeWidth={isActive ? 2.2 : 1.8} />;
               label = "Academia";
+            } else if (tab === 'dieta') {
+              icon = <Apple size={isActive ? 20 : 18} strokeWidth={isActive ? 2.2 : 1.8} />;
+              label = "Dieta";
             } else if (tab === 'desafio') {
-              icon = <Target size={isActive ? 22 : 20} strokeWidth={isActive ? 2.2 : 1.8} />;
+              icon = <Target size={isActive ? 20 : 18} strokeWidth={isActive ? 2.2 : 1.8} />;
               label = "Desafio";
             }
 
@@ -462,7 +429,7 @@ export default function App() {
               <button 
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
-                className="relative flex flex-col items-center gap-1 py-1 px-4 rounded-xl transition-all active:scale-95 shrink-0"
+                className="relative flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all active:scale-95 shrink-0"
               >
                 <div className={`transition-all duration-200 ${isActive ? 'text-brand-primary scale-110' : 'text-text-meta'}`}>
                   {icon}
