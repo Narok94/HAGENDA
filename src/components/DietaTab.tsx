@@ -156,13 +156,13 @@ export default function DietaTab({ userName = 'Henrique', onOpenSettings }: Diet
             Plano Alimentar
           </h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center">
           {onOpenSettings && (
             <button
               onClick={onOpenSettings}
-              className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white border border-[#E3E8F1] flex items-center justify-center text-[#69708A] hover:text-[#0E1730] hover:border-[#2F5CFF]/30 transition-all shadow-xs cursor-pointer hover:scale-105 active:scale-95"
+              className="p-2 -mr-2 text-[#69708A] hover:text-[#0E1730] transition-colors cursor-pointer active:scale-95"
             >
-              <Settings size={20} />
+              <Settings size={24} strokeWidth={1.5} />
             </button>
           )}
         </div>

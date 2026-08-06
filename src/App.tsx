@@ -311,22 +311,6 @@ export default function App() {
             <Apple size={18} strokeWidth={activeTab === 'dieta' ? 2.2 : 1.8} className={activeTab === 'dieta' ? 'text-white' : 'text-text-sec group-hover:text-text-sub transition-colors'} />
             <span className="text-sm">Dieta</span>
           </button>
-
-          {/* Desafio Tab Button */}
-          <button 
-            onClick={() => setActiveTab('desafio')}
-            className={`relative flex items-center gap-3 px-4 py-3.5 rounded-[14px] transition-all group ${activeTab === 'desafio' ? 'text-white font-semibold' : 'text-text-sec hover:text-text-sub font-medium'}`}
-          >
-            {activeTab === 'desafio' && (
-              <motion.div 
-                layoutId="activeTabSidebar"
-                className="absolute inset-0 bg-gradient-to-r from-[#1E3FD6] to-[#0B1440] rounded-[14px] shadow-md shadow-brand-primary/10 -z-10"
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              />
-            )}
-            <Target size={18} strokeWidth={activeTab === 'desafio' ? 2.2 : 1.8} className={activeTab === 'desafio' ? 'text-white' : 'text-text-sec group-hover:text-text-sub transition-colors'} />
-            <span className="text-sm">Desafio</span>
-          </button>
         </div>
 
         {/* User profile section at bottom of sidebar */}
@@ -384,84 +368,16 @@ export default function App() {
                   onOpenSettings={() => setIsSettingsOpen(true)} 
                 />
               )}
-
-              {activeTab === 'desafio' && (
-                <div className="p-6 pt-10 md:p-12 md:pt-16 flex flex-col min-h-full justify-between max-w-4xl mx-auto">
-                  <div className="space-y-8 md:space-y-10">
-                    {/* Header */}
-                    <div className="flex items-center justify-between pt-4">
-                      <div>
-                        <span className="text-xs font-semibold text-[#FF8A24] tracking-wider uppercase font-display">Metas</span>
-                        <h1 className="text-2xl md:text-3xl font-bold text-text-sub font-display tracking-tight mt-1">Desafio</h1>
-                      </div>
-                      <button 
-                        onClick={() => setIsSettingsOpen(true)}
-                        className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white border border-border-discreet flex items-center justify-center text-text-sec hover:text-text-sub transition-all shadow-xs"
-                      >
-                        <Settings size={18} className="md:w-5 md:h-5" />
-                      </button>
-                    </div>
-
-                    {/* Main Card */}
-                    <div className="bg-gradient-to-br from-[#1E3FD6] to-[#0B1440] rounded-[24px] p-6 md:p-10 flex flex-col items-center text-center relative overflow-hidden shadow-xl mt-4">
-                      <div className="absolute right-0 top-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
-                      
-                      <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-white/10 border border-white/25 flex items-center justify-center text-[#FF8A24] shadow-md mb-6">
-                        <Target size={32} strokeWidth={2.5} className="md:w-10 md:h-10" />
-                      </div>
-
-                      <h2 className="text-xl md:text-2xl font-bold text-white font-display">Desafio 90 Dias</h2>
-                      <p className="text-sm text-white/80 mt-3 max-w-[320px] md:max-w-md leading-relaxed">
-                        Gerencie seus hábitos diários, pontuações, medalhas e veja sua posição no ranking geral do desafio.
-                      </p>
-
-                      {/* Highlights */}
-                      <div className="w-full mt-8 space-y-4 text-left max-w-[320px] md:max-w-md">
-                        <div className="flex items-start gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
-                          <Trophy size={18} className="text-[#FF8A24] shrink-0 mt-0.5" />
-                          <div>
-                            <h4 className="text-sm font-semibold text-white font-display">Ranking Geral</h4>
-                            <p className="text-xs text-white/70 mt-1">Veja sua pontuação contra outros participantes.</p>
-                          </div>
-                        </div>
-                        <div className="flex items-start gap-4 p-4 bg-white/5 rounded-2xl border border-white/10">
-                          <Flame size={18} className="text-[#FF8A24] shrink-0 mt-0.5" />
-                          <div>
-                            <h4 className="text-sm font-semibold text-white font-display">Progresso 90 Dias</h4>
-                            <p className="text-xs text-white/70 mt-1">Sua consistência registrada de forma clara.</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Action Button */}
-                  <div className="space-y-4 mt-8 max-w-[320px] md:max-w-md mx-auto w-full pb-8 md:pb-0">
-                    <a 
-                      href="https://desafio90d.vercel.app/" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="w-full py-4 bg-brand-primary hover:bg-brand-hover active:scale-[0.98] rounded-[16px] flex items-center justify-center gap-3 text-white font-bold text-sm transition-all shadow-md shadow-brand-primary/20 group font-display"
-                    >
-                      <span>Abrir Desafio 90 Dias</span>
-                      <ExternalLink size={16} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                    </a>
-                    <p className="text-[11px] text-text-sec text-center leading-normal">
-                      O desafio será aberto em uma nova aba para melhor visualização.
-                    </p>
-                  </div>
-                </div>
-              )}
             </motion.div>
           </AnimatePresence>
         </main>
 
         {/* BOTTOM NAVIGATION (Mobile Only) */}
         <nav 
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) * 0.5 + 8px)' }}
-          className="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-border-discreet pt-2 px-4 flex justify-around items-center z-40 shadow-lg"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
+          className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-[#E3E8F1] pt-3 px-6 flex justify-center gap-16 items-center z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]"
         >
-          {['agenda', 'academia', 'dieta', 'desafio'].map((tab) => {
+          {['agenda', 'academia', 'dieta'].map((tab) => {
             const isActive = activeTab === tab;
             let icon = <Calendar size={isActive ? 20 : 18} strokeWidth={isActive ? 2.2 : 1.8} />;
             let label = "Agenda";
@@ -471,9 +387,6 @@ export default function App() {
             } else if (tab === 'dieta') {
               icon = <Apple size={isActive ? 20 : 18} strokeWidth={isActive ? 2.2 : 1.8} />;
               label = "Dieta";
-            } else if (tab === 'desafio') {
-              icon = <Target size={isActive ? 20 : 18} strokeWidth={isActive ? 2.2 : 1.8} />;
-              label = "Desafio";
             }
 
             return (
