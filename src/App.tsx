@@ -42,9 +42,10 @@ export default function App() {
   }, []);
 
   function urlBase64ToUint8Array(base64String: string) {
-    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-    const base64 = (base64String + padding)
-      .replace(/\-/g, '+')
+    const cleanStr = base64String.trim().replace(/^["']|["']$/g, '');
+    const padding = '='.repeat((4 - (cleanStr.length % 4)) % 4);
+    const base64 = (cleanStr + padding)
+      .replace(/-/g, '+')
       .replace(/_/g, '/');
 
     const rawData = window.atob(base64);
@@ -85,18 +86,27 @@ export default function App() {
 
       // 3. Get VAPID public key
       let vapidPublicKey = (import.meta as any).env.VITE_VAPID_PUBLIC_KEY;
-      if (!vapidPublicKey) {
-        throw new Error('A variável de ambiente VITE_VAPID_PUBLIC_KEY não está configurada no cliente.');
+      if (!vapidPublicKey || vapidPublicKey === 'undefined' || vapidPublicKey.trim() === '') {
+        throw new Error('A variável VITE_VAPID_PUBLIC_KEY não está definida ou está vazia nas variáveis de ambiente na Vercel.');
       }
       
-      // Clean up string in case of accidental quotes or whitespace
-      vapidPublicKey = vapidPublicKey.trim().replace(/^"|"$/g, '').replace(/^'|'$/g, '');
-      console.log('VAPID Key (length: ' + vapidPublicKey.length + '):', vapidPublicKey);
+      vapidPublicKey = vapidPublicKey.trim().replace(/^["']|["']$/g, '');
+
+      let appServerKey: Uint8Array;
+      try {
+        appServerKey = urlBase64ToUint8Array(vapidPublicKey);
+      } catch (err) {
+        throw new Error('Formato da chave VITE_VAPID_PUBLIC_KEY inválido. Certifique-se de que é uma chave Base64URL válida.');
+      }
+
+      if (appServerKey.length !== 65) {
+        throw new Error(`A chave VITE_VAPID_PUBLIC_KEY é inválida (tamanho decodificado: ${appServerKey.length} bytes; esperado: 65 bytes). Gere um novo par VAPID com npx web-push generate-vapid-keys.`);
+      }
 
       // 4. Subscribe
       const subscribeOptions = {
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+        applicationServerKey: appServerKey
       };
 
       const subscription = await registration.pushManager.subscribe(subscribeOptions);
