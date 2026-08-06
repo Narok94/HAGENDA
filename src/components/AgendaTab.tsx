@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw, Trash2, Mic, MicOff, Loader2, Send, X, BoxSelect, RotateCw, Check, Bell, Trophy, Cloud, CloudOff, Dumbbell, Apple } from 'lucide-react';
+import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw, Trash2, Mic, MicOff, Loader2, Send, X, BoxSelect, RotateCw, Check, Bell, Trophy, Cloud, CloudOff, Dumbbell, Apple, Settings } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { Task } from '../types';
 import { WORKOUT_GROUPS } from '../data/workoutData';
@@ -82,7 +82,11 @@ function TaskRowItem({ task, targetDate, isCompleted, onToggle, onPostpone, onOp
         }}
         whileTap={{ scale: 0.985 }}
         onClick={onOpenDetails}
-        className="relative z-10 group flex items-center gap-3.5 bg-white p-3.5 md:p-4 rounded-[16px] border border-border-discreet cursor-pointer hover:border-[#2F5CFF]/30 transition-all shadow-xs pl-6"
+        className={`relative z-10 group flex items-center gap-3.5 p-3.5 md:p-4 rounded-[16px] border cursor-pointer transition-all shadow-xs pl-6 ${
+          task.priority && !isCompleted 
+            ? 'bg-[#FF8A24]/10 border-[#FF8A24]/30 hover:border-[#FF8A24]/50' 
+            : 'bg-white border-border-discreet hover:border-[#2F5CFF]/30'
+        }`}
       >
         {/* SOLID BAR COLOR Strip on left edge */}
         <div 
@@ -969,24 +973,11 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         </div>
         
         <div className="flex items-center gap-3">
-          {/* Notification Bell with Amber Badge */}
-          <button className="w-11 h-11 rounded-xl bg-white border border-[#E3E8F1] flex items-center justify-center text-[#69708A] hover:text-[#0E1730] hover:border-[#2F5CFF]/30 transition-all shadow-xs relative cursor-pointer">
-            <Bell size={18} />
-            <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#FF8A24]" />
-          </button>
-
-          {/* Square Rounded Avatar with Initials/Photo */}
           <button 
             onClick={onOpenSettings}
-            className="w-11 h-11 md:w-12 md:h-12 rounded-xl overflow-hidden bg-white border border-[#E3E8F1] flex items-center justify-center shrink-0 hover:border-[#2F5CFF]/50 transition-all duration-300 shadow-xs hover:scale-105 active:scale-95 cursor-pointer"
+            className="w-11 h-11 rounded-xl bg-white border border-[#E3E8F1] flex items-center justify-center text-[#69708A] hover:text-[#0E1730] hover:border-[#2F5CFF]/30 transition-all shadow-xs cursor-pointer hover:scale-105 active:scale-95"
           >
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-            ) : (
-              <div className="text-sm font-bold text-[#2F5CFF] font-display">
-                {userName ? userName.slice(0, 2).toUpperCase() : 'HE'}
-              </div>
-            )}
+            <Settings size={20} />
           </button>
         </div>
       </header>
@@ -1160,92 +1151,6 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
           )}
         </section>
       )}
-
-      {/* ANÉIS DE PROGRESSO POR CATEGORIA */}
-      <section className="flex items-center gap-4 bg-white rounded-[22px] border border-[#E3E8F1] p-4 shadow-xs overflow-x-auto">
-        <div className="flex items-center gap-2.5 shrink-0 pr-4 border-r border-[#E3E8F1]">
-          <div className="w-8 h-8 rounded-lg bg-[#2F5CFF]/10 text-[#2F5CFF] flex items-center justify-center shrink-0">
-            <Trophy size={16} strokeWidth={2.5} />
-          </div>
-          <div>
-            <p className="text-[10px] text-[#69708A] font-medium leading-none">Progresso geral</p>
-            <p className="text-xs font-bold text-[#0E1730] font-display mt-1">
-              {allCombinedTasks.filter(t => isTaskOnDate(t, todayStr) && isTaskCompletedOnDate(t, todayStr)).length}/{allCombinedTasks.filter(t => isTaskOnDate(t, todayStr)).length}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 md:gap-3 overflow-x-auto">
-          {CATEGORIES_LIST.map((cat) => {
-            const meta = CATEGORY_META[cat];
-            const Icon = meta.icon;
-            const catTasks = allCombinedTasks.filter(t => t.category.toLowerCase() === cat.toLowerCase() && isTaskOnDate(t, todayStr));
-            const done = catTasks.filter(t => isTaskCompletedOnDate(t, todayStr)).length;
-            const pct = catTasks.length ? Math.round((done / catTasks.length) * 100) : 0;
-            const isActive = activeCategory === cat;
-
-            return (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setActiveCategory(isActive ? null : cat)}
-                className="flex flex-col items-center gap-1 shrink-0 rounded-xl px-2.5 py-1.5 transition-all cursor-pointer select-none"
-                style={{ background: isActive ? `${meta.accent}15` : 'transparent' }}
-              >
-                <ProgressRing pct={pct} color={meta.accent} size={44} stroke={4}>
-                  <Icon size={16} style={{ color: meta.accent }} />
-                </ProgressRing>
-                <p className="text-[10px] font-semibold text-[#0E1730] whitespace-nowrap">{cat}</p>
-                <p className="text-[9px] text-[#69708A] font-medium whitespace-nowrap">{done}/{catTasks.length}</p>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* LINHA DE ESTATÍSTICAS */}
-      <section className="grid grid-cols-3 gap-3">
-        {/* Card 1: Sequência */}
-        <div className="bg-white border border-[#E3E8F1] p-3 rounded-[16px] flex items-center gap-2.5 shadow-xs">
-          <div className="w-8 h-8 rounded-lg bg-[#FF8A24]/10 text-[#FF8A24] flex items-center justify-center shrink-0">
-            <Flame size={16} strokeWidth={2.5} />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-[10px] text-[#69708A] font-medium leading-none">Sequência</span>
-            <span className="text-xs font-bold text-[#0E1730] font-display mt-1">5 Dias</span>
-          </div>
-        </div>
-
-        {/* Card 2: Concluídas */}
-        <div className="bg-white border border-[#E3E8F1] p-3 rounded-[16px] flex items-center gap-2.5 shadow-xs">
-          <div className="w-8 h-8 rounded-lg bg-[#16A34A]/10 text-[#16A34A] flex items-center justify-center shrink-0">
-            <CheckCircle2 size={16} strokeWidth={2.5} />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-[10px] text-[#69708A] font-medium leading-none">Concluídas</span>
-            <span className="text-xs font-bold text-[#0E1730] font-display mt-1">
-              {allCombinedTasks.filter(t => isTaskOnDate(t, todayStr) && isTaskCompletedOnDate(t, todayStr)).length} / {allCombinedTasks.filter(t => isTaskOnDate(t, todayStr)).length}
-            </span>
-          </div>
-        </div>
-
-        {/* Card 3: Progresso */}
-        <div className="bg-white border border-[#E3E8F1] p-3 rounded-[16px] flex items-center gap-2.5 shadow-xs">
-          <div className="w-8 h-8 rounded-lg bg-[#2F5CFF]/10 text-[#2F5CFF] flex items-center justify-center shrink-0">
-            <Trophy size={16} strokeWidth={2.5} />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-[10px] text-[#69708A] font-medium leading-none">Progresso</span>
-            <span className="text-xs font-bold text-[#0E1730] font-display mt-1">
-              {(() => {
-                const todayTotal = allCombinedTasks.filter(t => isTaskOnDate(t, todayStr)).length;
-                const todayCompleted = allCombinedTasks.filter(t => isTaskOnDate(t, todayStr) && isTaskCompletedOnDate(t, todayStr)).length;
-                return todayTotal === 0 ? '0%' : `${Math.round((todayCompleted / todayTotal) * 100)}%`;
-              })()}
-            </span>
-          </div>
-        </div>
-      </section>
 
       {/* 2. LISTA DE TAREFAS */}
       <section className="flex flex-col gap-4">

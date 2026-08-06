@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Dumbbell, CheckCircle2, Circle, Flame, Sparkles, Trophy, RotateCw, 
-  ChevronRight, Info, Edit3, ArrowRight, Check, ExternalLink, Calendar as CalendarIcon 
+  ChevronRight, Info, Edit3, ArrowRight, Check, ExternalLink, Calendar as CalendarIcon, Settings 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { WORKOUT_GROUPS, WorkoutGroup, Exercise } from '../data/workoutData';
@@ -201,9 +201,9 @@ export default function AcademiaTab({ userName = 'Henrique', onOpenSettings }: A
           {onOpenSettings && (
             <button
               onClick={onOpenSettings}
-              className="w-10 h-10 rounded-full bg-white border border-border-discreet flex items-center justify-center text-text-sec hover:text-text-sub transition-all shadow-xs"
+              className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white border border-[#E3E8F1] flex items-center justify-center text-[#69708A] hover:text-[#0E1730] hover:border-[#2F5CFF]/30 transition-all shadow-xs cursor-pointer hover:scale-105 active:scale-95"
             >
-              <Dumbbell size={18} />
+              <Settings size={20} />
             </button>
           )}
         </div>
