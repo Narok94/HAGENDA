@@ -20,6 +20,7 @@ interface TaskModalProps {
 
 export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModalProps) {
   const isCreateMode = !task || !task.id || task.id === 'temp';
+  const isVirtual = task?.id === 'workout_group_summary' || task?.id === 'study_daily_summary' || (task?.id?.startsWith('diet_') ?? false);
   const isEditingState = isCreateMode;
   const [isEditing, setIsEditing] = useState(isEditingState);
 
@@ -78,12 +79,12 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
             </h2>
           </div>
           <div className="flex items-center gap-2">
-            {!isCreateMode && !isEditing && onDelete && (
+            {!isCreateMode && !isEditing && !isVirtual && onDelete && (
               <button onClick={() => onDelete(task.id)} className="p-3 min-w-11 min-h-11 flex items-center justify-center rounded-full bg-red-50 hover:bg-red-100 text-[#FF5252] transition-colors">
                 <Trash2 size={18} />
               </button>
             )}
-            {!isCreateMode && !isEditing && (
+            {!isCreateMode && !isEditing && !isVirtual && (
               <button onClick={() => setIsEditing(true)} className="p-3 min-w-11 min-h-11 flex items-center justify-center rounded-full bg-[#F3F5FA] hover:bg-[#E3E8F1] text-[#69708A] hover:text-[#0E1730] transition-colors">
                 <Edit3 size={18} />
               </button>

@@ -21,10 +21,11 @@ const apiRouter = express.Router();
 // In-memory fallback
 let memoryTasks: any[] = [];
 let memorySubscriptions: any[] = [];
-let memoryUserSettings: { userName: string; highContrast: boolean; reminderMinutes: number } = {
+let memoryUserSettings: { userName: string; highContrast: boolean; reminderMinutes: number; completedStudyDates: string[] } = {
   userName: "Henrique",
   highContrast: false,
   reminderMinutes: 15,
+  completedStudyDates: [],
 };
 let memoryWorkoutState: {
   activeGroupId: string;
@@ -107,10 +108,12 @@ async function setupDatabase() {
         user_name TEXT,
         high_contrast BOOLEAN DEFAULT FALSE,
         reminder_minutes INTEGER DEFAULT 15,
+        completed_study_dates TEXT,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `;
     await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS reminder_minutes INTEGER DEFAULT 15`;
+    await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS completed_study_dates TEXT`;
     await sql`
       CREATE TABLE IF NOT EXISTS workout_state (
         id INTEGER PRIMARY KEY DEFAULT 1,
@@ -519,12 +522,13 @@ apiRouter.get("/settings", async (req, res) => {
   try {
     const sql = getDb();
     if (sql) {
-      const rows = await sql`SELECT user_name, high_contrast, reminder_minutes FROM user_settings WHERE id = 1`;
+      const rows = await sql`SELECT user_name, high_contrast, reminder_minutes, completed_study_dates FROM user_settings WHERE id = 1`;
       if (rows.length > 0) {
         return res.json({
           userName: rows[0].user_name ?? "Henrique",
           highContrast: !!rows[0].high_contrast,
-          reminderMinutes: rows[0].reminder_minutes ?? 15
+          reminderMinutes: rows[0].reminder_minutes ?? 15,
+          completedStudyDates: rows[0].completed_study_dates ? JSON.parse(rows[0].completed_study_dates) : []
         });
       }
     }
@@ -537,22 +541,29 @@ apiRouter.get("/settings", async (req, res) => {
 
 apiRouter.post("/settings", async (req, res) => {
   try {
-    const { userName, highContrast, reminderMinutes } = req.body;
+    const { userName, highContrast, reminderMinutes, completedStudyDates } = req.body;
     const nameToSave = userName ?? "Henrique";
     const contrastToSave = !!highContrast;
     const minutesToSave = [5, 10, 15, 30, 60].includes(Number(reminderMinutes)) ? Number(reminderMinutes) : 15;
+    const studyDatesArr = Array.isArray(completedStudyDates) ? completedStudyDates : (memoryUserSettings.completedStudyDates || []);
 
-    memoryUserSettings = { userName: nameToSave, highContrast: contrastToSave, reminderMinutes: minutesToSave };
+    memoryUserSettings = {
+      userName: nameToSave,
+      highContrast: contrastToSave,
+      reminderMinutes: minutesToSave,
+      completedStudyDates: studyDatesArr
+    };
 
     const sql = getDb();
     if (sql) {
       await sql`
-        INSERT INTO user_settings (id, user_name, high_contrast, reminder_minutes, updated_at)
-        VALUES (1, ${nameToSave}, ${contrastToSave}, ${minutesToSave}, CURRENT_TIMESTAMP)
+        INSERT INTO user_settings (id, user_name, high_contrast, reminder_minutes, completed_study_dates, updated_at)
+        VALUES (1, ${nameToSave}, ${contrastToSave}, ${minutesToSave}, ${JSON.stringify(studyDatesArr)}, CURRENT_TIMESTAMP)
         ON CONFLICT (id) DO UPDATE SET
           user_name = EXCLUDED.user_name,
           high_contrast = EXCLUDED.high_contrast,
           reminder_minutes = EXCLUDED.reminder_minutes,
+          completed_study_dates = EXCLUDED.completed_study_dates,
           updated_at = CURRENT_TIMESTAMP
       `;
     }

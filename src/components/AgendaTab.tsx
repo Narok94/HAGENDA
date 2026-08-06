@@ -222,6 +222,9 @@ const isTaskOnDate = (task: Task, dateStr: string): boolean => {
 };
 
 const isTaskCompletedOnDate = (task: Task, dateStr: string): boolean => {
+  if (task.id === 'workout_group_summary' || task.id === 'study_daily_summary' || task.id.startsWith('diet_')) {
+    return task.completed;
+  }
   if (!task.recurrence || task.recurrence === 'none') {
     return task.completed;
   }
@@ -253,12 +256,13 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   const [tasks, setTasks] = useState<Task[]>([]);
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; mode: string }>({ connected: false, mode: 'loading' });
 
-  // Workout & Diet states for virtual task synthesis
+  // Workout, Diet & Study states for virtual task synthesis
   const [todayCompletedExercises, setTodayCompletedExercises] = useState<Record<string, boolean>>({});
   const [activeGroupId, setActiveGroupId] = useState<'A' | 'B' | 'C' | 'D' | 'E'>('A');
   const [workoutWeights, setWorkoutWeights] = useState<Record<string, string>>({});
   const [completedMeals, setCompletedMeals] = useState<Record<string, boolean>>({});
   const [waterIntakeMl, setWaterIntakeMl] = useState<number>(0);
+  const [completedStudyDates, setCompletedStudyDates] = useState<string[]>([]);
 
   const fetchWorkoutState = async () => {
     try {
@@ -294,9 +298,23 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     }
   };
 
+  const fetchSettingsState = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.completedStudyDates && Array.isArray(data.completedStudyDates)) {
+        setCompletedStudyDates(data.completedStudyDates);
+      }
+    } catch (e) {
+      console.error('Erro ao buscar settings em AgendaTab:', e);
+    }
+  };
+
   useEffect(() => {
     fetchWorkoutState();
     fetchDietState();
+    fetchSettingsState();
   }, [todayStr]);
 
   // Listen for workout/diet sync events across tabs/components
@@ -313,21 +331,48 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     };
   }, [todayStr]);
 
-  // Generate virtual tasks for today's workout exercises and diet meals
+  // Single virtual task for today's workout ("Academia") with flexible time
   const workoutVirtualTasks: Task[] = React.useMemo(() => {
     const activeGroup = WORKOUT_GROUPS.find(g => g.id === activeGroupId) || WORKOUT_GROUPS[0];
-    return activeGroup.exercises.map(ex => ({
-      id: `workout_${ex.id}`,
-      title: ex.name,
+    const isAllCompleted = activeGroup.exercises.length > 0 && activeGroup.exercises.every(ex => !!todayCompletedExercises[ex.id]);
+
+    return [{
+      id: 'workout_group_summary',
+      title: 'Academia',
       date: todayStr,
-      time: '07:00',
+      time: 'Horário flexível',
       category: 'Academia',
       icon: 'Dumbbell',
       priority: false,
-      completed: !!todayCompletedExercises[ex.id],
-      notes: `${ex.series} séries x ${ex.reps} reps${ex.notes ? ' • ' + ex.notes : ''}`,
-    }));
+      completed: isAllCompleted,
+      notes: `Treino ${activeGroup.id}: ${activeGroup.subtitle} (${activeGroup.exercises.length} exercícios)`
+    }];
   }, [activeGroupId, todayCompletedExercises, todayStr]);
+
+  // Single virtual task for today's study ("Estudo") with flexible time
+  const studyVirtualTasks: Task[] = React.useMemo(() => {
+    const hasCustomStudyTask = tasks.some(t =>
+      t.category?.toLowerCase() === 'estudo' && isTaskOnDate(t, todayStr)
+    );
+
+    if (hasCustomStudyTask) {
+      return [];
+    }
+
+    const isCompleted = completedStudyDates.includes(todayStr);
+
+    return [{
+      id: 'study_daily_summary',
+      title: 'Estudo',
+      date: todayStr,
+      time: 'Horário flexível',
+      category: 'Estudo',
+      icon: 'BookOpen',
+      priority: false,
+      completed: isCompleted,
+      notes: 'Sessão diária de estudos'
+    }];
+  }, [tasks, completedStudyDates, todayStr]);
 
   const dietVirtualTasks: Task[] = React.useMemo(() => {
     return MEAL_PLAN.map(meal => ({
@@ -343,10 +388,11 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     }));
   }, [completedMeals, todayStr]);
 
-  // Combined tasks list (Custom tasks + Workout + Diet)
+  // Combined tasks list (Custom tasks + Workout + Study + Diet)
   const allCombinedTasks = React.useMemo(() => {
-    return [...tasks, ...workoutVirtualTasks, ...dietVirtualTasks];
-  }, [tasks, workoutVirtualTasks, dietVirtualTasks]);
+    const customTasksFiltered = tasks.filter(t => !t.id.startsWith('workout_') && t.id !== 'workout_group_summary');
+    return [...customTasksFiltered, ...workoutVirtualTasks, ...studyVirtualTasks, ...dietVirtualTasks];
+  }, [tasks, workoutVirtualTasks, studyVirtualTasks, dietVirtualTasks]);
 
   const checkDbStatus = async () => {
     try {
@@ -719,13 +765,17 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   };
 
   const handleToggleTask = (task: Task) => {
-    if (task.id.startsWith('workout_')) {
-      const exId = task.id.replace('workout_', '');
-      const updated = {
-        ...todayCompletedExercises,
-        [exId]: !todayCompletedExercises[exId]
-      };
+    if (task.id === 'workout_group_summary' || task.id.startsWith('workout_')) {
+      const activeGroup = WORKOUT_GROUPS.find(g => g.id === activeGroupId) || WORKOUT_GROUPS[0];
+      const isCurrentlyAllCompleted = activeGroup.exercises.length > 0 && activeGroup.exercises.every(ex => !!todayCompletedExercises[ex.id]);
+      const newCompletedState = !isCurrentlyAllCompleted;
+
+      const updated: Record<string, boolean> = { ...todayCompletedExercises };
+      activeGroup.exercises.forEach(ex => {
+        updated[ex.id] = newCompletedState;
+      });
       setTodayCompletedExercises(updated);
+
       fetch('/api/workout-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -737,6 +787,24 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
         })
       }).then(() => {
         window.dispatchEvent(new Event('momentum_workout_update'));
+      }).catch(err => console.error(err));
+      return;
+    }
+
+    if (task.id === 'study_daily_summary') {
+      const isCompleted = completedStudyDates.includes(todayStr);
+      const newDates = isCompleted
+        ? completedStudyDates.filter(d => d !== todayStr)
+        : [...completedStudyDates, todayStr];
+
+      setCompletedStudyDates(newDates);
+
+      fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          completedStudyDates: newDates
+        })
       }).catch(err => console.error(err));
       return;
     }
@@ -765,7 +833,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     toggleTaskOnDate(task.id, getTaskTargetDateForFilter(task, viewFilter, todayStr));
   };
 
-  // Filtering Logic using allCombinedTasks (custom + academia + dieta)
+  // Filtering Logic using allCombinedTasks (custom + academia + estudo + dieta)
   const filteredTasks = allCombinedTasks.filter(task => {
     if (activeCategory && task.category.toLowerCase() !== activeCategory.toLowerCase()) {
       return false;
@@ -780,7 +848,13 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       return dates.some(d => isTaskOnDate(task, d));
     }
     return true;
-  }).sort((a, b) => a.time.localeCompare(b.time) || a.date.localeCompare(b.date));
+  }).sort((a, b) => {
+    const isAFlex = a.time === 'Horário flexível' || a.time === 'Flexível';
+    const isBFlex = b.time === 'Horário flexível' || b.time === 'Flexível';
+    if (isAFlex && !isBFlex) return 1;
+    if (!isAFlex && isBFlex) return -1;
+    return a.time.localeCompare(b.time) || a.date.localeCompare(b.date);
+  });
 
   const uncompletedTodayTasksList = allCombinedTasks.filter(t => isTaskOnDate(t, todayStr) && !isTaskCompletedOnDate(t, todayStr));
   const todayTasksList = allCombinedTasks.filter(t => isTaskOnDate(t, todayStr));
@@ -833,7 +907,12 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
 
   let headerSubtitle = '';
   if (nextUncompletedTask) {
-    headerSubtitle = `• Próxima tarefa às ${nextUncompletedTask.time}`;
+    const isFlex = nextUncompletedTask.time === 'Horário flexível' || nextUncompletedTask.time === 'Flexível';
+    if (isFlex) {
+      headerSubtitle = `• Próxima tarefa: ${nextUncompletedTask.title} (horário flexível)`;
+    } else {
+      headerSubtitle = `• Próxima tarefa às ${nextUncompletedTask.time}`;
+    }
   } else {
     const count = allCombinedTasks.filter(t => isTaskOnDate(t, todayStr)).length;
     headerSubtitle = `• ${count} ${count === 1 ? 'tarefa' : 'tarefas'} hoje`;
