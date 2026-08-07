@@ -32,6 +32,26 @@ html, body, #root {
   width: 100%;
   margin: 0;
   padding: 0;
+  background: #FFFFFF;
+}
+
+.tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  z-index: 50;
+}
+
+.tabbar::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-bottom, 34px);
+  background: #FFFFFF;
 }
 
 :root.high-contrast * {
@@ -57,7 +77,8 @@ html, body, #root {
 
 @layer base {
   body {
-    @apply font-sans antialiased bg-app-bg text-text-sub selection:bg-brand-primary selection:text-white;
+    @apply font-sans antialiased text-text-sub selection:bg-brand-primary selection:text-white;
+    background: #FFFFFF;
     color-scheme: light;
   }
   :root.high-contrast body {
