@@ -250,133 +250,51 @@ export default function App() {
   };
 
   return (
-    <div className="h-full w-screen bg-app-bg flex overflow-hidden font-sans text-text-sub relative">
-      {/* DESKTOP SIDEBAR */}
-      <nav className="hidden md:flex w-[260px] lg:w-[280px] bg-app-card border-r border-border-discreet flex-col p-6 z-40 shrink-0 relative">
-        {/* Subtle subtle gradient accent at the top */}
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-brand-primary/0 via-brand-primary/40 to-brand-primary/0" />
-        
-        <div className="flex items-center gap-3 mb-12 mt-4 px-2">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1E3FD6] to-[#0B1440] flex items-center justify-center shadow-lg shadow-brand-primary/10">
-            <Calendar size={20} className="text-white" />
-          </div>
-          <span className="font-bold text-xl tracking-tight text-[#0E1730] font-display">Momentum</span>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          {/* Agenda Tab Button */}
-          <button 
-            onClick={() => setActiveTab('agenda')}
-            className={`relative flex items-center gap-3 px-4 py-3.5 rounded-[14px] transition-all group ${activeTab === 'agenda' ? 'text-white font-semibold' : 'text-text-sec hover:text-text-sub font-medium'}`}
+    <div className="h-[100dvh] w-full bg-app-bg flex flex-col font-sans text-text-sub relative overflow-hidden">
+      {/* MAIN CONTENT AREA */}
+      <main 
+        style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))' }}
+        className="flex-1 overflow-y-auto w-full md:max-w-4xl md:mx-auto pb-28 relative"
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="h-full w-full"
           >
             {activeTab === 'agenda' && (
-              <motion.div 
-                layoutId="activeTabSidebar"
-                className="absolute inset-0 bg-gradient-to-r from-[#1E3FD6] to-[#0B1440] rounded-[14px] shadow-md shadow-brand-primary/10 -z-10"
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              <AgendaTab 
+                userName={userName} 
+                avatarUrl={avatarUrl} 
+                onOpenSettings={() => setIsSettingsOpen(true)} 
               />
             )}
-            <Calendar size={18} strokeWidth={activeTab === 'agenda' ? 2.2 : 1.8} className={activeTab === 'agenda' ? 'text-white' : 'text-text-sec group-hover:text-text-sub transition-colors'} />
-            <span className="text-sm">Agenda</span>
-          </button>
-
-          {/* Academia Tab Button */}
-          <button 
-            onClick={() => setActiveTab('academia')}
-            className={`relative flex items-center gap-3 px-4 py-3.5 rounded-[14px] transition-all group ${activeTab === 'academia' ? 'text-white font-semibold' : 'text-text-sec hover:text-text-sub font-medium'}`}
-          >
+            
             {activeTab === 'academia' && (
-              <motion.div 
-                layoutId="activeTabSidebar"
-                className="absolute inset-0 bg-gradient-to-r from-[#1E3FD6] to-[#0B1440] rounded-[14px] shadow-md shadow-brand-primary/10 -z-10"
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              <AcademiaTab 
+                userName={userName} 
+                onOpenSettings={() => setIsSettingsOpen(true)} 
               />
             )}
-            <Dumbbell size={18} strokeWidth={activeTab === 'academia' ? 2.2 : 1.8} className={activeTab === 'academia' ? 'text-white' : 'text-text-sec group-hover:text-text-sub transition-colors'} />
-            <span className="text-sm">Academia</span>
-          </button>
 
-          {/* Dieta Tab Button */}
-          <button 
-            onClick={() => setActiveTab('dieta')}
-            className={`relative flex items-center gap-3 px-4 py-3.5 rounded-[14px] transition-all group ${activeTab === 'dieta' ? 'text-white font-semibold' : 'text-text-sec hover:text-text-sub font-medium'}`}
-          >
             {activeTab === 'dieta' && (
-              <motion.div 
-                layoutId="activeTabSidebar"
-                className="absolute inset-0 bg-gradient-to-r from-[#1E3FD6] to-[#0B1440] rounded-[14px] shadow-md shadow-brand-primary/10 -z-10"
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              <DietaTab 
+                userName={userName} 
+                onOpenSettings={() => setIsSettingsOpen(true)} 
               />
             )}
-            <Apple size={18} strokeWidth={activeTab === 'dieta' ? 2.2 : 1.8} className={activeTab === 'dieta' ? 'text-white' : 'text-text-sec group-hover:text-text-sub transition-colors'} />
-            <span className="text-sm">Dieta</span>
-          </button>
-        </div>
+          </motion.div>
+        </AnimatePresence>
+      </main>
 
-        {/* User profile section at bottom of sidebar */}
-        <div className="mt-auto pt-6 border-t border-border-discreet flex items-center gap-3 px-2">
-          <div className="w-9 h-9 rounded-xl overflow-hidden bg-app-bg border border-border-discreet shrink-0 flex items-center justify-center">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-            ) : (
-              <User size={16} className="text-text-sec" />
-            )}
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-semibold text-text-sub truncate font-display">{userName}</span>
-            <span className="text-[10px] text-text-sec font-medium">Premium User</span>
-          </div>
-          <button 
-            onClick={() => setIsSettingsOpen(true)}
-            className="ml-auto p-1.5 rounded-lg text-text-sec hover:text-text-sub hover:bg-app-bg transition-colors"
-          >
-            <Settings size={16} />
-          </button>
-        </div>
-      </nav>
-
-      {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col h-full bg-app-bg relative overflow-hidden">
-        <main className="flex-1 overflow-y-auto w-full md:max-w-4xl md:mx-auto pb-24 md:pb-8 relative">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="h-full w-full"
-            >
-              {activeTab === 'agenda' && (
-                <AgendaTab 
-                  userName={userName} 
-                  avatarUrl={avatarUrl} 
-                  onOpenSettings={() => setIsSettingsOpen(true)} 
-                />
-              )}
-              
-              {activeTab === 'academia' && (
-                <AcademiaTab 
-                  userName={userName} 
-                  onOpenSettings={() => setIsSettingsOpen(true)} 
-                />
-              )}
-
-              {activeTab === 'dieta' && (
-                <DietaTab 
-                  userName={userName} 
-                  onOpenSettings={() => setIsSettingsOpen(true)} 
-                />
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </main>
-
-        {/* BOTTOM NAVIGATION (Mobile Only) */}
-        <nav 
-          style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}
-          className="md:hidden fixed bottom-0 left-0 right-0 w-full bg-white border-t border-[#E3E8F1] pt-3 px-6 flex justify-center gap-16 items-center z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]"
-        >
+      {/* BOTTOM NAVIGATION (All devices) */}
+      <nav 
+        style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))' }}
+        className="fixed bottom-0 left-0 right-0 w-full bg-white border-t border-[#E3E8F1] pt-3 px-6 flex justify-center gap-16 md:gap-32 items-center z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]"
+      >
           {['agenda', 'academia', 'dieta'].map((tab) => {
             const isActive = activeTab === tab;
             let icon = <Calendar size={isActive ? 20 : 18} strokeWidth={isActive ? 2.2 : 1.8} />;
@@ -584,7 +502,6 @@ export default function App() {
             </div>
           )}
         </AnimatePresence>
-      </div>
     </div>
   );
 }
