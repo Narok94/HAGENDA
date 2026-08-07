@@ -26,9 +26,6 @@
 }
 
 html, body, #root {
-  overflow: hidden;
-  height: 100dvh;
-  min-height: 100dvh;
   width: 100%;
   margin: 0;
   padding: 0;

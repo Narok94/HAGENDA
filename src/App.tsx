@@ -249,8 +249,28 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    const setAppHeight = () => {
+      document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
+    };
+    setAppHeight();
+    window.addEventListener('resize', setAppHeight);
+    window.addEventListener('orientationchange', setAppHeight);
+    // Recalcula de novo após pequeno delay, pois no iOS standalone o innerHeight
+    // correto às vezes só está disponível um instante depois do primeiro paint
+    const timeout = setTimeout(setAppHeight, 300);
+    return () => {
+      window.removeEventListener('resize', setAppHeight);
+      window.removeEventListener('orientationchange', setAppHeight);
+      clearTimeout(timeout);
+    };
+  }, []);
+
   return (
-    <div className="h-[100dvh] w-full bg-app-bg flex flex-col font-sans text-text-sub relative overflow-hidden">
+    <div 
+      style={{ height: 'var(--app-height, 100dvh)' }}
+      className="w-full bg-app-bg flex flex-col font-sans text-text-sub relative overflow-hidden"
+    >
       {/* MAIN CONTENT AREA */}
       <main 
         style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))' }}
