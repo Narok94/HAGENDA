@@ -44,16 +44,6 @@ html, body, #root {
   z-index: 50;
 }
 
-.tabbar::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  height: env(safe-area-inset-bottom, 34px);
-  background: #FFFFFF;
-}
-
 :root.high-contrast * {
   box-shadow: none !important;
   backdrop-filter: none !important;

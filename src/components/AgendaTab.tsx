@@ -1293,7 +1293,10 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       </section>
 
       {/* FABs */}
-      <div className="fixed bottom-[100px] md:bottom-8 right-6 md:right-10 flex flex-col gap-3 z-40 items-center">
+      <div 
+        style={{ bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}
+        className="fixed right-6 md:right-10 flex flex-col gap-3 z-40 items-center"
+      >
         <button 
           onClick={handleAssistantClick}
           className="w-12 h-12 bg-white border border-[#E3E8F1] text-[#2F5CFF] rounded-full flex items-center justify-center shadow-md hover:scale-105 transition-all active:scale-95 cursor-pointer"
@@ -1315,7 +1318,8 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
-            className="fixed bottom-[110px] md:bottom-10 left-1/2 -translate-x-1/2 bg-[#0B1440]/95 backdrop-blur-md border border-white/10 px-4 py-3 rounded-full flex items-center gap-4 shadow-xl z-50 w-max"
+            style={{ bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
+            className="fixed left-1/2 -translate-x-1/2 bg-[#0B1440]/95 backdrop-blur-md border border-white/10 px-4 py-3 rounded-full flex items-center gap-4 shadow-xl z-50 w-max"
           >
             <span className="text-sm font-medium text-white">Tarefa excluída</span>
             <button 
