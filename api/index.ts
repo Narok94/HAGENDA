@@ -18,8 +18,131 @@ app.use(express.json());
 
 const apiRouter = express.Router();
 
+const DEFAULT_WEEKLY_TASKS = [
+  {
+    id: "task_cardio",
+    title: "Cardio em jejum (moderado)",
+    time: "07:30",
+    date: "",
+    category: "Saúde",
+    icon: "Flame",
+    completed: false,
+    priority: false,
+    notes: "Cardio moderado em jejum (Ter, Qui, Sáb)",
+    recurrence: "semanal",
+    recurrenceDay: "",
+    recurrenceDays: ["2", "4", "6"],
+    completedDates: []
+  },
+  {
+    id: "task_cafe",
+    title: "Café da manhã",
+    time: "08:30",
+    date: "",
+    category: "Dieta",
+    icon: "Coffee",
+    completed: false,
+    priority: false,
+    notes: "Refeição matinal da dieta",
+    recurrence: "semanal",
+    recurrenceDay: "",
+    recurrenceDays: ["0", "1", "2", "3", "4", "5", "6"],
+    completedDates: []
+  },
+  {
+    id: "task_lanche_pre",
+    title: "Lanche (pré-treino)",
+    time: "11:00",
+    date: "",
+    category: "Dieta",
+    icon: "Apple",
+    completed: false,
+    priority: false,
+    notes: "Lanche reforçado pré-treino",
+    recurrence: "semanal",
+    recurrenceDay: "",
+    recurrenceDays: ["0", "1", "2", "3", "4", "5", "6"],
+    completedDates: []
+  },
+  {
+    id: "task_treino",
+    title: "Treino de força",
+    time: "11:30",
+    date: "",
+    category: "Academia",
+    icon: "Dumbbell",
+    completed: false,
+    priority: false,
+    notes: "Sessão diária de musculação / treino de força (Seg a Sex)",
+    recurrence: "semanal",
+    recurrenceDay: "",
+    recurrenceDays: ["1", "2", "3", "4", "5"],
+    completedDates: []
+  },
+  {
+    id: "task_almoco",
+    title: "Almoço (pós-treino)",
+    time: "13:30",
+    date: "",
+    category: "Dieta",
+    icon: "Apple",
+    completed: false,
+    priority: false,
+    notes: "Refeição de almoço pós-treino",
+    recurrence: "semanal",
+    recurrenceDay: "",
+    recurrenceDays: ["0", "1", "2", "3", "4", "5", "6"],
+    completedDates: []
+  },
+  {
+    id: "task_lanche",
+    title: "Lanche",
+    time: "17:30",
+    date: "",
+    category: "Dieta",
+    icon: "Apple",
+    completed: false,
+    priority: false,
+    notes: "Lanche da tarde",
+    recurrence: "semanal",
+    recurrenceDay: "",
+    recurrenceDays: ["0", "1", "2", "3", "4", "5", "6"],
+    completedDates: []
+  },
+  {
+    id: "task_jantar",
+    title: "Jantar",
+    time: "20:30",
+    date: "",
+    category: "Dieta",
+    icon: "Apple",
+    completed: false,
+    priority: false,
+    notes: "Refeição noturna",
+    recurrence: "semanal",
+    recurrenceDay: "",
+    recurrenceDays: ["0", "1", "2", "3", "4", "5", "6"],
+    completedDates: []
+  },
+  {
+    id: "task_estudo",
+    title: "Estudo",
+    time: "Horário flexível",
+    date: "",
+    category: "Estudo",
+    icon: "BookOpen",
+    completed: false,
+    priority: false,
+    notes: "Sessão diária de estudos",
+    recurrence: "semanal",
+    recurrenceDay: "",
+    recurrenceDays: ["0", "1", "2", "3", "4", "5", "6"],
+    completedDates: []
+  }
+];
+
 // In-memory fallback
-let memoryTasks: any[] = [];
+let memoryTasks: any[] = [...DEFAULT_WEEKLY_TASKS];
 let memorySubscriptions: any[] = [];
 let memoryUserSettings: { userName: string; highContrast: boolean; reminderMinutes: number; completedStudyDates: string[] } = {
   userName: "Henrique",
@@ -368,7 +491,30 @@ apiRouter.get("/tasks", async (req, res) => {
   try {
     const sql = getDb();
     if (sql) {
-      const rows = await sql`SELECT * FROM tasks`;
+      // Auto-update default schedule for cardio and treino if they exist in DB
+      await sql`
+        UPDATE tasks SET recurrence_days = ${JSON.stringify(["2", "4", "6"])}
+        WHERE id = 'task_cardio'
+      `;
+      await sql`
+        UPDATE tasks SET recurrence_days = ${JSON.stringify(["1", "2", "3", "4", "5"])}
+        WHERE id = 'task_treino'
+      `;
+
+      let rows = await sql`SELECT * FROM tasks`;
+      if (rows.length === 0 || !rows.some((r: any) => r.id.startsWith('task_'))) {
+        await sql`DELETE FROM tasks`;
+        for (const t of DEFAULT_WEEKLY_TASKS) {
+          await sql`
+            INSERT INTO tasks (
+              id, title, time, date, category, icon, completed, priority, notes, recurrence, recurrence_day, recurrence_days, completed_dates, reminder_sent
+            ) VALUES (
+              ${t.id}, ${t.title}, ${t.time}, ${t.date}, ${t.category}, ${t.icon}, ${t.completed}, ${t.priority}, ${t.notes}, ${t.recurrence}, ${t.recurrenceDay}, ${JSON.stringify(t.recurrenceDays)}, ${JSON.stringify(t.completedDates)}, false
+            )
+          `;
+        }
+        rows = await sql`SELECT * FROM tasks`;
+      }
       const tasks = rows.map((row: any) => ({
         id: row.id,
         title: row.title,
@@ -466,6 +612,42 @@ apiRouter.delete("/tasks/:id", async (req, res) => {
     return res.json({ success: true });
   } catch (error: any) {
     console.error("Erro ao deletar tarefa:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+apiRouter.post("/tasks/reset", async (req, res) => {
+  try {
+    memoryTasks = [...DEFAULT_WEEKLY_TASKS];
+    const sql = getDb();
+    if (sql) {
+      await sql`DELETE FROM tasks`;
+      for (const t of DEFAULT_WEEKLY_TASKS) {
+        await sql`
+          INSERT INTO tasks (
+            id, title, time, date, category, icon, completed, priority, notes, recurrence, recurrence_day, recurrence_days, completed_dates, reminder_sent
+          ) VALUES (
+            ${t.id},
+            ${t.title},
+            ${t.time},
+            ${t.date},
+            ${t.category},
+            ${t.icon},
+            ${t.completed},
+            ${t.priority},
+            ${t.notes},
+            ${t.recurrence},
+            ${t.recurrenceDay},
+            ${JSON.stringify(t.recurrenceDays)},
+            ${JSON.stringify(t.completedDates)},
+            false
+          )
+        `;
+      }
+    }
+    return res.json({ success: true, tasks: DEFAULT_WEEKLY_TASKS });
+  } catch (error: any) {
+    console.error("Erro ao resetar tarefas:", error);
     return res.status(500).json({ error: error.message });
   }
 });

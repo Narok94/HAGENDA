@@ -315,34 +315,29 @@ export default function App() {
         style={{ paddingBottom: 'max(10px, calc(4px + env(safe-area-inset-bottom, 0px)))' }}
         className="tabbar fixed bottom-0 left-0 right-0 w-full bg-white border-t border-[#E3E8F1] pt-2 px-6 flex justify-center gap-14 md:gap-32 items-center z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]"
       >
-          {['agenda', 'academia', 'dieta'].map((tab) => {
-            const isActive = activeTab === tab;
-            let icon = <Calendar size={isActive ? 20 : 18} strokeWidth={isActive ? 2.2 : 1.8} />;
-            let label = "Agenda";
-            if (tab === 'academia') {
-              icon = <Dumbbell size={isActive ? 20 : 18} strokeWidth={isActive ? 2.2 : 1.8} />;
-              label = "Academia";
-            } else if (tab === 'dieta') {
-              icon = <Apple size={isActive ? 20 : 18} strokeWidth={isActive ? 2.2 : 1.8} />;
-              label = "Dieta";
-            }
+          {[
+            { id: 'agenda', label: 'Agenda', Icon: Calendar, activeColor: 'text-[#2F5CFF]', activeBg: 'bg-[#2F5CFF]', inactiveColor: 'text-slate-400' },
+            { id: 'academia', label: 'Academia', Icon: Dumbbell, activeColor: 'text-[#F97316]', activeBg: 'bg-[#F97316]', inactiveColor: 'text-slate-400' },
+            { id: 'dieta', label: 'Dieta', Icon: Apple, activeColor: 'text-[#10B981]', activeBg: 'bg-[#10B981]', inactiveColor: 'text-slate-400' }
+          ].map(({ id, label, Icon, activeColor, activeBg, inactiveColor }) => {
+            const isActive = activeTab === id;
 
             return (
               <button 
-                key={tab}
-                onClick={() => setActiveTab(tab as any)}
-                className="relative flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all active:scale-95 shrink-0"
+                key={id}
+                onClick={() => setActiveTab(id as any)}
+                className="relative flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-all active:scale-95 shrink-0 group"
               >
-                <div className={`transition-all duration-200 ${isActive ? 'text-brand-primary scale-110' : 'text-text-meta'}`}>
-                  {icon}
+                <div className={`transition-all duration-200 ${isActive ? activeColor + ' scale-110 drop-shadow-sm' : inactiveColor + ' group-hover:' + activeColor + ' group-hover:opacity-70'}`}>
+                  <Icon size={isActive ? 22 : 20} strokeWidth={isActive ? 2.5 : 2} />
                 </div>
-                <span className={`text-[10px] font-medium transition-all ${isActive ? 'text-[#0E1730] font-bold' : 'text-text-meta'}`}>
+                <span className={`text-[10px] font-medium transition-all ${isActive ? activeColor + ' font-bold' : inactiveColor + ' group-hover:' + activeColor + ' group-hover:opacity-70'}`}>
                   {label}
                 </span>
                 {isActive && (
                   <motion.div 
                     layoutId="activeTabBottomIndicator"
-                    className="absolute -bottom-1 w-6 h-[3px] bg-brand-primary rounded-full"
+                    className={`absolute -bottom-1 w-6 h-[3px] rounded-full ${activeBg}`}
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}

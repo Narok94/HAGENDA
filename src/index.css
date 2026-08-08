@@ -79,3 +79,9 @@ html, body, #root {
 ::-webkit-scrollbar {
   display: none;
 }
+
+html { outline: 3px solid red !important; }
+body { outline: 3px solid orange !important; }
+#root { outline: 3px solid yellow !important; }
+.tabbar { outline: 3px solid lime !important; }
+main { outline: 3px solid cyan !important; }

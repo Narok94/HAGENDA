@@ -50,7 +50,7 @@ export const MEAL_PLAN: Meal[] = [
   {
     id: 'lanche_manha',
     time: '11:00',
-    title: 'Lanche da manhã',
+    title: 'Lanche (pré-treino)',
     category: 'Manhã',
     options: [
       {
@@ -65,7 +65,7 @@ export const MEAL_PLAN: Meal[] = [
   {
     id: 'almoco',
     time: '13:30',
-    title: 'Almoço',
+    title: 'Almoço (pós-treino)',
     category: 'Tarde',
     options: [
       {
@@ -84,7 +84,7 @@ export const MEAL_PLAN: Meal[] = [
   {
     id: 'lanche_tarde',
     time: '17:30',
-    title: 'Lanche da tarde',
+    title: 'Lanche',
     category: 'Tarde',
     options: [
       {

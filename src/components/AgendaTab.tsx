@@ -337,6 +337,13 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
 
   // Single virtual task for today's workout ("Academia") with flexible time
   const workoutVirtualTasks: Task[] = React.useMemo(() => {
+    const hasCustomWorkoutTask = tasks.some(t =>
+      (t.category?.toLowerCase() === 'academia' || t.title.toLowerCase().includes('treino') || t.title.toLowerCase().includes('cardio')) && isTaskOnDate(t, todayStr)
+    );
+    if (hasCustomWorkoutTask) {
+      return [];
+    }
+
     const activeGroup = WORKOUT_GROUPS.find(g => g.id === activeGroupId) || WORKOUT_GROUPS[0];
     const isAllCompleted = activeGroup.exercises.length > 0 && activeGroup.exercises.every(ex => !!todayCompletedExercises[ex.id]);
 
@@ -351,7 +358,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       completed: isAllCompleted,
       notes: `Treino ${activeGroup.id}: ${activeGroup.subtitle} (${activeGroup.exercises.length} exercícios)`
     }];
-  }, [activeGroupId, todayCompletedExercises, todayStr]);
+  }, [activeGroupId, todayCompletedExercises, todayStr, tasks]);
 
   // Single virtual task for today's study ("Estudo") with flexible time
   const studyVirtualTasks: Task[] = React.useMemo(() => {
@@ -379,18 +386,26 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   }, [tasks, completedStudyDates, todayStr]);
 
   const dietVirtualTasks: Task[] = React.useMemo(() => {
-    return MEAL_PLAN.map(meal => ({
-      id: `diet_${meal.id}`,
-      title: meal.title,
-      date: todayStr,
-      time: meal.time,
-      category: 'Dieta',
-      icon: 'Apple',
-      priority: false,
-      completed: !!completedMeals[meal.id],
-      notes: meal.options[0]?.items?.slice(0, 2).join(', ') || '',
-    }));
-  }, [completedMeals, todayStr]);
+    return MEAL_PLAN.map(meal => {
+      const hasCustom = tasks.some(t =>
+        (t.title.toLowerCase().trim() === meal.title.toLowerCase().trim() ||
+         (t.category?.toLowerCase() === 'dieta' && t.time === meal.time)) && isTaskOnDate(t, todayStr)
+      );
+      if (hasCustom) return null;
+
+      return {
+        id: `diet_${meal.id}`,
+        title: meal.title,
+        date: todayStr,
+        time: meal.time,
+        category: 'Dieta',
+        icon: 'Apple',
+        priority: false,
+        completed: !!completedMeals[meal.id],
+        notes: meal.options[0]?.items?.slice(0, 2).join(', ') || '',
+      };
+    }).filter(Boolean) as Task[];
+  }, [completedMeals, todayStr, tasks]);
 
   // Combined tasks list (Custom tasks + Workout + Study + Diet)
   const allCombinedTasks = React.useMemo(() => {
@@ -889,12 +904,8 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
     })[0];
   })();
 
-  // Remove priority duplicate if it's highlighted at the top (i.e. if it's the priorityTask and viewFilter is 'hoje')
-  const finalFilteredTasks = filteredTasks.filter(t => {
-    if (viewFilter !== 'hoje') return true;
-    if (priorityTask && t.id === priorityTask.id && !isTaskCompletedOnDate(priorityTask, todayStr)) return false;
-    return true;
-  });
+  // Tasks list (includes all tasks for viewFilter so next upcoming task appears both at the top card and in the list below)
+  const finalFilteredTasks = filteredTasks;
 
   // Group tasks by date for "semana" and "mes" views
   const groupedTasks = React.useMemo(() => {
