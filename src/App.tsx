@@ -250,14 +250,11 @@ export default function App() {
   };
 
   return (
-    <div 
-      style={{ minHeight: '-webkit-fill-available' }}
-      className="h-full w-full bg-app-bg flex flex-col font-sans text-text-sub relative overflow-hidden"
-    >
+    <div className="h-full w-full bg-app-bg flex flex-col font-sans text-text-sub relative overflow-hidden">
       {/* MAIN CONTENT AREA */}
       <main 
         style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))' }}
-        className="flex-1 overflow-y-auto w-full md:max-w-4xl md:mx-auto pb-24 relative"
+        className="flex-1 overflow-y-auto w-full md:max-w-4xl md:mx-auto pb-8 relative"
       >
         <AnimatePresence mode="wait">
           <motion.div
@@ -296,7 +293,7 @@ export default function App() {
       {/* BOTTOM NAVIGATION (All devices) */}
       <nav 
         style={{ paddingBottom: 'max(10px, calc(4px + env(safe-area-inset-bottom, 0px)))' }}
-        className="tabbar fixed bottom-0 left-0 right-0 w-full bg-white border-t border-[#E3E8F1] pt-2 px-6 flex justify-center gap-14 md:gap-32 items-center z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]"
+        className="tabbar relative shrink-0 w-full bg-white border-t border-[#E3E8F1] pt-2 px-6 flex justify-center gap-14 md:gap-32 items-center z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]"
       >
           {[
             { id: 'agenda', label: 'Agenda', Icon: Calendar, activeColor: 'text-[#2F5CFF]', activeBg: 'bg-[#2F5CFF]', inactiveColor: 'text-slate-400' },
