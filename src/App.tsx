@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Dumbbell, Target, User, Settings, Camera, X, ExternalLink, Flame, Trophy, Sparkles, Bell, BellRing, Apple } from 'lucide-react';
+import { Calendar, Dumbbell, Target, User, Settings, Camera, X, ExternalLink, Flame, Trophy, Sparkles, Bell, BellRing, Apple, Cloud, CloudOff, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import AgendaTab from './components/AgendaTab';
 import AcademiaTab from './components/AcademiaTab';
@@ -8,6 +8,36 @@ import DietaTab from './components/DietaTab';
 export default function App() {
   const [activeTab, setActiveTab] = useState<'agenda' | 'academia' | 'dieta' | 'desafio'>('agenda');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [openNewTaskTrigger, setOpenNewTaskTrigger] = useState<number>(0);
+
+  // DB status state for header
+  const [dbStatus, setDbStatus] = useState<{ connected: boolean; mode: string }>({ connected: false, mode: 'loading' });
+
+  const checkDbStatus = async () => {
+    try {
+      const res = await fetch('/api/db-status');
+      if (res.ok) {
+        const status = await res.json();
+        setDbStatus(status);
+      } else {
+        setDbStatus({ connected: false, mode: 'error' });
+      }
+    } catch (error) {
+      setDbStatus({ connected: false, mode: 'offline' });
+    }
+  };
+
+  useEffect(() => {
+    checkDbStatus();
+  }, []);
+
+  // Format current Portuguese date string
+  const dateDisplay = React.useMemo(() => {
+    const d = new Date();
+    const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'short' };
+    const raw = d.toLocaleDateString('pt-BR', options).toUpperCase();
+    return raw.replace('.', '');
+  }, []);
 
   // Push Notifications State
   const [pushStatus, setPushStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'denied'>('idle');
@@ -254,22 +284,85 @@ export default function App() {
       {/* MAIN CONTENT AREA */}
       <main 
         style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))' }}
-        className="flex-1 overflow-y-auto w-full md:max-w-4xl md:mx-auto pb-24 relative"
+        className="flex-1 overflow-y-auto w-full md:max-w-3xl md:mx-auto px-5 md:px-8 pb-12 relative"
       >
+        {/* HEADER & SUBTLE NAV MENU BELOW BOM DIA */}
+        <header className="flex flex-col gap-3 pt-3 pb-3 px-1 relative">
+          <div className="flex justify-between items-start relative">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-[#69708A] uppercase tracking-wider font-display">
+                  {dateDisplay}
+                </span>
+                
+                <button 
+                  onClick={checkDbStatus}
+                  title={dbStatus.connected ? "Neon Conectado" : dbStatus.mode === 'loading' ? "Verificando..." : "Local (Offline)"}
+                  className="inline-flex items-center justify-center p-1 rounded-md bg-[#F3F5FA] hover:bg-[#E3E8F1] transition-all cursor-pointer border border-[#E3E8F1] select-none"
+                >
+                  {dbStatus.connected ? (
+                    <Cloud size={13} className="text-[#16A34A] fill-[#16A34A]/25" />
+                  ) : dbStatus.mode === 'loading' ? (
+                    <Cloud size={13} className="text-[#9AA1B8] animate-pulse" />
+                  ) : (
+                    <CloudOff size={13} className="text-[#69708A]" />
+                  )}
+                </button>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#0E1730] flex items-center gap-2 mt-1 font-display">
+                Bom dia, {userName} <span className="text-xl md:text-2xl">👋</span>
+              </h1>
+            </div>
+            
+            <button 
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2 text-[#9AA1B8] hover:text-[#0E1730] transition-colors cursor-pointer active:scale-95"
+            >
+              <Settings size={20} strokeWidth={1.5} />
+            </button>
+          </div>
+
+          {/* SUBTLE MENU BELOW BOM DIA */}
+          <nav className="flex items-center gap-1.5 p-1 bg-[#F1F3F9] border border-[#E3E8F1] rounded-2xl w-fit mt-1">
+            {[
+              { id: 'agenda', label: 'Agenda', Icon: Calendar, activeColor: 'text-[#2F5CFF]' },
+              { id: 'academia', label: 'Academia', Icon: Dumbbell, activeColor: 'text-[#F97316]' },
+              { id: 'dieta', label: 'Dieta', Icon: Apple, activeColor: 'text-[#10B981]' }
+            ].map(({ id, label, Icon, activeColor }) => {
+              const isActive = activeTab === id;
+              return (
+                <button 
+                  key={id}
+                  onClick={() => setActiveTab(id as any)}
+                  className={`relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer select-none ${
+                    isActive 
+                      ? 'bg-white text-[#0E1730] shadow-sm font-bold' 
+                      : 'text-[#69708A] hover:text-[#0E1730] hover:bg-white/50'
+                  }`}
+                >
+                  <Icon size={15} className={isActive ? activeColor : 'text-[#69708A]'} />
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </header>
+
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
             className="h-full w-full"
           >
             {activeTab === 'agenda' && (
               <AgendaTab 
                 userName={userName} 
                 avatarUrl={avatarUrl} 
-                onOpenSettings={() => setIsSettingsOpen(true)} 
+                onOpenSettings={() => setIsSettingsOpen(true)}
+                openNewTaskTrigger={openNewTaskTrigger}
               />
             )}
             
@@ -289,42 +382,6 @@ export default function App() {
           </motion.div>
         </AnimatePresence>
       </main>
-
-      {/* BOTTOM NAVIGATION (All devices) */}
-      <nav 
-        style={{ paddingBottom: 'max(6px, calc(env(safe-area-inset-bottom, 0px) - 10px))' }}
-        className="tabbar fixed bottom-0 left-0 right-0 w-full bg-white border-t border-[#E3E8F1] pt-1.5 px-6 flex justify-center gap-14 md:gap-32 items-center z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]"
-      >
-          {[
-            { id: 'agenda', label: 'Agenda', Icon: Calendar, activeColor: 'text-[#2F5CFF]', activeBg: 'bg-[#2F5CFF]', inactiveColor: 'text-slate-400' },
-            { id: 'academia', label: 'Academia', Icon: Dumbbell, activeColor: 'text-[#F97316]', activeBg: 'bg-[#F97316]', inactiveColor: 'text-slate-400' },
-            { id: 'dieta', label: 'Dieta', Icon: Apple, activeColor: 'text-[#10B981]', activeBg: 'bg-[#10B981]', inactiveColor: 'text-slate-400' }
-          ].map(({ id, label, Icon, activeColor, activeBg, inactiveColor }) => {
-            const isActive = activeTab === id;
-
-            return (
-              <button 
-                key={id}
-                onClick={() => setActiveTab(id as any)}
-                className="relative flex flex-col items-center gap-0.5 py-0.5 px-3 rounded-xl transition-all active:scale-95 shrink-0 group"
-              >
-                <div className={`transition-all duration-200 ${isActive ? activeColor + ' scale-110 drop-shadow-sm' : inactiveColor + ' group-hover:' + activeColor + ' group-hover:opacity-70'}`}>
-                  <Icon size={isActive ? 22 : 20} strokeWidth={isActive ? 2.5 : 2} />
-                </div>
-                <span className={`text-[10px] font-medium transition-all ${isActive ? activeColor + ' font-bold' : inactiveColor + ' group-hover:' + activeColor + ' group-hover:opacity-70'}`}>
-                  {label}
-                </span>
-                {isActive && (
-                  <motion.div 
-                    layoutId="activeTabBottomIndicator"
-                    className={`absolute -bottom-1 w-6 h-[3px] rounded-full ${activeBg}`}
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  />
-                )}
-              </button>
-            );
-          })}
-        </nav>
 
         {/* SETTINGS MODAL */}
         <AnimatePresence>

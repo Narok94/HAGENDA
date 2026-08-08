@@ -140,31 +140,7 @@ export default function DietaTab({ userName = 'Henrique', onOpenSettings }: Diet
   const waterPct = Math.min(100, Math.round((waterIntakeMl / waterTargetMl) * 100));
 
   return (
-    <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto pb-28 md:pb-12">
-      {/* HEADER */}
-      <div className="flex items-start justify-between pt-2 relative">
-        <div className="pr-10">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-[#22C55E] uppercase tracking-wider font-display">
-              Nutrição & Saúde
-            </span>
-            <span className="text-[10px] bg-[#22C55E]/10 text-[#22C55E] font-bold px-2 py-0.5 rounded-full">
-              Plano Individual
-            </span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-[#0E1730] font-display tracking-tight mt-1">
-            Plano Alimentar
-          </h1>
-        </div>
-        {onOpenSettings && (
-          <button
-            onClick={onOpenSettings}
-            className="absolute top-2 right-0 p-2 text-[#9AA1B8] hover:text-[#0E1730] transition-colors cursor-pointer active:scale-95"
-          >
-            <Settings size={20} strokeWidth={1.5} />
-          </button>
-        )}
-      </div>
+    <div className="py-2 space-y-6 max-w-4xl mx-auto pb-12">
 
       {/* NUTRI BANNER */}
       <div className="bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#14532D] rounded-[24px] p-5 md:p-6 text-white shadow-xl space-y-4 relative overflow-hidden">

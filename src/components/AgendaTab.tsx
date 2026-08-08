@@ -157,6 +157,7 @@ interface AgendaTabProps {
   userName: string;
   avatarUrl: string | null;
   onOpenSettings: () => void;
+  openNewTaskTrigger?: number;
 }
 
 const formatDateLocal = (d: Date): string => {
@@ -254,11 +255,17 @@ const getTaskTargetDateForFilter = (task: Task, filter: 'hoje' | 'semana' | 'mes
   return todayStr;
 };
 
-export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: AgendaTabProps) {
+export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNewTaskTrigger }: AgendaTabProps) {
   const todayStr = getTodayStr();
   
   const [tasks, setTasks] = useState<Task[]>([]);
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; mode: string }>({ connected: false, mode: 'loading' });
+
+  useEffect(() => {
+    if (openNewTaskTrigger && openNewTaskTrigger > 0) {
+      openCreateModal();
+    }
+  }, [openNewTaskTrigger]);
 
   // Workout, Diet & Study states for virtual task synthesis
   const [todayCompletedExercises, setTodayCompletedExercises] = useState<Record<string, boolean>>({});
@@ -955,42 +962,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
   }
 
   return (
-    <div className="w-full min-h-full p-5 pt-8 md:p-8 md:pt-14 flex flex-col gap-6 md:gap-8 max-w-3xl mx-auto pb-32">
-      {/* HEADER */}
-      <header className="flex justify-between items-start px-1 relative">
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-[#69708A] uppercase tracking-wider font-display">
-              {dateDisplay}
-            </span>
-            
-            <button 
-              onClick={checkDbStatus}
-              title={dbStatus.connected ? "Neon Conectado" : dbStatus.mode === 'loading' ? "Verificando..." : "Local (Offline)"}
-              className="inline-flex items-center justify-center p-1 rounded-md bg-[#F3F5FA] hover:bg-[#E3E8F1] transition-all cursor-pointer border border-[#E3E8F1] select-none"
-            >
-              {dbStatus.connected ? (
-                <Cloud size={13} className="text-[#16A34A] fill-[#16A34A]/25" />
-              ) : dbStatus.mode === 'loading' ? (
-                <Cloud size={13} className="text-[#9AA1B8] animate-pulse" />
-              ) : (
-                <CloudOff size={13} className="text-[#69708A]" />
-              )}
-            </button>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#0E1730] flex items-center gap-2 mt-1 font-display">
-            Bom dia, {userName} <span className="text-xl md:text-2xl">👋</span>
-          </h1>
-        </div>
-        
-        <button 
-          onClick={onOpenSettings}
-          className="absolute top-0 right-1 p-2 text-[#9AA1B8] hover:text-[#0E1730] transition-colors cursor-pointer active:scale-95"
-        >
-          <Settings size={20} strokeWidth={1.5} />
-        </button>
-      </header>
-
+    <div className="w-full min-h-full py-2 flex flex-col gap-6 md:gap-8 max-w-3xl mx-auto pb-16">
       <AnimatePresence>
         {isAssistantOpen && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
@@ -1164,23 +1136,36 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
       {/* 2. LISTA DE TAREFAS */}
       <section className="flex flex-col gap-4">
         <div className="flex justify-between items-center px-1">
-          <h2 className="text-base md:text-lg font-bold text-[#0E1730] tracking-tight flex items-center gap-2 font-display">
-            Tarefas
+          <div className="flex items-center gap-2">
+            <h2 className="text-base md:text-lg font-bold text-[#0E1730] tracking-tight flex items-center gap-2 font-display">
+              Tarefas
+              {activeCategory && (
+                <span className="text-xs font-normal text-[#69708A]">({activeCategory})</span>
+              )}
+              <span className="text-xs font-semibold bg-[#2F5CFF]/10 text-[#2F5CFF] px-2.5 py-0.5 rounded-full">
+                {finalFilteredTasks.length}
+              </span>
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-2">
             {activeCategory && (
-              <span className="text-xs font-normal text-[#69708A]">({activeCategory})</span>
+              <button 
+                onClick={() => setActiveCategory(null)} 
+                className="text-xs font-semibold text-[#69708A] hover:text-[#2F5CFF] flex items-center gap-1 transition-colors cursor-pointer mr-1"
+              >
+                Ver todas <ChevronRight size={12} />
+              </button>
             )}
-            <span className="text-xs font-semibold bg-[#2F5CFF]/10 text-[#2F5CFF] px-2.5 py-0.5 rounded-full">
-              {finalFilteredTasks.length}
-            </span>
-          </h2>
-          {activeCategory && (
-            <button 
-              onClick={() => setActiveCategory(null)} 
-              className="text-xs font-semibold text-[#69708A] hover:text-[#2F5CFF] flex items-center gap-1 transition-colors cursor-pointer"
+
+            <button
+              onClick={openCreateModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2F5CFF] hover:bg-[#2043CC] text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
             >
-              Ver todas <ChevronRight size={12} />
+              <Plus size={15} strokeWidth={2.5} />
+              <span>Nova Tarefa</span>
             </button>
-          )}
+          </div>
         </div>
         
         {/* Segmented Control */}
@@ -1302,25 +1287,6 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings }: Agend
           </p>
         </div>
       </section>
-
-      {/* FABs */}
-      <div 
-        style={{ bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))' }}
-        className="fixed right-6 md:right-10 flex flex-col gap-3 z-40 items-center"
-      >
-        <button 
-          onClick={handleAssistantClick}
-          className="w-12 h-12 bg-white border border-[#E3E8F1] text-[#2F5CFF] rounded-full flex items-center justify-center shadow-md hover:scale-105 transition-all active:scale-95 cursor-pointer"
-        >
-          <Sparkles size={20} />
-        </button>
-        <button 
-          onClick={handleFabClick}
-          className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-[#2F5CFF] to-[#0B1440] text-white rounded-full flex items-center justify-center shadow-lg shadow-[#2F5CFF]/25 transition-all cursor-pointer hover:scale-105 active:scale-95"
-        >
-          <Plus size={24} className="md:w-7 md:h-7" />
-        </button>
-      </div>
 
       {/* Undo Delete Toast */}
       <AnimatePresence>
