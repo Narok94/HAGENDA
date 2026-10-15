@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarDays, Check, CheckCheck, Clock3, ListTodo, MoreHorizontal, Plus, Sparkles } from 'lucide-react';
+import { ArrowRight, CalendarDays, CheckCheck, Clock3, ListTodo } from 'lucide-react';
 import { Task } from '../types';
 
 interface HomeTabProps {
@@ -13,7 +13,7 @@ interface HomeTabProps {
   onSettings: () => void;
 }
 
-export default function HomeTab({ userName, avatarUrl, now, tasks, onNewTask, onTasks, onCalendar, onMore, onSettings }: HomeTabProps) {
+export default function HomeTab({ userName, avatarUrl, now, tasks, onTasks, onSettings }: HomeTabProps) {
   const greeting = now.getHours() < 12 ? 'Bom dia' : now.getHours() < 18 ? 'Boa tarde' : 'Boa noite';
   const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const isTimed = (task: Task) => /^\d{2}:\d{2}$/.test(task.time);
@@ -21,30 +21,24 @@ export default function HomeTab({ userName, avatarUrl, now, tasks, onNewTask, on
   const completed = ordered.filter(task => task.completed).length;
   const late = ordered.filter(task => !task.completed && isTimed(task) && task.time < time).length;
   const pending = ordered.length - completed;
-  const upcoming = ordered.filter(task => !task.completed && (!isTimed(task) || task.time >= time));
+  const upcoming = ordered.filter(task => !task.completed && isTimed(task) && task.time >= time);
+  const nextTask = upcoming[0];
+  const recurrenceText = (task: Task) => ((task.recurrence && task.recurrence !== 'none') || task.id.startsWith('diet_') || task.id === 'study_daily_summary') ? ' · Recorrente' : '';
   const progress = ordered.length ? Math.round(completed / ordered.length * 100) : 0;
 
   return (
     <div className="home-page">
       <header className="home-header">
-        <div><p>{now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p><h1>{greeting}, {userName}<span className="home-greeting-dot" /></h1></div>
+        <div><h1><span>{greeting},</span><span>{userName}<span className="home-wave" aria-hidden="true">👋🏻</span></span></h1><p>{now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p></div>
         <button className="home-avatar" aria-label="Abrir perfil e configurações" onClick={onSettings}>
           {avatarUrl ? <img src={avatarUrl} alt="" /> : <span>{userName.trim().slice(0, 2).toUpperCase()}</span>}
         </button>
       </header>
 
       <section className="home-banner">
-        <div className="home-banner-eyebrow"><Sparkles size={14} /><span>UM NOVO DIA, NOVAS POSSIBILIDADES</span></div>
-        <h2>Seu dia, um passo<br />de cada vez.</h2>
-        <p>Cuide do que importa.<br />O próximo passo começa aqui.</p>
+        <h2>Um dia organizado<br />começa agora.</h2>
+        <p>Foque no que importa.</p>
         <button onClick={onTasks}>Organizar meu dia <ArrowRight size={16} /></button>
-        <div className="home-banner-art" aria-hidden="true"><Check size={30} /><span /><span /></div>
-      </section>
-
-      <section aria-label="Atalhos" className="home-shortcuts">
-        {[{ label: 'Nova tarefa', Icon: Plus, action: onNewTask }, { label: 'Calendário', Icon: CalendarDays, action: onCalendar }, { label: 'Tarefas', Icon: ListTodo, action: onTasks }, { label: 'Mais', Icon: MoreHorizontal, action: onMore }].map(({ label, Icon, action }) => (
-          <button key={label} onClick={action}><span><Icon size={21} strokeWidth={1.7} /></span>{label}</button>
-        ))}
       </section>
 
       <section className="home-day-summary" aria-label="Resumo de hoje" aria-busy={tasks === null}>
@@ -60,15 +54,25 @@ export default function HomeTab({ userName, avatarUrl, now, tasks, onNewTask, on
         </>}
       </section>
 
-      <section className="home-upcoming" aria-label="Compromissos de hoje">
-        <div className="home-section-heading"><h2>A seguir no seu dia</h2><button onClick={onTasks}>Ver tarefas <ArrowRight size={13} /></button></div>
-        {tasks !== null && (upcoming.length ? upcoming.slice(0, 3).map((task, index) => <button className="home-event" key={task.id} onClick={onTasks}>
-          <span className="home-event-time">{isTimed(task) ? task.time : 'Livre'}<span className={index === 0 ? 'home-event-dot is-next' : 'home-event-dot'} /></span>
-          <span className="home-event-copy"><strong>{task.title}</strong><small>{task.category}{task.recurrence && task.recurrence !== 'none' ? ' · Recorrente' : ''}</small></span>
-          <ArrowRight size={15} />
-        </button>) : <p className="home-empty">{pending ? 'Nenhum compromisso futuro com horário definido.' : ordered.length ? 'Tudo concluído por hoje. Aproveite a pausa.' : 'Seu dia está livre. Adicione sua primeira tarefa.'}</p>)}
-        {late > 0 && <button className="home-late" onClick={onTasks}><Clock3 size={13} />{late} {late === 1 ? 'atividade com horário passado' : 'atividades com horário passado'}<ArrowRight size={13} /></button>}
+      <section className="home-next" aria-label="Próxima atividade">
+        <div className="home-next-label"><CalendarDays size={15} /><h2>PRÓXIMA ATIVIDADE</h2></div>
+        {tasks === null ? <p className="home-loading" role="status">Carregando…</p> : nextTask ? <button className="home-next-event" onClick={onTasks}>
+          <span className="home-next-time">{nextTask.time}</span><span className="home-event-dot is-next" />
+          <span className="home-event-copy"><strong>{nextTask.title}</strong><small>{nextTask.category}{recurrenceText(nextTask)}</small></span>
+          <span className="home-next-arrow"><ArrowRight size={19} /></span>
+        </button> : <p className="home-empty">{pending ? 'Nenhuma atividade futura com horário definido.' : ordered.length ? 'Tudo concluído por hoje.' : 'Seu dia está livre.'}</p>}
       </section>
+
+      <section className="home-upcoming" aria-label="A seguir">
+        <div className="home-section-heading"><h2>A seguir</h2><button onClick={onTasks}>Ver tarefas <ArrowRight size={13} /></button></div>
+        {tasks !== null && (upcoming.length > 1 ? upcoming.slice(1, 3).map(task => <button className="home-event" key={task.id} onClick={onTasks}>
+          <span className="home-event-time">{task.time}<span className="home-event-dot" /></span>
+          <span className="home-event-copy"><strong>{task.title}</strong><small>{task.category}{recurrenceText(task)}</small></span>
+          <ArrowRight size={15} />
+        </button>) : <p className="home-empty">Nenhuma outra atividade futura com horário definido.</p>)}
+      </section>
+      {late > 0 && <button className="home-late" onClick={onTasks}><Clock3 size={15} />{late} {late === 1 ? 'atividade com horário passado' : 'atividades com horário passado'}<ArrowRight size={15} /></button>}
+
     </div>
   );
 }
