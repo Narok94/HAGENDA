@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Dumbbell, Target, User, Settings, Camera, X, ExternalLink, Flame, Trophy, Sparkles, Bell, BellRing, Apple, Cloud, CloudOff, Plus, MoreHorizontal } from 'lucide-react';
+import { Calendar, Dumbbell, Target, User, Settings, Camera, X, ExternalLink, Flame, Trophy, Sparkles, Bell, BellRing, Apple, Cloud, CloudOff, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import AgendaTab from './components/AgendaTab';
 import AcademiaTab from './components/AcademiaTab';
@@ -284,10 +284,10 @@ export default function App() {
       {/* MAIN CONTENT AREA */}
       <main 
         style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))' }}
-        className="flex-1 overflow-y-auto w-full md:max-w-3xl md:mx-auto px-5 md:px-8 pb-28 relative"
+        className="flex-1 overflow-y-auto w-full md:max-w-3xl md:mx-auto px-5 md:px-8 pb-12 relative"
       >
         {/* HEADER & SUBTLE NAV MENU BELOW BOM DIA */}
-        {activeTab !== 'agenda' && <header className="flex flex-col gap-3 pt-3 pb-3 px-1 relative">
+        <header className="flex flex-col gap-3 pt-3 pb-3 px-1 relative">
           <div className="flex justify-between items-start relative">
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
@@ -322,7 +322,31 @@ export default function App() {
             </button>
           </div>
 
-        </header>}
+          {/* SUBTLE MENU BELOW BOM DIA */}
+          <nav className="flex items-center gap-1.5 p-1 bg-[#F1F3F9] border border-[#E3E8F1] rounded-2xl w-fit mt-1">
+            {[
+              { id: 'agenda', label: 'Agenda', Icon: Calendar, activeColor: 'text-[#2F5CFF]' },
+              { id: 'academia', label: 'Academia', Icon: Dumbbell, activeColor: 'text-[#F97316]' },
+              { id: 'dieta', label: 'Dieta', Icon: Apple, activeColor: 'text-[#10B981]' }
+            ].map(({ id, label, Icon, activeColor }) => {
+              const isActive = activeTab === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id as any)}
+                  className={`relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer select-none ${
+                    isActive
+                      ? 'bg-white text-[#0E1730] shadow-sm font-bold'
+                      : 'text-[#69708A] hover:text-[#0E1730] hover:bg-white/50'
+                  }`}
+                >
+                  <Icon size={15} className={isActive ? activeColor : 'text-[#69708A]'} />
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </header>
 
         <AnimatePresence mode="wait">
           <motion.div
@@ -358,10 +382,6 @@ export default function App() {
           </motion.div>
         </AnimatePresence>
       </main>
-      <nav className="daily-bottom-nav" data-agenda-active={activeTab === 'agenda'} aria-label="Navegação principal">
-        {([{ id: 'agenda', label: 'Agenda', Icon: Calendar }, { id: 'academia', label: 'Academia', Icon: Dumbbell }, { id: 'dieta', label: 'Dieta', Icon: Apple }] as const).map(({ id, label, Icon }) => <button key={id} aria-current={activeTab === id ? 'page' : undefined} onClick={() => setActiveTab(id)}><Icon size={21} strokeWidth={1.7} /><span>{label}</span></button>)}
-        <button onClick={() => setIsSettingsOpen(true)} aria-label="Mais opções" aria-expanded={isSettingsOpen}><MoreHorizontal size={21} /><span>Mais</span></button>
-      </nav>
 
         {/* SETTINGS MODAL */}
         <AnimatePresence>

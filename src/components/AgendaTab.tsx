@@ -18,13 +18,11 @@ const CATEGORY_META: Record<string, { icon: React.ComponentType<{ size?: number;
 const CATEGORIES_LIST = ['Estudo', 'Academia', 'Dieta', 'Trabalho'];
 
 const getCategoryColor = (category: string): string => {
-  const cat = category.trim().toLowerCase();
-  if (cat === 'trabalho') return '#315BEA';
-  if (cat === 'estudo') return '#087DAB';
-  if (cat === 'academia') return '#C35D16';
-  if (cat === 'dieta' || cat === 'saúde' || cat === 'saude') return '#238052';
-  if (cat === 'casa') return '#AC5A19';
-  return '#7552C7';
+  const cat = category.toLowerCase();
+  if (cat === 'trabalho') return '#2F5CFF';
+  if (cat === 'saúde' || cat === 'saude') return '#16A34A';
+  if (cat === 'casa') return '#FF8A24';
+  return '#6C5CE7'; // Geral
 };
 
 interface TaskRowItemProps {
@@ -42,23 +40,120 @@ function TaskRowItem({ task, targetDate, isCompleted, onToggle, onPostpone, onOp
   const greenOpacity = useTransform(x, [0, 80], [0, 1]);
   const redOpacity = useTransform(x, [-80, 0], [1, 0]);
 
-  const reduceMotion = useReducedMotion();
   return (
-    <motion.div layout={!reduceMotion} drag="x" style={{ x, '--task-accent': getCategoryColor(task.category) } as React.CSSProperties}
-      dragConstraints={{ left: 0, right: 0 }} dragElastic={0.2}
-      onDragEnd={(_, info) => { if (info.offset.x > 100) onToggle(); else if (info.offset.x < -100) onPostpone(); }}
-      className={`daily-task ${isCompleted ? 'is-done' : ''}`}>
-      <button role="checkbox" aria-checked={isCompleted} aria-label={`${isCompleted ? 'Reabrir' : 'Concluir'} ${task.title}`} onClick={onToggle} className="daily-check">
-        {isCompleted && <Check size={14} strokeWidth={3} />}
-      </button>
-      <button className="daily-task-copy" onClick={onOpenDetails}>
-        <span className="daily-task-title">{task.title}{task.priority && !isCompleted && <Flame size={12} aria-label="Prioridade alta" />}</span>
-        <span className="daily-task-meta"><span>{task.time}</span><span className="daily-category">{task.category}</span>
-          {task.recurrence && task.recurrence !== 'none' && <span className="daily-recurrence"><RefreshCw size={11} />{task.recurrence === 'mensal' ? 'Mensal' : 'Semanal'}</span>}
-        </span>
-      </button>
-      <button className="daily-task-icon" aria-label={`Detalhes de ${task.title}`} onClick={onOpenDetails}>{getIcon(task.icon)}</button>
-    </motion.div>
+    <div className="relative overflow-hidden rounded-[16px] w-full">
+      {/* Background swipe reveals */}
+      <div className="absolute inset-0 flex items-center justify-between rounded-[16px] pointer-events-none select-none overflow-hidden z-0">
+        {/* Left Side: Green Concluir (Drag Right) */}
+        <motion.div
+          style={{ opacity: greenOpacity }}
+          className="absolute inset-y-0 left-0 bg-[#16A34A]/20 flex items-center pl-5 pr-12 rounded-[16px] w-1/2 justify-start"
+        >
+          <div className="flex items-center gap-2 text-[#16A34A] font-bold text-xs">
+            <CheckCircle2 size={16} strokeWidth={3} className="animate-pulse" />
+            <span>Concluir</span>
+          </div>
+        </motion.div>
+
+        {/* Right Side: Red Adiar (Drag Left) */}
+        <motion.div
+          style={{ opacity: redOpacity }}
+          className="absolute inset-y-0 right-0 bg-[#FF8A24]/15 flex items-center pr-5 pl-12 rounded-[16px] w-1/2 justify-end"
+        >
+          <div className="flex items-center gap-2 text-[#FF8A24] font-bold text-xs">
+            <RotateCw size={16} className="animate-pulse" />
+            <span>Adiar</span>
+          </div>
+        </motion.div>
+      </div>
+
+      <motion.div
+        layout
+        drag="x"
+        style={{ x }}
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={{ left: 0.5, right: 0.5 }}
+        onDragEnd={(event, info) => {
+          if (info.offset.x > 100) {
+            onToggle();
+          } else if (info.offset.x < -100) {
+            onPostpone();
+          }
+        }}
+        whileTap={{ scale: 0.985 }}
+        onClick={onOpenDetails}
+        className={`relative z-10 group flex items-center gap-3.5 p-3.5 md:p-4 rounded-[16px] border cursor-pointer transition-all shadow-xs pl-6 ${
+          task.priority && !isCompleted
+            ? 'bg-[#FF8A24]/10 border-[#FF8A24]/30 hover:border-[#FF8A24]/50'
+            : 'bg-white border-border-discreet hover:border-[#2F5CFF]/30'
+        }`}
+      >
+        {/* SOLID BAR COLOR Strip on left edge */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-[16px]"
+          style={{ backgroundColor: getCategoryColor(task.category) }}
+        />
+
+        <button
+          role="checkbox"
+          aria-checked={isCompleted}
+          aria-label={`${isCompleted ? 'Reabrir' : 'Concluir'} ${task.title}`}
+          onClick={(e) => { e.stopPropagation(); onToggle(); }}
+          className="shrink-0 flex items-center justify-center w-10 h-10 cursor-pointer"
+        >
+          <div className={`w-5 h-5 flex items-center justify-center rounded-[6px] border-[2px] transition-all duration-200 ${
+            isCompleted
+              ? 'bg-[#16A34A] border-[#16A34A] text-white scale-105'
+              : 'border-[#9AA1B8] text-transparent hover:border-[#2F5CFF] bg-[#F3F5FA]'
+          }`}>
+            {isCompleted && <Check size={12} strokeWidth={4} className="text-white" />}
+          </div>
+        </button>
+
+        <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${isCompleted ? 'opacity-40' : 'opacity-100'}`}>
+          <div className="flex items-center gap-2">
+            <h3 className={`text-sm md:text-base font-semibold text-[#0E1730] truncate font-display ${isCompleted ? 'line-through decoration-[#0E1730]/30 text-[#69708A]' : ''}`}>
+              {task.title}
+            </h3>
+            {task.priority && !isCompleted && (
+              <Flame size={12} className="text-[#FF8A24] shrink-0" />
+            )}
+          </div>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <span className="text-[11px] text-[#69708A] font-medium flex items-center gap-1 shrink-0">
+              <Clock size={10} className="text-[#9AA1B8]" />
+              {task.time}
+            </span>
+            <span className="w-1 h-1 rounded-full bg-[#E3E8F1] shrink-0" />
+            <span className="text-[11px] text-[#69708A] font-medium flex items-center gap-1 shrink-0">
+              <Tag size={10} className="text-[#9AA1B8]" />
+              {task.category}
+            </span>
+            {task.recurrence && task.recurrence !== 'none' && (
+              <>
+                <span className="w-1 h-1 rounded-full bg-[#E3E8F1] shrink-0" />
+                <span className="text-[11px] text-[#2F5CFF] font-semibold shrink-0 flex items-center gap-1">
+                  <RefreshCw size={10} />
+                  {(() => {
+                    if (task.recurrence === 'mensal') return 'Mensal';
+                    if (!task.recurrenceDays || task.recurrenceDays.length === 0) return 'Semanal';
+                    if (task.recurrenceDays.length === 7) return 'Todos os dias';
+                    const isWeekdays = ['1','2','3','4','5'].every(d => task.recurrenceDays!.includes(d)) && task.recurrenceDays.length === 5;
+                    if (isWeekdays) return 'Dias úteis';
+                    const names = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+                    return task.recurrenceDays.map(d => names[Number(d)]).join(', ');
+                  })()}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-200 ${isCompleted ? 'bg-white/5 text-text-meta' : 'bg-[#2F5CFF]/10 text-[#2F5CFF] group-hover:bg-[#2F5CFF]/15'}`}>
+          {getIcon(task.icon)}
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
@@ -876,7 +971,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
   }
 
   return (
-    <div className="agenda-screen daily-agenda">
+    <div className="w-full min-h-full py-2 flex flex-col gap-6 md:gap-8 max-w-3xl mx-auto pb-16">
       <AnimatePresence>
         {isAssistantOpen && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
@@ -963,45 +1058,146 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
         )}
       </AnimatePresence>
 
-      <header className="daily-header">
-        <div><p>{dateDisplay}</p><h1>{now.getHours() < 12 ? 'Bom dia' : now.getHours() < 18 ? 'Boa tarde' : 'Boa noite'}, {userName}</h1></div>
-        <button className="daily-avatar" onClick={onOpenSettings} aria-label="Abrir configurações">{avatarUrl ? <img src={avatarUrl} alt="" /> : userName.slice(0, 2).toUpperCase()}</button>
-      </header>
-      <section aria-label="Seu dia" className="daily-overview">
-        <div className="daily-progress-label"><span>Seu dia</span><span>{todayTasksList.length - uncompletedTodayTasksList.length} de {todayTasksList.length} concluídas</span></div>
-        <div className="daily-progress" role="progressbar" aria-label="Progresso diário" aria-valuenow={todayTasksList.length ? Math.round(100 * (todayTasksList.length - uncompletedTodayTasksList.length) / todayTasksList.length) : 0} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${todayTasksList.length ? 100 * (todayTasksList.length - uncompletedTodayTasksList.length) / todayTasksList.length : 0}%` }} /></div>
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div key={priorityTask?.id || 'finished'} initial={{ opacity: 0, y: reduceMotion ? 0 : 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: reduceMotion ? 0 : 0.15 }} className="daily-next" aria-live="polite">
-            <div className="daily-next-heading"><span>{priorityTask ? 'Próxima atividade' : isTodayFullyCompleted ? 'Tudo feito por hoje' : 'Seu dia está livre'}</span>{priorityTask?.priority && <span className="daily-priority"><Flame size={12} />Prioridade alta</span>}</div>
-            {priorityTask ? <div className="daily-next-body"><button className="daily-next-copy" onClick={() => openTaskDetails(priorityTask)}><h2>{priorityTask.title}</h2><p><Clock size={13} />{priorityTask.time}<span className="daily-category" style={{ '--task-accent': getCategoryColor(priorityTask.category) } as React.CSSProperties}>{priorityTask.category}</span></p></button><button className="daily-complete" onClick={() => completeTodayTask(priorityTask)} aria-label={`Concluir próxima atividade: ${priorityTask.title}`}><Check size={17} /><span>Concluir</span></button></div> : <p className="daily-empty">{isTodayFullyCompleted ? 'Aproveite a pausa.' : 'Toque em + para adicionar uma tarefa.'}</p>}
-          </motion.div>
-        </AnimatePresence>
-        {overdueTasks.length > 0 && <details className="daily-overdue">
-          <summary className="min-h-12 py-3 text-sm text-[#885119] cursor-pointer font-medium">{overdueTasks.length} {overdueTasks.length === 1 ? 'pendência anterior' : 'pendências anteriores'} · Revisar</summary>
-          <div className="pb-3 divide-y divide-[#E8D9C8]">
-            {overdueTasks.map(task => <div key={task.id} className="py-3 flex flex-wrap items-center gap-2">
-              <div className="flex-1 min-w-0 basis-40"><p className="text-sm font-semibold text-[#0E1730] break-words">{task.title}</p><p className="text-xs text-[#69708A] mt-1">{task.date < todayStr ? new Date(task.date + 'T00:00:00').toLocaleDateString('pt-BR') + ' · ' : ''}{task.time} · {task.category}</p></div>
-              <button onClick={() => completeTodayTask(task)} className="min-h-11 px-3 text-xs font-semibold text-[#2F5CFF]">Concluir</button>
-              {tasks.some(saved => saved.id === task.id) && <button onClick={() => setPostponeTask(task)} className="min-h-11 px-3 text-xs font-semibold text-[#885119]">Reagendar</button>}
-            </div>)}
+      {/* 1. PRÓXIMA TAREFA (PRIORITY / NEXT TASK) - HERO COMPACTO */}
+      {(priorityTask || isTodayFullyCompleted) && (
+        <section className="flex flex-col gap-2">
+          <div className="flex items-center gap-1.5 text-[#FF8A24] font-bold text-[10px] md:text-xs uppercase tracking-wider ml-1">
+            {isTodayFullyCompleted ? (
+              <Trophy size={14} className="text-[#FF8A24]" />
+            ) : (
+              <Flame size={14} className="text-[#FF8A24]" />
+            )}
+            <span>{isTodayFullyCompleted ? 'Parabéns!' : 'Próxima Tarefa Relevante'}</span>
           </div>
-        </details>}
-      </section>
+          {priorityTask ? (
+            <motion.div
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.995 }}
+              onClick={() => openTaskDetails(priorityTask)}
+              className="group flex items-center gap-4 bg-gradient-to-br from-[#1E3FD6] to-[#0B1440] h-[90px] px-4 rounded-[22px] cursor-pointer transition-all shadow-md relative overflow-hidden text-white"
+            >
+              {/* Watermark icon */}
+              <div className="absolute right-3 bottom-[-14px] text-white/10 scale-[2.2] pointer-events-none transition-transform group-hover:scale-[2.4] duration-300">
+                {getIcon(priorityTask.icon)}
+              </div>
 
-      <section className="daily-list" aria-label="Tarefas">
-        <div className="daily-list-heading"><h2>Minha agenda</h2><span>{finalFilteredTasks.length} atividades</span></div>
+              {/* Translucent Checkbox */}
+              <button
+                aria-label={`Concluir próxima atividade: ${priorityTask.title}`}
+                onClick={(e) => { e.stopPropagation(); completeTodayTask(priorityTask); }}
+                className="shrink-0 flex items-center justify-center w-10 h-10 cursor-pointer"
+              >
+                <div className={`w-5 h-5 flex items-center justify-center rounded-full border-[2px] transition-all duration-200 ${
+                  isTaskCompletedOnDate(priorityTask, todayStr)
+                    ? 'bg-[#16A34A] border-[#16A34A] text-white scale-105'
+                    : 'border-white/30 text-transparent hover:border-white/70 bg-white/10'
+                }`}>
+                  <CheckCircle2 size={12} strokeWidth={3.5} className={isTaskCompletedOnDate(priorityTask, todayStr) ? 'opacity-100' : 'opacity-0'} />
+                </div>
+              </button>
+
+              {/* Title + horizontal chips */}
+              <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${isTaskCompletedOnDate(priorityTask, todayStr) ? 'opacity-40' : 'opacity-100'}`}>
+                <h3 className={`text-sm md:text-base font-bold text-white font-display truncate ${isTaskCompletedOnDate(priorityTask, todayStr) ? 'line-through decoration-white/30 text-white/50' : ''}`}>
+                  {priorityTask.title}
+                </h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] md:text-xs text-white/95 font-medium bg-white/10 px-2 py-0.5 rounded flex items-center gap-1 shrink-0">
+                    <Clock size={10} className="text-[#FF8A24]" />
+                    {priorityTask.time}
+                  </span>
+                  <span className="text-[10px] md:text-xs text-white/95 font-medium bg-white/10 px-2 py-0.5 rounded flex items-center gap-1 shrink-0">
+                    <Tag size={10} className="text-white/70" />
+                    {priorityTask.category}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="group flex items-center gap-4 bg-gradient-to-br from-[#1E3FD6] to-[#0B1440] h-[90px] px-6 rounded-[22px] transition-all shadow-md relative overflow-hidden text-white"
+            >
+              {/* Watermark icon */}
+              <div className="absolute right-4 bottom-[-10px] text-white/10 scale-[2.2] pointer-events-none">
+                <Trophy size={40} />
+              </div>
+
+              {/* Trophy Icon */}
+              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-[#FF8A24] shrink-0">
+                <Trophy size={20} className="animate-bounce" />
+              </div>
+
+              {/* Text */}
+              <div className="flex flex-col flex-1 min-w-0">
+                <h3 className="text-sm md:text-base font-bold text-white font-display">
+                  Dia concluído! 🎉
+                </h3>
+                <p className="text-xs text-white/70 mt-0.5">
+                  Todas as tarefas de hoje foram feitas.
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </section>
+      )}
+
+      {/* 2. LISTA DE TAREFAS */}
+      <section className="flex flex-col gap-4">
+        <div className="flex justify-between items-center px-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base md:text-lg font-bold text-[#0E1730] tracking-tight flex items-center gap-2 font-display">
+              Tarefas
+              {activeCategory && (
+                <span className="text-xs font-normal text-[#69708A]">({activeCategory})</span>
+              )}
+              <span className="text-xs font-semibold bg-[#2F5CFF]/10 text-[#2F5CFF] px-2.5 py-0.5 rounded-full">
+                {finalFilteredTasks.length}
+              </span>
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {activeCategory && (
+              <button
+                onClick={() => setActiveCategory(null)}
+                className="text-xs font-semibold text-[#69708A] hover:text-[#2F5CFF] flex items-center gap-1 transition-colors cursor-pointer mr-1"
+              >
+                Ver todas <ChevronRight size={12} />
+              </button>
+            )}
+
+            <button
+              onClick={openCreateModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2F5CFF] hover:bg-[#2043CC] text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+            >
+              <Plus size={15} strokeWidth={2.5} />
+              <span>Nova Tarefa</span>
+            </button>
+          </div>
+        </div>
+
         {/* Segmented Control */}
-        <div className="daily-filters">
+        <div className="flex p-1 bg-[#F3F5FA] rounded-xl border border-[#E3E8F1] w-full relative">
           {['hoje', 'semana', 'mes'].map(filter => {
             const isActive = viewFilter === filter;
             const labelMap: Record<string, string> = { hoje: 'Hoje', semana: 'Semana', mes: 'Mês' };
             return (
               <button
                 key={filter}
-                aria-pressed={isActive}
                 onClick={() => setViewFilter(filter as any)}
-                className={`daily-filter ${isActive ? 'is-active' : ''}`}
+                className={`relative flex-1 text-xs md:text-sm font-semibold py-2 rounded-lg transition-all z-10 capitalize cursor-pointer ${
+                  isActive ? 'text-white' : 'text-[#69708A] hover:text-[#0E1730]'
+                }`}
               >
+                {isActive && (
+                  <motion.div
+                    layoutId="activeFilterTab"
+                    className="absolute inset-0 bg-[#0B1440] rounded-lg shadow-sm"
+                    transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                  />
+                )}
                 <span className="relative z-20">{labelMap[filter]}</span>
               </button>
             );
@@ -1009,7 +1205,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
         </div>
 
         {/* Task List */}
-        <div className="daily-rows">
+        <div className="flex flex-col gap-3">
           {finalFilteredTasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 md:py-14 text-[#69708A] bg-white rounded-[16px] border border-[#E3E8F1]">
               <div className="w-12 h-12 bg-[#F3F5FA] rounded-xl flex items-center justify-center mb-3">
@@ -1022,7 +1218,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
               {groupedTasks.map(group => {
                 const dateHeader = new Date(group.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
                 return (
-                  <div key={group.date} className="daily-group">
+                  <div key={group.date} className="flex flex-col gap-2">
                     {viewFilter !== 'hoje' && (
                       <h3 className="text-[10px] font-bold text-[#69708A] uppercase tracking-widest mt-2 ml-1 font-display">
                         {dateHeader}
@@ -1051,10 +1247,34 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
         </div>
       </section>
 
-      <button className="daily-fab" aria-label="Adicionar tarefa" onClick={openCreateModal}><Plus size={26} /></button>
-      <details className="daily-tools"><summary>Mais opções da agenda</summary><button onClick={handleAssistantClick} className="daily-tool-action"><Sparkles size={15} />Criar com texto ou voz</button>
+      {/* 3. PROGRESSO DIÁRIO */}
+      {viewFilter === 'hoje' && (
+        <section className="px-1 flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+            <span className="text-[11px] font-bold text-[#69708A] uppercase tracking-wider font-display">Progresso de Hoje</span>
+            <span className="text-[11px] font-bold text-[#69708A] font-display">
+              {completedCount} de {filteredTasks.length}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="h-2 flex-1 bg-[#F3F5FA] border border-[#E3E8F1] rounded-full overflow-hidden relative">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPercentage}%` }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+                className="h-full bg-gradient-to-r from-[#2F5CFF] to-[#FF8A24] rounded-full relative"
+              />
+            </div>
+            <span className="text-xs font-bold text-[#0E1730] font-display shrink-0">
+              {progressPercentage}%
+            </span>
+          </div>
+        </section>
+      )}
+
       {/* 4. CARD DE INSPIRAÇÃO (SMALL MENSAGEM MOTIVACIONAL) */}
-      <details className="px-1 text-sm text-[#69708A]"><summary className="cursor-pointer min-h-11 flex items-center">Foco diário · Inspiração</summary><section className="flex items-start gap-3 mt-2">
+      <section className="px-1 flex items-start gap-3 mt-2">
         <div className={`mt-0.5 text-[#2F5CFF] shrink-0 ${loadingInspiration ? 'animate-pulse' : ''}`}>
           <Sparkles size={14} className={loadingInspiration ? 'animate-spin' : 'opacity-100'} />
         </div>
@@ -1077,10 +1297,6 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
           </p>
         </div>
       </section>
-
-      </details>
-
-      </details>
 
       {/* Undo Delete Toast */}
       <AnimatePresence>
