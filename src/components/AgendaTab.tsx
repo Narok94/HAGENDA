@@ -18,11 +18,13 @@ const CATEGORY_META: Record<string, { icon: React.ComponentType<{ size?: number;
 const CATEGORIES_LIST = ['Estudo', 'Academia', 'Dieta', 'Trabalho'];
 
 const getCategoryColor = (category: string): string => {
-  const cat = category.toLowerCase();
-  if (cat === 'trabalho') return '#2F5CFF';
-  if (cat === 'saúde' || cat === 'saude') return '#16A34A';
-  if (cat === 'casa') return '#FF8A24';
-  return '#6C5CE7'; // Geral
+  const cat = category.trim().toLowerCase();
+  if (cat === 'trabalho') return '#315BEA';
+  if (cat === 'estudo') return '#087DAB';
+  if (cat === 'academia') return '#C35D16';
+  if (cat === 'dieta' || cat === 'saúde' || cat === 'saude') return '#238052';
+  if (cat === 'casa') return '#AC5A19';
+  return '#7552C7';
 };
 
 interface TaskRowItemProps {
@@ -42,7 +44,7 @@ function TaskRowItem({ task, targetDate, isCompleted, onToggle, onPostpone, onOp
 
   const reduceMotion = useReducedMotion();
   return (
-    <motion.div layout={!reduceMotion} drag="x" style={{ x }}
+    <motion.div layout={!reduceMotion} drag="x" style={{ x, '--task-accent': getCategoryColor(task.category) } as React.CSSProperties}
       dragConstraints={{ left: 0, right: 0 }} dragElastic={0.2}
       onDragEnd={(_, info) => { if (info.offset.x > 100) onToggle(); else if (info.offset.x < -100) onPostpone(); }}
       className={`daily-task ${isCompleted ? 'is-done' : ''}`}>
@@ -51,7 +53,7 @@ function TaskRowItem({ task, targetDate, isCompleted, onToggle, onPostpone, onOp
       </button>
       <button className="daily-task-copy" onClick={onOpenDetails}>
         <span className="daily-task-title">{task.title}{task.priority && !isCompleted && <Flame size={12} aria-label="Prioridade alta" />}</span>
-        <span className="daily-task-meta"><span>{task.time}</span><span>·</span><span>{task.category}</span>
+        <span className="daily-task-meta"><span>{task.time}</span><span className="daily-category">{task.category}</span>
           {task.recurrence && task.recurrence !== 'none' && <span className="daily-recurrence"><RefreshCw size={11} />{task.recurrence === 'mensal' ? 'Mensal' : 'Semanal'}</span>}
         </span>
       </button>
@@ -971,7 +973,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={priorityTask?.id || 'finished'} initial={{ opacity: 0, y: reduceMotion ? 0 : 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: reduceMotion ? 0 : 0.15 }} className="daily-next" aria-live="polite">
             <div className="daily-next-heading"><span>{priorityTask ? 'Próxima atividade' : isTodayFullyCompleted ? 'Tudo feito por hoje' : 'Seu dia está livre'}</span>{priorityTask?.priority && <span className="daily-priority"><Flame size={12} />Prioridade alta</span>}</div>
-            {priorityTask ? <div className="daily-next-body"><button className="daily-next-copy" onClick={() => openTaskDetails(priorityTask)}><h2>{priorityTask.title}</h2><p><Clock size={13} />{priorityTask.time}<span>·</span>{priorityTask.category}</p></button><button className="daily-complete" onClick={() => completeTodayTask(priorityTask)} aria-label={`Concluir próxima atividade: ${priorityTask.title}`}><Check size={17} /><span>Concluir</span></button></div> : <p className="daily-empty">{isTodayFullyCompleted ? 'Aproveite a pausa.' : 'Toque em + para adicionar uma tarefa.'}</p>}
+            {priorityTask ? <div className="daily-next-body"><button className="daily-next-copy" onClick={() => openTaskDetails(priorityTask)}><h2>{priorityTask.title}</h2><p><Clock size={13} />{priorityTask.time}<span className="daily-category" style={{ '--task-accent': getCategoryColor(priorityTask.category) } as React.CSSProperties}>{priorityTask.category}</span></p></button><button className="daily-complete" onClick={() => completeTodayTask(priorityTask)} aria-label={`Concluir próxima atividade: ${priorityTask.title}`}><Check size={17} /><span>Concluir</span></button></div> : <p className="daily-empty">{isTodayFullyCompleted ? 'Aproveite a pausa.' : 'Toque em + para adicionar uma tarefa.'}</p>}
           </motion.div>
         </AnimatePresence>
         {overdueTasks.length > 0 && <details className="daily-overdue">

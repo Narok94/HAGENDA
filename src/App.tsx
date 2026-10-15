@@ -358,7 +358,7 @@ export default function App() {
           </motion.div>
         </AnimatePresence>
       </main>
-      <nav className="daily-bottom-nav" aria-label="Navegação principal">
+      <nav className="daily-bottom-nav" data-agenda-active={activeTab === 'agenda'} aria-label="Navegação principal">
         {([{ id: 'agenda', label: 'Agenda', Icon: Calendar }, { id: 'academia', label: 'Academia', Icon: Dumbbell }, { id: 'dieta', label: 'Dieta', Icon: Apple }] as const).map(({ id, label, Icon }) => <button key={id} aria-current={activeTab === id ? 'page' : undefined} onClick={() => setActiveTab(id)}><Icon size={21} strokeWidth={1.7} /><span>{label}</span></button>)}
         <button onClick={() => setIsSettingsOpen(true)} aria-label="Mais opções" aria-expanded={isSettingsOpen}><MoreHorizontal size={21} /><span>Mais</span></button>
       </nav>
