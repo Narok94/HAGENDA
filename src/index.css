@@ -83,3 +83,16 @@ body {
 ::-webkit-scrollbar {
   display: none;
 }
+
+/* Agenda: visible keyboard focus and calm motion, scoped to this screen. */
+.agenda-screen button:focus-visible,
+.agenda-screen summary:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .agenda-screen *, .agenda-screen *::before, .agenda-screen *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
