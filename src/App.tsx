@@ -10,6 +10,20 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [openNewTaskTrigger, setOpenNewTaskTrigger] = useState<number>(0);
 
+  const [agendaNow, setAgendaNow] = useState(() => new Date());
+  useEffect(() => {
+    if (activeTab !== 'agenda') return;
+    const refresh = () => setAgendaNow(new Date());
+    refresh();
+    const timer = window.setInterval(refresh, 30000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [activeTab]);
+  const agendaGreeting = agendaNow.getHours() < 12 ? 'Bom dia' : agendaNow.getHours() < 18 ? 'Boa tarde' : 'Boa noite';
+
   // DB status state for header
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; mode: string }>({ connected: false, mode: 'loading' });
 
@@ -292,7 +306,7 @@ export default function App() {
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold text-[#69708A] uppercase tracking-wider font-display">
-                  {activeTab === 'agenda' ? new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase() : dateDisplay}
+                  {activeTab === 'agenda' ? agendaNow.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase() : dateDisplay}
                 </span>
                 
                 <button 
@@ -310,7 +324,7 @@ export default function App() {
                 </button>
               </div>
               <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[#0E1730] flex items-center gap-2 mt-1 font-display">
-                Bom dia, {userName} <span className="text-xl md:text-2xl">👋</span>
+                {activeTab === 'agenda' ? agendaGreeting : 'Bom dia'}, {userName} <span className="text-xl md:text-2xl">👋</span>
               </h1>
             </div>
             

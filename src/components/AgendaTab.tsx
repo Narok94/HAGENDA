@@ -42,14 +42,16 @@ interface TaskRowItemProps {
   targetDate: string;
   isCompleted: boolean;
   isNext?: boolean;
+  isOverdue?: boolean;
   onToggle: () => void;
   onPostpone: () => void;
   onOpenDetails: () => void;
   key?: string;
 }
 
-function TaskRowItem({ task, isCompleted, isNext, onToggle, onPostpone, onOpenDetails }: TaskRowItemProps) {
+function TaskRowItem({ task, isCompleted, isNext, isOverdue, onToggle, onPostpone, onOpenDetails }: TaskRowItemProps) {
   const x = useMotionValue(0);
+  const wasDragged = useRef(false);
   const reduceMotion = useReducedMotion();
   const isDailyRoutine = task.id.startsWith('diet_') || task.id === 'study_daily_summary';
   const recurrenceLabel = isDailyRoutine ? 'Todos os dias' : task.recurrence === 'mensal' ? 'Mensal' : (() => {
@@ -62,17 +64,25 @@ function TaskRowItem({ task, isCompleted, isNext, onToggle, onPostpone, onOpenDe
   return (
     <motion.div layout={!reduceMotion} drag="x" style={{ x, '--agenda-category': getCategoryColor(task.category) } as React.CSSProperties}
       dragConstraints={{ left: 0, right: 0 }} dragElastic={0.35}
+      onPointerDownCapture={() => { wasDragged.current = false; }}
+      onDragStart={() => { wasDragged.current = true; }}
+      onClickCapture={event => {
+        if (wasDragged.current && event.detail > 0) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }}
       onDragEnd={(_, info) => { if (info.offset.x > 100) onToggle(); else if (info.offset.x < -100) onPostpone(); }}
-      className={`reference-task ${isCompleted ? 'is-complete' : ''} ${isNext ? 'is-next' : ''}`}>
+      className={`reference-task ${isCompleted ? 'is-complete' : ''} ${isNext ? 'is-next' : ''} ${isOverdue ? 'is-overdue' : ''}`}>
       <button role="checkbox" aria-checked={isCompleted} aria-label={`${isCompleted ? 'Reabrir' : 'Concluir'} ${task.title}`} onClick={onToggle} className="reference-checkbox">{isCompleted && <Check size={14} strokeWidth={3} />}</button>
       <button onClick={onOpenDetails} className="reference-task-symbol" aria-label={`Abrir ${task.title}`}>{agendaIcon(task, 23)}</button>
       <button onClick={onOpenDetails} className="reference-task-content">
         <span className="reference-task-title">{task.title}{task.priority && !isCompleted && <Flame size={11} aria-label="Prioridade alta" />}</span>
-        <span className="reference-task-meta"><span><Clock size={10} />{task.time}</span><span className="reference-category"><Tag size={10} />{task.category}</span>
+        <span className="reference-task-meta"><span className={isOverdue ? 'reference-overdue-time' : undefined}><Clock size={10} />{task.time}</span><span className="reference-category"><Tag size={10} />{task.category}</span>
+          {isOverdue && <span className="reference-overdue-label">Atrasada</span>}
           {((task.recurrence && task.recurrence !== 'none') || isDailyRoutine) && <span><RefreshCw size={10} />{recurrenceLabel}</span>}
         </span>
       </button>
-      <button className="reference-task-tile" aria-label={`Detalhes de ${task.title}`} onClick={onOpenDetails}>{agendaIcon(task, 19)}</button>
       <button className="reference-task-menu" aria-label={`Opções de ${task.title}`} onClick={onOpenDetails}><MoreVertical size={17} /></button>
     </motion.div>
   );
@@ -834,7 +844,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
     )
   ).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
   const priorityTask = pendingByTime.find(task => hasScheduledTime(task) && task.time >= nowHourMin)
-    || pendingByTime.find(task => !hasScheduledTime(task)) || pendingByTime[0] || null;
+    || pendingByTime.find(task => !hasScheduledTime(task)) || null;
   // The highlight always represents today's occurrence, independently of the list filter.
   const completeTodayTask = (task: Task) => {
     if (tasks.some(saved => saved.id === task.id)) toggleTaskOnDate(task.id, todayStr);
@@ -843,7 +853,10 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
 
   const todayCompletedCount = todayTasksList.length - uncompletedTodayTasksList.length;
   const todayProgress = todayTasksList.length ? Math.round(todayCompletedCount / todayTasksList.length * 100) : 0;
-  const todayOverdueCount = overdueTasks.filter(task => isTaskOnDate(task, todayStr)).length;
+  // The three summary groups partition today's occurrences: a late task is
+  // counted only in Atrasadas, and completion always wins over its scheduled time.
+  const todayOverdueCount = uncompletedTodayTasksList.filter(task => hasScheduledTime(task) && task.time < nowHourMin).length;
+  const todayPendingCount = uncompletedTodayTasksList.length - todayOverdueCount;
   const nextTimeLabel = (() => {
     if (!priorityTask || !hasScheduledTime(priorityTask)) return 'Horário flexível';
     const [hour, minute] = priorityTask.time.split(':').map(Number);
@@ -997,7 +1010,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
           <motion.div key={priorityTask?.id || 'empty'} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduceMotion ? 0 : 0.15 }} className="reference-highlight-body" aria-live="polite">
             <div className="reference-highlight-icon">{priorityTask ? agendaIcon(priorityTask, 27) : <CheckCircle2 size={27} />}</div>
             <button className="reference-highlight-copy" onClick={() => priorityTask && openTaskDetails(priorityTask)} disabled={!priorityTask}>
-              <h2>{priorityTask?.title || (isTodayFullyCompleted ? 'Todas as tarefas concluídas!' : 'Nenhuma tarefa para hoje')}</h2>
+              <h2>{priorityTask?.title || (isTodayFullyCompleted ? 'Todas as tarefas concluídas!' : (uncompletedTodayTasksList.length ? 'Nenhuma atividade futura' : 'Nenhuma tarefa para hoje'))}</h2>
               {priorityTask && <span className="reference-highlight-chips"><span><Clock size={12} />{priorityTask.time}</span><span><Tag size={12} />{priorityTask.category}</span></span>}
             </button>
             {priorityTask && <button className="reference-highlight-complete" aria-label={`Concluir próxima atividade: ${priorityTask.title}`} onClick={() => completeTodayTask(priorityTask)}><CheckCircle2 size={15} fill="currentColor" /><span>Concluir</span></button>}
@@ -1009,7 +1022,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
           <ProgressRing pct={todayProgress} color="#0753D6" size={38} stroke={4} />
           <div className="reference-summary-copy"><p><strong>{todayCompletedCount} de {todayTasksList.length}</strong> concluídas</p><div className="reference-summary-track"><span style={{ width: `${todayProgress}%` }} /></div></div>
         </div>
-        <div className="reference-stat reference-pending"><span><Clock size={12} /><strong>{uncompletedTodayTasksList.length}</strong></span><small>Pendentes</small></div>
+        <div className="reference-stat reference-pending" title="Tarefas de hoje no horário ou sem horário definido"><span><Clock size={12} /><strong>{todayPendingCount}</strong></span><small>Pendentes</small></div>
         <div className="reference-stat reference-done"><span><CheckCircle2 size={12} fill="currentColor" /><strong>{todayCompletedCount}</strong></span><small>Concluídas</small></div>
         <div className="reference-stat reference-late"><span><AlertCircle size={12} fill="currentColor" /><strong>{todayOverdueCount}</strong></span><small>Atrasadas</small></div>
       </section>
@@ -1105,7 +1118,8 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
                           task={task}
                           targetDate={targetDate}
                           isCompleted={isCompleted}
-                          isNext={task.id === priorityTask?.id && targetDate === todayStr}
+                          isNext={task.id === priorityTask?.id && targetDate === todayStr && hasScheduledTime(task) && task.time >= nowHourMin}
+                          isOverdue={!isCompleted && (targetDate < todayStr || (targetDate === todayStr && hasScheduledTime(task) && task.time < nowHourMin))}
                           onToggle={() => handleToggleTask(task)}
                           onPostpone={() => setPostponeTask(task)}
                           onOpenDetails={() => openTaskDetails(task)}
