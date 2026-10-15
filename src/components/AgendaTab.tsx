@@ -93,6 +93,7 @@ interface AgendaTabProps {
   avatarUrl: string | null;
   onOpenSettings: () => void;
   openNewTaskTrigger?: number;
+  onTodayTasksChange?: (tasks: Task[] | null) => void;
 }
 
 const formatDateLocal = (d: Date): string => {
@@ -190,7 +191,7 @@ const getTaskTargetDateForFilter = (task: Task, filter: 'hoje' | 'semana' | 'mes
   return todayStr;
 };
 
-export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNewTaskTrigger }: AgendaTabProps) {
+export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNewTaskTrigger, onTodayTasksChange }: AgendaTabProps) {
   const [now, setNow] = useState(() => new Date());
   const reduceMotion = useReducedMotion();
   const todayStr = formatDateLocal(now);
@@ -205,6 +206,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
   }, []);
   
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasksLoaded, setTasksLoaded] = useState(false);
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; mode: string }>({ connected: false, mode: 'loading' });
 
   useEffect(() => {
@@ -418,6 +420,8 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
         console.error('Erro ao carregar tarefas do banco:', error);
         const saved = localStorage.getItem('momentum_tasks');
         if (saved) setTasks(JSON.parse(saved));
+      } finally {
+        setTasksLoaded(true);
       }
     };
     loadTasks();
@@ -865,6 +869,13 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
     if (remaining === 0) return 'Agora';
     return `em ${remaining >= 60 ? `${Math.floor(remaining / 60)}h ` : ''}${remaining % 60}min`;
   })();
+
+  // Share a read-only view of the exact occurrences used by the Agenda.
+  // Keeping Agenda mounted preserves its existing editing and persistence flows.
+  const homeTodayTasks = React.useMemo(() => tasksLoaded
+    ? allCombinedTasks.filter(task => isTaskOnDate(task, todayStr)).map(task => ({ ...task, completed: isTaskCompletedOnDate(task, todayStr) }))
+    : null, [allCombinedTasks, todayStr, tasksLoaded]);
+  useEffect(() => { onTodayTasksChange?.(homeTodayTasks); }, [homeTodayTasks, onTodayTasksChange]);
 
   // Tasks list (includes all tasks for viewFilter so next upcoming task appears both at the top card and in the list below)
   const finalFilteredTasks = filteredTasks;

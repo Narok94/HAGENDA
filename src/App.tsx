@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Dumbbell, Target, User, Settings, Camera, X, ExternalLink, Flame, Trophy, Sparkles, Bell, BellRing, Apple, Cloud, CloudOff, Plus } from 'lucide-react';
+import { Calendar, Dumbbell, Target, User, Settings, Camera, X, ExternalLink, Flame, Trophy, Sparkles, Bell, BellRing, Apple, Cloud, CloudOff, Plus, Home, ListTodo, MoreHorizontal, ChevronRight, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import AgendaTab from './components/AgendaTab';
 import AcademiaTab from './components/AcademiaTab';
 import DietaTab from './components/DietaTab';
+import HomeTab from './components/HomeTab';
+import { Task } from './types';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'agenda' | 'academia' | 'dieta' | 'desafio'>('agenda');
+  const [activeTab, setActiveTab] = useState<'inicio' | 'calendario' | 'agenda' | 'mais' | 'academia' | 'dieta'>('inicio');
+  const [homeTasks, setHomeTasks] = useState<Task[] | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [openNewTaskTrigger, setOpenNewTaskTrigger] = useState<number>(0);
 
   const [agendaNow, setAgendaNow] = useState(() => new Date());
   useEffect(() => {
-    if (activeTab !== 'agenda') return;
     const refresh = () => setAgendaNow(new Date());
     refresh();
     const timer = window.setInterval(refresh, 30000);
@@ -21,7 +23,7 @@ export default function App() {
       window.clearInterval(timer);
       window.removeEventListener('focus', refresh);
     };
-  }, [activeTab]);
+  }, []);
   const agendaGreeting = agendaNow.getHours() < 12 ? 'Bom dia' : agendaNow.getHours() < 18 ? 'Boa tarde' : 'Boa noite';
 
   // DB status state for header
@@ -294,14 +296,14 @@ export default function App() {
   };
 
   return (
-    <div className={`h-full w-full bg-app-bg flex flex-col font-sans text-text-sub relative overflow-hidden ${activeTab === 'agenda' ? 'reference-agenda-shell' : ''}`}>
+    <div className={`hagenda-app-shell h-full w-full bg-app-bg flex flex-col font-sans text-text-sub relative overflow-hidden ${activeTab === 'agenda' ? 'reference-agenda-shell' : ''}`}>
       {/* MAIN CONTENT AREA */}
       <main 
         style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))' }}
         className="flex-1 overflow-y-auto w-full md:max-w-3xl md:mx-auto px-5 md:px-8 pb-12 relative"
       >
         {/* HEADER & SUBTLE NAV MENU BELOW BOM DIA */}
-        <header className="app-header flex flex-col gap-3 pt-3 pb-3 px-1 relative">
+        {(activeTab === 'agenda' || activeTab === 'academia' || activeTab === 'dieta') && <header className="app-header flex flex-col gap-3 pt-3 pb-3 px-1 relative">
           <div className="flex justify-between items-start relative">
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
@@ -337,66 +339,38 @@ export default function App() {
             </button>
           </div>
 
-          {/* SUBTLE MENU BELOW BOM DIA */}
-          <nav className="app-tabs flex items-center gap-1.5 p-1 bg-[#F1F3F9] border border-[#E3E8F1] rounded-2xl w-fit mt-1">
-            {[
-              { id: 'agenda', label: 'Agenda', Icon: Calendar, activeColor: 'text-[#2F5CFF]' },
-              { id: 'academia', label: 'Academia', Icon: Dumbbell, activeColor: 'text-[#F97316]' },
-              { id: 'dieta', label: 'Dieta', Icon: Apple, activeColor: 'text-[#10B981]' }
-            ].map(({ id, label, Icon, activeColor }) => {
-              const isActive = activeTab === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => setActiveTab(id as any)}
-                  className={`relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer select-none ${
-                    isActive
-                      ? 'bg-white text-[#0E1730] shadow-sm font-bold'
-                      : 'text-[#69708A] hover:text-[#0E1730] hover:bg-white/50'
-                  }`}
-                >
-                  <Icon size={15} className={isActive ? activeColor : 'text-[#69708A]'} />
-                  <span>{label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </header>
+        </header>}
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="h-full w-full"
-          >
-            {activeTab === 'agenda' && (
-              <AgendaTab 
-                userName={userName} 
-                avatarUrl={avatarUrl} 
-                onOpenSettings={() => setIsSettingsOpen(true)}
-                openNewTaskTrigger={openNewTaskTrigger}
-              />
-            )}
-            
-            {activeTab === 'academia' && (
-              <AcademiaTab 
-                userName={userName} 
-                onOpenSettings={() => setIsSettingsOpen(true)} 
-              />
-            )}
+        <div style={{ display: activeTab === 'agenda' ? 'block' : 'none' }} aria-hidden={activeTab !== 'agenda'}>
+          <AgendaTab userName={userName} avatarUrl={avatarUrl} onOpenSettings={() => setIsSettingsOpen(true)} openNewTaskTrigger={openNewTaskTrigger} onTodayTasksChange={setHomeTasks} />
+        </div>
+        {activeTab === 'inicio' && <HomeTab userName={userName} avatarUrl={avatarUrl} now={agendaNow} tasks={homeTasks}
+          onNewTask={() => { setActiveTab('agenda'); setOpenNewTaskTrigger(value => value + 1); }}
+          onTasks={() => setActiveTab('agenda')} onCalendar={() => setActiveTab('calendario')}
+          onMore={() => setActiveTab('mais')} onSettings={() => setIsSettingsOpen(true)} />}
+        {activeTab === 'calendario' && <section className="navigation-page">
+          <p className="navigation-eyebrow">HAGENDA</p><h1>Calendário</h1>
+          <div className="navigation-placeholder"><Calendar size={34} strokeWidth={1.4} /><h2>Um espaço para planejar</h2><p>O calendário completo estará disponível em uma próxima etapa. Seus compromissos continuam na área Tarefas, com as visualizações Hoje, Semana e Mês.</p><button onClick={() => setActiveTab('agenda')}>Ver minhas tarefas <ChevronRight size={16} /></button></div>
+        </section>}
+        {activeTab === 'mais' && <section className="navigation-page">
+          <p className="navigation-eyebrow">HAGENDA</p><h1>Mais</h1><p className="navigation-description">Seu bem-estar e suas preferências.</p>
+          <div className="more-links">
+            <button onClick={() => setActiveTab('academia')}><span><Dumbbell size={21} /></span><div><strong>Academia</strong><small>Treinos e exercícios</small></div><ChevronRight size={17} /></button>
+            <button onClick={() => setActiveTab('dieta')}><span><Apple size={21} /></span><div><strong>Dieta</strong><small>Alimentação e hidratação</small></div><ChevronRight size={17} /></button>
+            <button onClick={() => setIsSettingsOpen(true)}><span><Settings size={21} /></span><div><strong>Configurações</strong><small>Perfil, contraste e notificações</small></div><ChevronRight size={17} /></button>
+          </div>
+        </section>}
+        {(activeTab === 'academia' || activeTab === 'dieta') && <button className="navigation-back" onClick={() => setActiveTab('mais')}><ArrowLeft size={15} />Voltar para Mais</button>}
+        {activeTab === 'academia' && <AcademiaTab userName={userName} onOpenSettings={() => setIsSettingsOpen(true)} />}
+        {activeTab === 'dieta' && <DietaTab userName={userName} onOpenSettings={() => setIsSettingsOpen(true)} />}
 
-            {activeTab === 'dieta' && (
-              <DietaTab 
-                userName={userName} 
-                onOpenSettings={() => setIsSettingsOpen(true)} 
-              />
-            )}
-          </motion.div>
-        </AnimatePresence>
       </main>
+      <nav className="app-primary-nav" aria-label="Navegação principal">
+        {([{ id: 'inicio', label: 'Início', Icon: Home }, { id: 'calendario', label: 'Calendário', Icon: Calendar }, { id: 'agenda', label: 'Tarefas', Icon: ListTodo }, { id: 'mais', label: 'Mais', Icon: MoreHorizontal }] as const).map(({ id, label, Icon }) => {
+          const selected = id === activeTab || (id === 'mais' && (activeTab === 'academia' || activeTab === 'dieta'));
+          return <button key={id} aria-current={selected ? 'page' : undefined} onClick={() => setActiveTab(id)}><span><Icon size={21} strokeWidth={selected ? 2 : 1.7} /></span>{label}</button>;
+        })}
+      </nav>
 
         {/* SETTINGS MODAL */}
         <AnimatePresence>
