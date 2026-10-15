@@ -280,19 +280,19 @@ export default function App() {
   };
 
   return (
-    <div className="h-full w-full bg-app-bg flex flex-col font-sans text-text-sub relative overflow-hidden">
+    <div className={`h-full w-full bg-app-bg flex flex-col font-sans text-text-sub relative overflow-hidden ${activeTab === 'agenda' ? 'reference-agenda-shell' : ''}`}>
       {/* MAIN CONTENT AREA */}
       <main 
         style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))' }}
         className="flex-1 overflow-y-auto w-full md:max-w-3xl md:mx-auto px-5 md:px-8 pb-12 relative"
       >
         {/* HEADER & SUBTLE NAV MENU BELOW BOM DIA */}
-        <header className="flex flex-col gap-3 pt-3 pb-3 px-1 relative">
+        <header className="app-header flex flex-col gap-3 pt-3 pb-3 px-1 relative">
           <div className="flex justify-between items-start relative">
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold text-[#69708A] uppercase tracking-wider font-display">
-                  {dateDisplay}
+                  {activeTab === 'agenda' ? new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase() : dateDisplay}
                 </span>
                 
                 <button 
@@ -316,14 +316,15 @@ export default function App() {
             
             <button 
               onClick={() => setIsSettingsOpen(true)}
-              className="p-2 text-[#9AA1B8] hover:text-[#0E1730] transition-colors cursor-pointer active:scale-95"
+              aria-label="Configurações"
+              className="app-settings p-2 text-[#9AA1B8] hover:text-[#0E1730] transition-colors cursor-pointer active:scale-95"
             >
               <Settings size={20} strokeWidth={1.5} />
             </button>
           </div>
 
           {/* SUBTLE MENU BELOW BOM DIA */}
-          <nav className="flex items-center gap-1.5 p-1 bg-[#F1F3F9] border border-[#E3E8F1] rounded-2xl w-fit mt-1">
+          <nav className="app-tabs flex items-center gap-1.5 p-1 bg-[#F1F3F9] border border-[#E3E8F1] rounded-2xl w-fit mt-1">
             {[
               { id: 'agenda', label: 'Agenda', Icon: Calendar, activeColor: 'text-[#2F5CFF]' },
               { id: 'academia', label: 'Academia', Icon: Dumbbell, activeColor: 'text-[#F97316]' },

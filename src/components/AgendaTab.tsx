@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw, Trash2, Mic, MicOff, Loader2, Send, X, BoxSelect, RotateCw, Check, Bell, Trophy, Cloud, CloudOff, Dumbbell, Apple, Settings } from 'lucide-react';
+import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw, Trash2, Mic, MicOff, Loader2, Send, X, BoxSelect, RotateCw, Check, Bell, Trophy, Cloud, CloudOff, Dumbbell, Apple, Settings, Utensils, GraduationCap, Laptop, Footprints, MoreVertical, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform, useReducedMotion } from 'motion/react';
 import { Task } from '../types';
 import { WORKOUT_GROUPS } from '../data/workoutData';
@@ -18,142 +18,63 @@ const CATEGORY_META: Record<string, { icon: React.ComponentType<{ size?: number;
 const CATEGORIES_LIST = ['Estudo', 'Academia', 'Dieta', 'Trabalho'];
 
 const getCategoryColor = (category: string): string => {
-  const cat = category.toLowerCase();
-  if (cat === 'trabalho') return '#2F5CFF';
-  if (cat === 'saúde' || cat === 'saude') return '#16A34A';
-  if (cat === 'casa') return '#FF8A24';
-  return '#6C5CE7'; // Geral
+  const name = category.trim().toLowerCase();
+  if (name === 'saúde' || name === 'saude') return '#0BAD77';
+  if (name === 'academia' || name === 'estudo') return '#7952E8';
+  if (name === 'dieta') return '#2879F3';
+  if (name === 'trabalho') return '#F47716';
+  return '#6C5CE7';
+};
+
+// Presentation only: retain each saved icon and provide icons for integrated routines.
+const agendaIcon = (task: Task, size = 20) => {
+  if (task.icon === 'Apple' || task.category.toLowerCase() === 'dieta') {
+    return /café|cafe|lanche da manhã/i.test(task.title) ? <Coffee size={size} /> : <Utensils size={size} />;
+  }
+  if (/cardio/i.test(task.title)) return <Footprints size={size} />;
+  if (task.category.toLowerCase() === 'estudo') return <GraduationCap size={size} />;
+  if (task.category.toLowerCase() === 'trabalho' && task.icon === 'Briefcase') return <Laptop size={size} />;
+  return getIcon(task.icon, size);
 };
 
 interface TaskRowItemProps {
   task: Task;
   targetDate: string;
   isCompleted: boolean;
+  isNext?: boolean;
   onToggle: () => void;
   onPostpone: () => void;
   onOpenDetails: () => void;
   key?: string;
 }
 
-function TaskRowItem({ task, targetDate, isCompleted, onToggle, onPostpone, onOpenDetails }: TaskRowItemProps) {
+function TaskRowItem({ task, isCompleted, isNext, onToggle, onPostpone, onOpenDetails }: TaskRowItemProps) {
   const x = useMotionValue(0);
-  const greenOpacity = useTransform(x, [0, 80], [0, 1]);
-  const redOpacity = useTransform(x, [-80, 0], [1, 0]);
-
+  const reduceMotion = useReducedMotion();
+  const isDailyRoutine = task.id.startsWith('diet_') || task.id === 'study_daily_summary';
+  const recurrenceLabel = isDailyRoutine ? 'Todos os dias' : task.recurrence === 'mensal' ? 'Mensal' : (() => {
+    if (!task.recurrenceDays?.length) return 'Semanal';
+    if (task.recurrenceDays.length === 7) return 'Todos os dias';
+    if (task.recurrenceDays.length === 5 && ['1','2','3','4','5'].every(d => task.recurrenceDays!.includes(d))) return 'Dias úteis';
+    const names = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    return task.recurrenceDays.map(d => names[Number(d)]).join(', ');
+  })();
   return (
-    <div className="relative overflow-hidden rounded-[16px] w-full">
-      {/* Background swipe reveals */}
-      <div className="absolute inset-0 flex items-center justify-between rounded-[16px] pointer-events-none select-none overflow-hidden z-0">
-        {/* Left Side: Green Concluir (Drag Right) */}
-        <motion.div
-          style={{ opacity: greenOpacity }}
-          className="absolute inset-y-0 left-0 bg-[#16A34A]/20 flex items-center pl-5 pr-12 rounded-[16px] w-1/2 justify-start"
-        >
-          <div className="flex items-center gap-2 text-[#16A34A] font-bold text-xs">
-            <CheckCircle2 size={16} strokeWidth={3} className="animate-pulse" />
-            <span>Concluir</span>
-          </div>
-        </motion.div>
-
-        {/* Right Side: Red Adiar (Drag Left) */}
-        <motion.div
-          style={{ opacity: redOpacity }}
-          className="absolute inset-y-0 right-0 bg-[#FF8A24]/15 flex items-center pr-5 pl-12 rounded-[16px] w-1/2 justify-end"
-        >
-          <div className="flex items-center gap-2 text-[#FF8A24] font-bold text-xs">
-            <RotateCw size={16} className="animate-pulse" />
-            <span>Adiar</span>
-          </div>
-        </motion.div>
-      </div>
-
-      <motion.div
-        layout
-        drag="x"
-        style={{ x }}
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={{ left: 0.5, right: 0.5 }}
-        onDragEnd={(event, info) => {
-          if (info.offset.x > 100) {
-            onToggle();
-          } else if (info.offset.x < -100) {
-            onPostpone();
-          }
-        }}
-        whileTap={{ scale: 0.985 }}
-        onClick={onOpenDetails}
-        className={`relative z-10 group flex items-center gap-3.5 p-3.5 md:p-4 rounded-[16px] border cursor-pointer transition-all shadow-xs pl-6 ${
-          task.priority && !isCompleted
-            ? 'bg-[#FF8A24]/10 border-[#FF8A24]/30 hover:border-[#FF8A24]/50'
-            : 'bg-white border-border-discreet hover:border-[#2F5CFF]/30'
-        }`}
-      >
-        {/* SOLID BAR COLOR Strip on left edge */}
-        <div
-          className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-[16px]"
-          style={{ backgroundColor: getCategoryColor(task.category) }}
-        />
-
-        <button
-          role="checkbox"
-          aria-checked={isCompleted}
-          aria-label={`${isCompleted ? 'Reabrir' : 'Concluir'} ${task.title}`}
-          onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          className="shrink-0 flex items-center justify-center w-10 h-10 cursor-pointer"
-        >
-          <div className={`w-5 h-5 flex items-center justify-center rounded-[6px] border-[2px] transition-all duration-200 ${
-            isCompleted
-              ? 'bg-[#16A34A] border-[#16A34A] text-white scale-105'
-              : 'border-[#9AA1B8] text-transparent hover:border-[#2F5CFF] bg-[#F3F5FA]'
-          }`}>
-            {isCompleted && <Check size={12} strokeWidth={4} className="text-white" />}
-          </div>
-        </button>
-
-        <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${isCompleted ? 'opacity-40' : 'opacity-100'}`}>
-          <div className="flex items-center gap-2">
-            <h3 className={`text-sm md:text-base font-semibold text-[#0E1730] truncate font-display ${isCompleted ? 'line-through decoration-[#0E1730]/30 text-[#69708A]' : ''}`}>
-              {task.title}
-            </h3>
-            {task.priority && !isCompleted && (
-              <Flame size={12} className="text-[#FF8A24] shrink-0" />
-            )}
-          </div>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span className="text-[11px] text-[#69708A] font-medium flex items-center gap-1 shrink-0">
-              <Clock size={10} className="text-[#9AA1B8]" />
-              {task.time}
-            </span>
-            <span className="w-1 h-1 rounded-full bg-[#E3E8F1] shrink-0" />
-            <span className="text-[11px] text-[#69708A] font-medium flex items-center gap-1 shrink-0">
-              <Tag size={10} className="text-[#9AA1B8]" />
-              {task.category}
-            </span>
-            {task.recurrence && task.recurrence !== 'none' && (
-              <>
-                <span className="w-1 h-1 rounded-full bg-[#E3E8F1] shrink-0" />
-                <span className="text-[11px] text-[#2F5CFF] font-semibold shrink-0 flex items-center gap-1">
-                  <RefreshCw size={10} />
-                  {(() => {
-                    if (task.recurrence === 'mensal') return 'Mensal';
-                    if (!task.recurrenceDays || task.recurrenceDays.length === 0) return 'Semanal';
-                    if (task.recurrenceDays.length === 7) return 'Todos os dias';
-                    const isWeekdays = ['1','2','3','4','5'].every(d => task.recurrenceDays!.includes(d)) && task.recurrenceDays.length === 5;
-                    if (isWeekdays) return 'Dias úteis';
-                    const names = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-                    return task.recurrenceDays.map(d => names[Number(d)]).join(', ');
-                  })()}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-200 ${isCompleted ? 'bg-white/5 text-text-meta' : 'bg-[#2F5CFF]/10 text-[#2F5CFF] group-hover:bg-[#2F5CFF]/15'}`}>
-          {getIcon(task.icon)}
-        </div>
-      </motion.div>
-    </div>
+    <motion.div layout={!reduceMotion} drag="x" style={{ x, '--agenda-category': getCategoryColor(task.category) } as React.CSSProperties}
+      dragConstraints={{ left: 0, right: 0 }} dragElastic={0.35}
+      onDragEnd={(_, info) => { if (info.offset.x > 100) onToggle(); else if (info.offset.x < -100) onPostpone(); }}
+      className={`reference-task ${isCompleted ? 'is-complete' : ''} ${isNext ? 'is-next' : ''}`}>
+      <button role="checkbox" aria-checked={isCompleted} aria-label={`${isCompleted ? 'Reabrir' : 'Concluir'} ${task.title}`} onClick={onToggle} className="reference-checkbox">{isCompleted && <Check size={14} strokeWidth={3} />}</button>
+      <button onClick={onOpenDetails} className="reference-task-symbol" aria-label={`Abrir ${task.title}`}>{agendaIcon(task, 23)}</button>
+      <button onClick={onOpenDetails} className="reference-task-content">
+        <span className="reference-task-title">{task.title}{task.priority && !isCompleted && <Flame size={11} aria-label="Prioridade alta" />}</span>
+        <span className="reference-task-meta"><span><Clock size={10} />{task.time}</span><span className="reference-category"><Tag size={10} />{task.category}</span>
+          {((task.recurrence && task.recurrence !== 'none') || isDailyRoutine) && <span><RefreshCw size={10} />{recurrenceLabel}</span>}
+        </span>
+      </button>
+      <button className="reference-task-tile" aria-label={`Detalhes de ${task.title}`} onClick={onOpenDetails}>{agendaIcon(task, 19)}</button>
+      <button className="reference-task-menu" aria-label={`Opções de ${task.title}`} onClick={onOpenDetails}><MoreVertical size={17} /></button>
+    </motion.div>
   );
 }
 
@@ -920,6 +841,18 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
     else handleToggleTask(task);
   };
 
+  const todayCompletedCount = todayTasksList.length - uncompletedTodayTasksList.length;
+  const todayProgress = todayTasksList.length ? Math.round(todayCompletedCount / todayTasksList.length * 100) : 0;
+  const todayOverdueCount = overdueTasks.filter(task => isTaskOnDate(task, todayStr)).length;
+  const nextTimeLabel = (() => {
+    if (!priorityTask || !hasScheduledTime(priorityTask)) return 'Horário flexível';
+    const [hour, minute] = priorityTask.time.split(':').map(Number);
+    const remaining = hour * 60 + minute - (now.getHours() * 60 + now.getMinutes());
+    if (remaining < 0) return 'Horário passou';
+    if (remaining === 0) return 'Agora';
+    return `em ${remaining >= 60 ? `${Math.floor(remaining / 60)}h ` : ''}${remaining % 60}min`;
+  })();
+
   // Tasks list (includes all tasks for viewFilter so next upcoming task appears both at the top card and in the list below)
   const finalFilteredTasks = filteredTasks;
 
@@ -971,7 +904,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
   }
 
   return (
-    <div className="w-full min-h-full py-2 flex flex-col gap-6 md:gap-8 max-w-3xl mx-auto pb-16">
+    <div className="reference-agenda">
       <AnimatePresence>
         {isAssistantOpen && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
@@ -1058,94 +991,32 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
         )}
       </AnimatePresence>
 
-      {/* 1. PRÓXIMA TAREFA (PRIORITY / NEXT TASK) - HERO COMPACTO */}
-      {(priorityTask || isTodayFullyCompleted) && (
-        <section className="flex flex-col gap-2">
-          <div className="flex items-center gap-1.5 text-[#FF8A24] font-bold text-[10px] md:text-xs uppercase tracking-wider ml-1">
-            {isTodayFullyCompleted ? (
-              <Trophy size={14} className="text-[#FF8A24]" />
-            ) : (
-              <Flame size={14} className="text-[#FF8A24]" />
-            )}
-            <span>{isTodayFullyCompleted ? 'Parabéns!' : 'Próxima Tarefa Relevante'}</span>
-          </div>
-          {priorityTask ? (
-            <motion.div
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.995 }}
-              onClick={() => openTaskDetails(priorityTask)}
-              className="group flex items-center gap-4 bg-gradient-to-br from-[#1E3FD6] to-[#0B1440] h-[90px] px-4 rounded-[22px] cursor-pointer transition-all shadow-md relative overflow-hidden text-white"
-            >
-              {/* Watermark icon */}
-              <div className="absolute right-3 bottom-[-14px] text-white/10 scale-[2.2] pointer-events-none transition-transform group-hover:scale-[2.4] duration-300">
-                {getIcon(priorityTask.icon)}
-              </div>
-
-              {/* Translucent Checkbox */}
-              <button
-                aria-label={`Concluir próxima atividade: ${priorityTask.title}`}
-                onClick={(e) => { e.stopPropagation(); completeTodayTask(priorityTask); }}
-                className="shrink-0 flex items-center justify-center w-10 h-10 cursor-pointer"
-              >
-                <div className={`w-5 h-5 flex items-center justify-center rounded-full border-[2px] transition-all duration-200 ${
-                  isTaskCompletedOnDate(priorityTask, todayStr)
-                    ? 'bg-[#16A34A] border-[#16A34A] text-white scale-105'
-                    : 'border-white/30 text-transparent hover:border-white/70 bg-white/10'
-                }`}>
-                  <CheckCircle2 size={12} strokeWidth={3.5} className={isTaskCompletedOnDate(priorityTask, todayStr) ? 'opacity-100' : 'opacity-0'} />
-                </div>
-              </button>
-
-              {/* Title + horizontal chips */}
-              <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${isTaskCompletedOnDate(priorityTask, todayStr) ? 'opacity-40' : 'opacity-100'}`}>
-                <h3 className={`text-sm md:text-base font-bold text-white font-display truncate ${isTaskCompletedOnDate(priorityTask, todayStr) ? 'line-through decoration-white/30 text-white/50' : ''}`}>
-                  {priorityTask.title}
-                </h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px] md:text-xs text-white/95 font-medium bg-white/10 px-2 py-0.5 rounded flex items-center gap-1 shrink-0">
-                    <Clock size={10} className="text-[#FF8A24]" />
-                    {priorityTask.time}
-                  </span>
-                  <span className="text-[10px] md:text-xs text-white/95 font-medium bg-white/10 px-2 py-0.5 rounded flex items-center gap-1 shrink-0">
-                    <Tag size={10} className="text-white/70" />
-                    {priorityTask.category}
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="group flex items-center gap-4 bg-gradient-to-br from-[#1E3FD6] to-[#0B1440] h-[90px] px-6 rounded-[22px] transition-all shadow-md relative overflow-hidden text-white"
-            >
-              {/* Watermark icon */}
-              <div className="absolute right-4 bottom-[-10px] text-white/10 scale-[2.2] pointer-events-none">
-                <Trophy size={40} />
-              </div>
-
-              {/* Trophy Icon */}
-              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-[#FF8A24] shrink-0">
-                <Trophy size={20} className="animate-bounce" />
-              </div>
-
-              {/* Text */}
-              <div className="flex flex-col flex-1 min-w-0">
-                <h3 className="text-sm md:text-base font-bold text-white font-display">
-                  Dia concluído! 🎉
-                </h3>
-                <p className="text-xs text-white/70 mt-0.5">
-                  Todas as tarefas de hoje foram feitas.
-                </p>
-              </div>
-            </motion.div>
-          )}
-        </section>
-      )}
+      <section className="reference-highlight" aria-label="Próxima tarefa">
+        <div className="reference-highlight-top"><span><Flame size={17} fill="currentColor" />{isTodayFullyCompleted ? 'DIA CONCLUÍDO' : 'PRÓXIMA TAREFA RELEVANTE'}</span>{priorityTask && <span className="reference-time-badge">{nextTimeLabel}</span>}</div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div key={priorityTask?.id || 'empty'} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduceMotion ? 0 : 0.15 }} className="reference-highlight-body" aria-live="polite">
+            <div className="reference-highlight-icon">{priorityTask ? agendaIcon(priorityTask, 27) : <CheckCircle2 size={27} />}</div>
+            <button className="reference-highlight-copy" onClick={() => priorityTask && openTaskDetails(priorityTask)} disabled={!priorityTask}>
+              <h2>{priorityTask?.title || (isTodayFullyCompleted ? 'Todas as tarefas concluídas!' : 'Nenhuma tarefa para hoje')}</h2>
+              {priorityTask && <span className="reference-highlight-chips"><span><Clock size={12} />{priorityTask.time}</span><span><Tag size={12} />{priorityTask.category}</span></span>}
+            </button>
+            {priorityTask && <button className="reference-highlight-complete" aria-label={`Concluir próxima atividade: ${priorityTask.title}`} onClick={() => completeTodayTask(priorityTask)}><CheckCircle2 size={15} fill="currentColor" /><span>Concluir</span></button>}
+          </motion.div>
+        </AnimatePresence>
+      </section>
+      <section className="reference-summary" aria-label="Resumo diário">
+        <div className="reference-summary-progress" role="progressbar" aria-label="Progresso diário" aria-valuenow={todayProgress} aria-valuemin={0} aria-valuemax={100}>
+          <ProgressRing pct={todayProgress} color="#0753D6" size={38} stroke={4} />
+          <div className="reference-summary-copy"><p><strong>{todayCompletedCount} de {todayTasksList.length}</strong> concluídas</p><div className="reference-summary-track"><span style={{ width: `${todayProgress}%` }} /></div></div>
+        </div>
+        <div className="reference-stat reference-pending"><span><Clock size={12} /><strong>{uncompletedTodayTasksList.length}</strong></span><small>Pendentes</small></div>
+        <div className="reference-stat reference-done"><span><CheckCircle2 size={12} fill="currentColor" /><strong>{todayCompletedCount}</strong></span><small>Concluídas</small></div>
+        <div className="reference-stat reference-late"><span><AlertCircle size={12} fill="currentColor" /><strong>{todayOverdueCount}</strong></span><small>Atrasadas</small></div>
+      </section>
 
       {/* 2. LISTA DE TAREFAS */}
-      <section className="flex flex-col gap-4">
-        <div className="flex justify-between items-center px-1">
+      <section className="reference-task-section">
+        <div className="reference-task-heading">
           <div className="flex items-center gap-2">
             <h2 className="text-base md:text-lg font-bold text-[#0E1730] tracking-tight flex items-center gap-2 font-display">
               Tarefas
@@ -1170,7 +1041,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
 
             <button
               onClick={openCreateModal}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2F5CFF] hover:bg-[#2043CC] text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+              className="reference-new-task"
             >
               <Plus size={15} strokeWidth={2.5} />
               <span>Nova Tarefa</span>
@@ -1179,13 +1050,14 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
         </div>
 
         {/* Segmented Control */}
-        <div className="flex p-1 bg-[#F3F5FA] rounded-xl border border-[#E3E8F1] w-full relative">
+        <div className="reference-filters">
           {['hoje', 'semana', 'mes'].map(filter => {
             const isActive = viewFilter === filter;
             const labelMap: Record<string, string> = { hoje: 'Hoje', semana: 'Semana', mes: 'Mês' };
             return (
               <button
                 key={filter}
+                aria-pressed={isActive}
                 onClick={() => setViewFilter(filter as any)}
                 className={`relative flex-1 text-xs md:text-sm font-semibold py-2 rounded-lg transition-all z-10 capitalize cursor-pointer ${
                   isActive ? 'text-white' : 'text-[#69708A] hover:text-[#0E1730]'
@@ -1205,7 +1077,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
         </div>
 
         {/* Task List */}
-        <div className="flex flex-col gap-3">
+        <div className="reference-task-list">
           {finalFilteredTasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 md:py-14 text-[#69708A] bg-white rounded-[16px] border border-[#E3E8F1]">
               <div className="w-12 h-12 bg-[#F3F5FA] rounded-xl flex items-center justify-center mb-3">
@@ -1218,7 +1090,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
               {groupedTasks.map(group => {
                 const dateHeader = new Date(group.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
                 return (
-                  <div key={group.date} className="flex flex-col gap-2">
+                  <div key={group.date} className="reference-task-group">
                     {viewFilter !== 'hoje' && (
                       <h3 className="text-[10px] font-bold text-[#69708A] uppercase tracking-widest mt-2 ml-1 font-display">
                         {dateHeader}
@@ -1233,6 +1105,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
                           task={task}
                           targetDate={targetDate}
                           isCompleted={isCompleted}
+                          isNext={task.id === priorityTask?.id && targetDate === todayStr}
                           onToggle={() => handleToggleTask(task)}
                           onPostpone={() => setPostponeTask(task)}
                           onOpenDetails={() => openTaskDetails(task)}
@@ -1247,32 +1120,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
         </div>
       </section>
 
-      {/* 3. PROGRESSO DIÁRIO */}
-      {viewFilter === 'hoje' && (
-        <section className="px-1 flex flex-col gap-3">
-          <div className="flex justify-between items-center">
-            <span className="text-[11px] font-bold text-[#69708A] uppercase tracking-wider font-display">Progresso de Hoje</span>
-            <span className="text-[11px] font-bold text-[#69708A] font-display">
-              {completedCount} de {filteredTasks.length}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="h-2 flex-1 bg-[#F3F5FA] border border-[#E3E8F1] rounded-full overflow-hidden relative">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${progressPercentage}%` }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
-                className="h-full bg-gradient-to-r from-[#2F5CFF] to-[#FF8A24] rounded-full relative"
-              />
-            </div>
-            <span className="text-xs font-bold text-[#0E1730] font-display shrink-0">
-              {progressPercentage}%
-            </span>
-          </div>
-        </section>
-      )}
-
+      <details className="reference-extras"><summary>Mais opções da agenda</summary><button className="reference-assistant" onClick={handleAssistantClick}><Sparkles size={14} />Criar tarefa por texto ou voz</button>
       {/* 4. CARD DE INSPIRAÇÃO (SMALL MENSAGEM MOTIVACIONAL) */}
       <section className="px-1 flex items-start gap-3 mt-2">
         <div className={`mt-0.5 text-[#2F5CFF] shrink-0 ${loadingInspiration ? 'animate-pulse' : ''}`}>
@@ -1297,6 +1145,8 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
           </p>
         </div>
       </section>
+
+      </details>
 
       {/* Undo Delete Toast */}
       <AnimatePresence>
