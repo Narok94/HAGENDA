@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw, Trash2, Mic, MicOff, Loader2, Send, X, BoxSelect, RotateCw, Check, Bell, Trophy, Cloud, CloudOff, Dumbbell, Apple, Settings, Utensils, GraduationCap, Laptop, Footprints, MoreVertical, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform, useReducedMotion } from 'motion/react';
 import { Task } from '../types';
+import { formatDateLocal, isTaskOnDate, isTaskCompletedOnDate } from '../utils/taskDates';
 import { WORKOUT_GROUPS } from '../data/workoutData';
 import { MEAL_PLAN } from '../data/dietData';
 import { getIcon } from '../utils/icons';
@@ -90,7 +91,8 @@ function TaskRowItem({ task, isCompleted, isNext, isOverdue, onToggle, onPostpon
 
 export interface AgendaHomeAction {
   taskId: string;
-  action: 'complete' | 'details';
+  action: 'complete' | 'details' | 'toggle' | 'create';
+  date?: string;
 }
 
 interface AgendaTabProps {
@@ -99,15 +101,9 @@ interface AgendaTabProps {
   onOpenSettings: () => void;
   openNewTaskTrigger?: number;
   onTodayTasksChange?: (tasks: Task[] | null) => void;
+  onCalendarTasksChange?: (tasks: Task[] | null) => void;
   homeAction?: AgendaHomeAction | null;
 }
-
-const formatDateLocal = (d: Date): string => {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 const getTodayStr = () => {
   return formatDateLocal(new Date());
@@ -141,43 +137,6 @@ const getMonthDays = (startDateStr: string): string[] => {
   return dates;
 };
 
-const isTaskOnDate = (task: Task, dateStr: string): boolean => {
-  if (task.recurrence !== 'semanal' && task.date && task.date > dateStr) return false;
-
-  if (!task.recurrence || task.recurrence === 'none') {
-    return task.date === dateStr;
-  }
-
-  if (task.recurrence === 'semanal') {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    const d = new Date(year, month - 1, day);
-    const dayOfWeek = d.getDay().toString(); // "0" para Domingo, "1" para Segunda, etc.
-    
-    if (task.recurrenceDays) {
-      return task.recurrenceDays.includes(dayOfWeek);
-    }
-    return dayOfWeek === task.recurrenceDay;
-  }
-
-  if (task.recurrence === 'mensal') {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    const dayOfMonth = day.toString();
-    return dayOfMonth === task.recurrenceDay;
-  }
-
-  return false;
-};
-
-const isTaskCompletedOnDate = (task: Task, dateStr: string): boolean => {
-  if (task.id === 'workout_group_summary' || task.id === 'study_daily_summary' || task.id.startsWith('diet_')) {
-    return task.completed;
-  }
-  if (!task.recurrence || task.recurrence === 'none') {
-    return task.completed;
-  }
-  return !!task.completedDates?.includes(dateStr);
-};
-
 const getTaskTargetDateForFilter = (task: Task, filter: 'hoje' | 'semana' | 'mes', todayStr: string): string => {
   if (filter === 'hoje') return todayStr;
   if (!task.recurrence || task.recurrence === 'none') return task.date;
@@ -197,7 +156,7 @@ const getTaskTargetDateForFilter = (task: Task, filter: 'hoje' | 'semana' | 'mes
   return todayStr;
 };
 
-export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNewTaskTrigger, onTodayTasksChange, homeAction }: AgendaTabProps) {
+export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNewTaskTrigger, onTodayTasksChange, onCalendarTasksChange, homeAction }: AgendaTabProps) {
   const [now, setNow] = useState(() => new Date());
   const reduceMotion = useReducedMotion();
   const todayStr = formatDateLocal(now);
@@ -877,14 +836,24 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
     return `em ${remaining >= 60 ? `${Math.floor(remaining / 60)}h ` : ''}${remaining % 60}min`;
   })();
 
-  // Home delegates to these existing handlers rather than duplicating persistence.
+  // Navigation actions reuse the existing form and persistence handlers.
   useEffect(() => {
     if (!homeAction || handledHomeAction.current === homeAction) return;
-    const task = allCombinedTasks.find(item => item.id === homeAction.taskId && isTaskOnDate(item, todayStr));
+    if (homeAction.action === 'create') {
+      handledHomeAction.current = homeAction;
+      openCreateModal();
+      setSelectedTask({ id: '', title: '', date: homeAction.date || todayStr, time: '12:00', category: '', icon: 'Circle', completed: false, priority: false });
+      return;
+    }
+    const date = homeAction.date || todayStr;
+    const task = allCombinedTasks.find(item => item.id === homeAction.taskId && isTaskOnDate(item, date));
     if (!task) return;
     handledHomeAction.current = homeAction;
     if (homeAction.action === 'details') openTaskDetails(task);
-    else if (!isTaskCompletedOnDate(task, todayStr)) completeTodayTask(task);
+    else if (homeAction.action === 'toggle' || !isTaskCompletedOnDate(task, date)) {
+      if (tasks.some(saved => saved.id === task.id)) toggleTaskOnDate(task.id, date);
+      else if (date === todayStr) handleToggleTask(task);
+    }
   }, [homeAction, allCombinedTasks, todayStr]);
 
   // Share a read-only view of the exact occurrences used by the Agenda.
@@ -893,6 +862,8 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
     ? allCombinedTasks.filter(task => isTaskOnDate(task, todayStr)).map(task => ({ ...task, completed: isTaskCompletedOnDate(task, todayStr) }))
     : null, [allCombinedTasks, todayStr, tasksLoaded]);
   useEffect(() => { onTodayTasksChange?.(homeTodayTasks); }, [homeTodayTasks, onTodayTasksChange]);
+
+  useEffect(() => { onCalendarTasksChange?.(tasksLoaded ? allCombinedTasks : null); }, [tasksLoaded, allCombinedTasks, onCalendarTasksChange]);
 
   // Tasks list (includes all tasks for viewFilter so next upcoming task appears both at the top card and in the list below)
   const finalFilteredTasks = filteredTasks;

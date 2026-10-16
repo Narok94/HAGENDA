@@ -4,13 +4,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import AgendaTab, { type AgendaHomeAction } from './components/AgendaTab';
 import AcademiaTab from './components/AcademiaTab';
 import DietaTab from './components/DietaTab';
-import HomeTab from './components/HomeTab';
+import CalendarTab from './components/CalendarTab';
 import { Task } from './types';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'inicio' | 'calendario' | 'agenda' | 'mais' | 'academia' | 'dieta'>('inicio');
+  const [activeTab, setActiveTab] = useState<'calendario' | 'agenda' | 'mais' | 'academia' | 'dieta'>('agenda');
   const [homeAction, setHomeAction] = useState<AgendaHomeAction | null>(null);
-  const [homeTasks, setHomeTasks] = useState<Task[] | null>(null);
+  const [calendarTasks, setCalendarTasks] = useState<Task[] | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [openNewTaskTrigger, setOpenNewTaskTrigger] = useState<number>(0);
 
@@ -331,32 +331,30 @@ export default function App() {
               </h1>
             </div>
             
-            <button 
+            <div className="dashboard-header-actions"><button aria-label="Outras áreas" onClick={() => setActiveTab('mais')}><MoreHorizontal size={21} /></button>
+            <button
               onClick={() => setIsSettingsOpen(true)}
               aria-label="Configurações"
               className="app-settings p-2 text-[#9AA1B8] hover:text-[#0E1730] transition-colors cursor-pointer active:scale-95"
             >
               <Settings size={20} strokeWidth={1.5} />
-            </button>
+            </button></div>
           </div>
 
         </header>}
 
         <div style={{ display: activeTab === 'agenda' ? 'block' : 'none' }} aria-hidden={activeTab !== 'agenda'}>
-          <AgendaTab userName={userName} avatarUrl={avatarUrl} onOpenSettings={() => setIsSettingsOpen(true)} openNewTaskTrigger={openNewTaskTrigger} onTodayTasksChange={setHomeTasks} homeAction={homeAction} />
+          <AgendaTab userName={userName} avatarUrl={avatarUrl} onOpenSettings={() => setIsSettingsOpen(true)} openNewTaskTrigger={openNewTaskTrigger} onCalendarTasksChange={setCalendarTasks} homeAction={homeAction} />
         </div>
-        {activeTab === 'inicio' && <HomeTab userName={userName} avatarUrl={avatarUrl} now={agendaNow} tasks={homeTasks}
-          onNewTask={() => { setActiveTab('agenda'); setOpenNewTaskTrigger(value => value + 1); }}
-          onTasks={() => setActiveTab('agenda')} onCalendar={() => setActiveTab('calendario')}
-          onMore={() => setActiveTab('mais')} onSettings={() => setIsSettingsOpen(true)}
-          onCompleteTask={taskId => setHomeAction({ taskId, action: 'complete' })}
-          onOpenTask={taskId => { setActiveTab('agenda'); setHomeAction({ taskId, action: 'details' }); }} />}
-        {activeTab === 'calendario' && <section className="navigation-page">
-          <p className="navigation-eyebrow">HAGENDA</p><h1>Calendário</h1>
-          <div className="navigation-placeholder"><Calendar size={34} strokeWidth={1.4} /><h2>Um espaço para planejar</h2><p>O calendário completo estará disponível em uma próxima etapa. Seus compromissos continuam na área Tarefas, com as visualizações Hoje, Semana e Mês.</p><button onClick={() => setActiveTab('agenda')}>Ver minhas tarefas <ChevronRight size={16} /></button></div>
-        </section>}
+        <div style={{ display: activeTab === 'calendario' ? 'block' : 'none' }} aria-hidden={activeTab !== 'calendario'}>
+        <CalendarTab tasks={calendarTasks} now={agendaNow}
+          onOpenMenu={() => setActiveTab('mais')}
+          onOpenTask={(taskId, date) => { setActiveTab('agenda'); setHomeAction({ taskId, date, action: 'details' }); }}
+          onToggleTask={(taskId, date) => setHomeAction({ taskId, date, action: 'toggle' })}
+          onCreateTask={date => { setActiveTab('agenda'); setHomeAction({ taskId: '', date, action: 'create' }); }} />
+        </div>
         {activeTab === 'mais' && <section className="navigation-page">
-          <p className="navigation-eyebrow">HAGENDA</p><h1>Mais</h1><p className="navigation-description">Seu bem-estar e suas preferências.</p>
+          <button className="navigation-back" onClick={() => setActiveTab('agenda')}><ArrowLeft size={15} />Voltar ao Dashboard</button><p className="navigation-eyebrow">HAGENDA</p><h1>Outras áreas</h1><p className="navigation-description">Seu bem-estar e suas preferências.</p>
           <div className="more-links">
             <button onClick={() => setActiveTab('academia')}><span><Dumbbell size={21} /></span><div><strong>Academia</strong><small>Treinos e exercícios</small></div><ChevronRight size={17} /></button>
             <button onClick={() => setActiveTab('dieta')}><span><Apple size={21} /></span><div><strong>Dieta</strong><small>Alimentação e hidratação</small></div><ChevronRight size={17} /></button>
@@ -369,8 +367,8 @@ export default function App() {
 
       </main>
       <nav className="app-primary-nav" aria-label="Navegação principal">
-        {([{ id: 'inicio', label: 'Início', Icon: Home }, { id: 'calendario', label: 'Calendário', Icon: Calendar }, { id: 'agenda', label: 'Tarefas', Icon: ListTodo }, { id: 'mais', label: 'Mais', Icon: MoreHorizontal }] as const).map(({ id, label, Icon }) => {
-          const selected = id === activeTab || (id === 'mais' && (activeTab === 'academia' || activeTab === 'dieta'));
+        {([{ id: 'agenda', label: 'Dashboard', Icon: ListTodo }, { id: 'calendario', label: 'Calendário', Icon: Calendar }] as const).map(({ id, label, Icon }) => {
+          const selected = id === activeTab;
           return <button key={id} aria-current={selected ? 'page' : undefined} onClick={() => setActiveTab(id)}><span><Icon size={21} strokeWidth={selected ? 2 : 1.7} /></span>{label}</button>;
         })}
       </nav>
