@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Dumbbell, Target, User, Settings, Camera, X, ExternalLink, Flame, Trophy, Sparkles, Bell, BellRing, Apple, Cloud, CloudOff, Plus, Home, ListTodo, MoreHorizontal, ChevronRight, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import AgendaTab from './components/AgendaTab';
+import AgendaTab, { type AgendaHomeAction } from './components/AgendaTab';
 import AcademiaTab from './components/AcademiaTab';
 import DietaTab from './components/DietaTab';
 import HomeTab from './components/HomeTab';
@@ -9,6 +9,7 @@ import { Task } from './types';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'inicio' | 'calendario' | 'agenda' | 'mais' | 'academia' | 'dieta'>('inicio');
+  const [homeAction, setHomeAction] = useState<AgendaHomeAction | null>(null);
   const [homeTasks, setHomeTasks] = useState<Task[] | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [openNewTaskTrigger, setOpenNewTaskTrigger] = useState<number>(0);
@@ -342,12 +343,14 @@ export default function App() {
         </header>}
 
         <div style={{ display: activeTab === 'agenda' ? 'block' : 'none' }} aria-hidden={activeTab !== 'agenda'}>
-          <AgendaTab userName={userName} avatarUrl={avatarUrl} onOpenSettings={() => setIsSettingsOpen(true)} openNewTaskTrigger={openNewTaskTrigger} onTodayTasksChange={setHomeTasks} />
+          <AgendaTab userName={userName} avatarUrl={avatarUrl} onOpenSettings={() => setIsSettingsOpen(true)} openNewTaskTrigger={openNewTaskTrigger} onTodayTasksChange={setHomeTasks} homeAction={homeAction} />
         </div>
         {activeTab === 'inicio' && <HomeTab userName={userName} avatarUrl={avatarUrl} now={agendaNow} tasks={homeTasks}
           onNewTask={() => { setActiveTab('agenda'); setOpenNewTaskTrigger(value => value + 1); }}
           onTasks={() => setActiveTab('agenda')} onCalendar={() => setActiveTab('calendario')}
-          onMore={() => setActiveTab('mais')} onSettings={() => setIsSettingsOpen(true)} />}
+          onMore={() => setActiveTab('mais')} onSettings={() => setIsSettingsOpen(true)}
+          onCompleteTask={taskId => setHomeAction({ taskId, action: 'complete' })}
+          onOpenTask={taskId => { setActiveTab('agenda'); setHomeAction({ taskId, action: 'details' }); }} />}
         {activeTab === 'calendario' && <section className="navigation-page">
           <p className="navigation-eyebrow">HAGENDA</p><h1>Calendário</h1>
           <div className="navigation-placeholder"><Calendar size={34} strokeWidth={1.4} /><h2>Um espaço para planejar</h2><p>O calendário completo estará disponível em uma próxima etapa. Seus compromissos continuam na área Tarefas, com as visualizações Hoje, Semana e Mês.</p><button onClick={() => setActiveTab('agenda')}>Ver minhas tarefas <ChevronRight size={16} /></button></div>

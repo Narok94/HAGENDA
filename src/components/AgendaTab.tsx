@@ -88,12 +88,18 @@ function TaskRowItem({ task, isCompleted, isNext, isOverdue, onToggle, onPostpon
   );
 }
 
+export interface AgendaHomeAction {
+  taskId: string;
+  action: 'complete' | 'details';
+}
+
 interface AgendaTabProps {
   userName: string;
   avatarUrl: string | null;
   onOpenSettings: () => void;
   openNewTaskTrigger?: number;
   onTodayTasksChange?: (tasks: Task[] | null) => void;
+  homeAction?: AgendaHomeAction | null;
 }
 
 const formatDateLocal = (d: Date): string => {
@@ -191,7 +197,7 @@ const getTaskTargetDateForFilter = (task: Task, filter: 'hoje' | 'semana' | 'mes
   return todayStr;
 };
 
-export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNewTaskTrigger, onTodayTasksChange }: AgendaTabProps) {
+export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNewTaskTrigger, onTodayTasksChange, homeAction }: AgendaTabProps) {
   const [now, setNow] = useState(() => new Date());
   const reduceMotion = useReducedMotion();
   const todayStr = formatDateLocal(now);
@@ -205,6 +211,7 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
     };
   }, []);
   
+  const handledHomeAction = useRef<AgendaHomeAction | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksLoaded, setTasksLoaded] = useState(false);
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; mode: string }>({ connected: false, mode: 'loading' });
@@ -869,6 +876,16 @@ export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNew
     if (remaining === 0) return 'Agora';
     return `em ${remaining >= 60 ? `${Math.floor(remaining / 60)}h ` : ''}${remaining % 60}min`;
   })();
+
+  // Home delegates to these existing handlers rather than duplicating persistence.
+  useEffect(() => {
+    if (!homeAction || handledHomeAction.current === homeAction) return;
+    const task = allCombinedTasks.find(item => item.id === homeAction.taskId && isTaskOnDate(item, todayStr));
+    if (!task) return;
+    handledHomeAction.current = homeAction;
+    if (homeAction.action === 'details') openTaskDetails(task);
+    else if (!isTaskCompletedOnDate(task, todayStr)) completeTodayTask(task);
+  }, [homeAction, allCombinedTasks, todayStr]);
 
   // Share a read-only view of the exact occurrences used by the Agenda.
   // Keeping Agenda mounted preserves its existing editing and persistence flows.

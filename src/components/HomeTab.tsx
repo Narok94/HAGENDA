@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarDays, CheckCheck, Clock3, ListTodo } from 'lucide-react';
+import { ArrowRight, CalendarCheck2, Check, Clock3, RefreshCw, Tag } from 'lucide-react';
 import { Task } from '../types';
 
 interface HomeTabProps {
@@ -11,9 +11,11 @@ interface HomeTabProps {
   onCalendar: () => void;
   onMore: () => void;
   onSettings: () => void;
+  onCompleteTask: (taskId: string) => void;
+  onOpenTask: (taskId: string) => void;
 }
 
-export default function HomeTab({ userName, avatarUrl, now, tasks, onTasks, onSettings }: HomeTabProps) {
+export default function HomeTab({ userName, avatarUrl, now, tasks, onTasks, onSettings, onCompleteTask, onOpenTask }: HomeTabProps) {
   const greeting = now.getHours() < 12 ? 'Bom dia' : now.getHours() < 18 ? 'Boa tarde' : 'Boa noite';
   const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const isTimed = (task: Task) => /^\d{2}:\d{2}$/.test(task.time);
@@ -24,7 +26,7 @@ export default function HomeTab({ userName, avatarUrl, now, tasks, onTasks, onSe
   const upcoming = ordered.filter(task => !task.completed && isTimed(task) && task.time >= time);
   const nextTask = upcoming[0];
   const recurrenceText = (task: Task) => ((task.recurrence && task.recurrence !== 'none') || task.id.startsWith('diet_') || task.id === 'study_daily_summary') ? ' · Recorrente' : '';
-  const progress = ordered.length ? Math.round(completed / ordered.length * 100) : 0;
+
 
   return (
     <div className="home-page">
@@ -35,43 +37,24 @@ export default function HomeTab({ userName, avatarUrl, now, tasks, onTasks, onSe
         </button>
       </header>
 
-      <section className="home-banner">
-        <h2>Um dia organizado<br />começa agora.</h2>
-        <p>Foque no que importa.</p>
-        <button onClick={onTasks}>Organizar meu dia <ArrowRight size={16} /></button>
+      <section className="home-feature" aria-label="Próxima tarefa" aria-busy={tasks === null}>
+        <div className="home-feature-label"><span><span className="home-feature-status" />PRÓXIMA TAREFA</span><CalendarCheck2 size={18} /></div>
+        {tasks === null ? <p className="home-feature-empty" role="status">Carregando suas atividades…</p> : nextTask ? <>
+          <button className="home-feature-title" onClick={() => onOpenTask(nextTask.id)}><h2>{nextTask.title}</h2></button>
+          <div className="home-feature-meta"><span><Clock3 size={13} />{nextTask.time}</span><span><Tag size={13} />{nextTask.category}</span>{recurrenceText(nextTask) && <span><RefreshCw size={12} />Recorrente</span>}</div>
+          <div className="home-feature-footer"><span>Um passo de cada vez.</span><button className="home-feature-complete" onClick={() => onCompleteTask(nextTask.id)} aria-label={`Concluir ${nextTask.title}`}><Check size={16} strokeWidth={2.5} />Concluir tarefa</button></div>
+        </> : <div className="home-feature-empty"><h2>{pending ? 'Nenhuma atividade futura com horário definido.' : ordered.length ? 'Tudo concluído por hoje.' : 'Seu dia está livre.'}</h2><button onClick={onTasks}>Ver minhas tarefas <ArrowRight size={15} /></button></div>}
       </section>
 
-      <section className="home-day-summary" aria-label="Resumo de hoje" aria-busy={tasks === null}>
-        <div className="home-section-heading"><h2>Seu dia em resumo</h2><span>Hoje</span></div>
-        {tasks === null ? <p className="home-loading" role="status">Carregando suas atividades…</p> : <>
-          <div className="home-metrics">
-            <div><span><ListTodo size={15} />{ordered.length}</span><small>Atividades</small></div>
-            <div><span><Clock3 size={15} />{pending}</span><small>Pendentes</small></div>
-            <div><span><CheckCheck size={15} />{completed}</span><small>Concluídas</small></div>
-          </div>
-          <div className="home-progress-label"><span>Progresso do dia</span><strong>{progress}%</strong></div>
-          <div className="home-progress" role="progressbar" aria-label="Progresso do dia" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progress}%` }} /></div>
-        </>}
-      </section>
-
-      <section className="home-next" aria-label="Próxima atividade">
-        <div className="home-next-label"><CalendarDays size={15} /><h2>PRÓXIMA ATIVIDADE</h2></div>
-        {tasks === null ? <p className="home-loading" role="status">Carregando…</p> : nextTask ? <button className="home-next-event" onClick={onTasks}>
-          <span className="home-next-time">{nextTask.time}</span><span className="home-event-dot is-next" />
-          <span className="home-event-copy"><strong>{nextTask.title}</strong><small>{nextTask.category}{recurrenceText(nextTask)}</small></span>
-          <span className="home-next-arrow"><ArrowRight size={19} /></span>
-        </button> : <p className="home-empty">{pending ? 'Nenhuma atividade futura com horário definido.' : ordered.length ? 'Tudo concluído por hoje.' : 'Seu dia está livre.'}</p>}
-      </section>
-
-      <section className="home-upcoming" aria-label="A seguir">
-        <div className="home-section-heading"><h2>A seguir</h2><button onClick={onTasks}>Ver tarefas <ArrowRight size={13} /></button></div>
-        {tasks !== null && (upcoming.length > 1 ? upcoming.slice(1, 3).map(task => <button className="home-event" key={task.id} onClick={onTasks}>
+      <section className="home-upcoming" aria-label="A seguir no seu dia">
+        <div className="home-section-heading"><h2>A seguir no seu dia</h2><button onClick={onTasks}>Ver todas <ArrowRight size={13} /></button></div>
+        {tasks !== null && (upcoming.length > 1 ? upcoming.slice(1, 4).map(task => <button className="home-event" key={task.id} onClick={() => onOpenTask(task.id)}>
           <span className="home-event-time">{task.time}<span className="home-event-dot" /></span>
           <span className="home-event-copy"><strong>{task.title}</strong><small>{task.category}{recurrenceText(task)}</small></span>
           <ArrowRight size={15} />
         </button>) : <p className="home-empty">Nenhuma outra atividade futura com horário definido.</p>)}
       </section>
-      {late > 0 && <button className="home-late" onClick={onTasks}><Clock3 size={15} />{late} {late === 1 ? 'atividade com horário passado' : 'atividades com horário passado'}<ArrowRight size={15} /></button>}
+      {late > 0 && <button className="home-late" onClick={onTasks}><Clock3 size={15} />{late} {late === 1 ? 'atividade atrasada' : 'atividades atrasadas'} · Revisar<ArrowRight size={15} /></button>}
 
     </div>
   );
