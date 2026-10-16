@@ -7,6 +7,7 @@ import DietaTab from './components/DietaTab';
 import CalendarTab from './components/CalendarTab';
 import { Task } from './types';
 import { useAppViewport } from './hooks/useAppViewport';
+import ViewportDiagnostics from './components/ViewportDiagnostics';
 
 export default function App() {
   useAppViewport();
@@ -397,6 +398,7 @@ export default function App() {
                 </div>
                 
                 <div className="p-6 space-y-6">
+                  <ViewportDiagnostics />
                   {/* Profile Picture */}
                   <div className="flex flex-col items-center gap-3">
                     <div className="relative group cursor-pointer">
