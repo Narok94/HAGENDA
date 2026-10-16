@@ -6,8 +6,10 @@ import AcademiaTab from './components/AcademiaTab';
 import DietaTab from './components/DietaTab';
 import CalendarTab from './components/CalendarTab';
 import { Task } from './types';
+import { useAppViewport } from './hooks/useAppViewport';
 
 export default function App() {
+  useAppViewport();
   const [activeTab, setActiveTab] = useState<'calendario' | 'agenda' | 'mais' | 'academia' | 'dieta'>('agenda');
   const [homeAction, setHomeAction] = useState<AgendaHomeAction | null>(null);
   const [calendarTasks, setCalendarTasks] = useState<Task[] | null>(null);
@@ -297,11 +299,11 @@ export default function App() {
   };
 
   return (
-    <div className={`hagenda-app-shell w-full bg-app-bg flex flex-col font-sans text-text-sub overflow-hidden ${activeTab === 'agenda' ? 'reference-agenda-shell' : ''}`}>
+    <div className={`hagenda-app-shell w-full bg-app-bg flex flex-col font-sans text-text-sub ${activeTab === 'agenda' ? 'reference-agenda-shell' : ''}`}>
       {/* MAIN CONTENT AREA */}
       <main 
         style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))' }}
-        className="flex-1 overflow-y-auto w-full md:max-w-3xl md:mx-auto px-5 md:px-8 pb-12 relative"
+        className="flex-1 overflow-y-auto w-full md:max-w-3xl md:mx-auto px-5 md:px-8 pb-4 relative"
       >
         {/* HEADER & SUBTLE NAV MENU BELOW BOM DIA */}
         {(activeTab === 'agenda' || activeTab === 'academia' || activeTab === 'dieta') && <header className="app-header flex flex-col gap-3 pt-3 pb-3 px-1 relative">

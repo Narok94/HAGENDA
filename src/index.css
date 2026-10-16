@@ -25,21 +25,29 @@
   --border-discreet: #FFFFFF;
 }
 
-html, body, #root {
+html, body {
   width: 100%;
   height: 100%;
   min-height: 0;
-  overflow: hidden;
   margin: 0;
   padding: 0;
   background: #FFFFFF;
   -webkit-text-size-adjust: 100%;
+  /* Scroll ownership, not a footer-gap workaround: main is the scrollport. */
+  overflow: hidden;
 }
 
-body {
+/* Main owns scrolling. Root follows the visible viewport instead of inheriting
+   a percentage height from the initial containing block on iOS. */
+#root {
+  position: absolute;
+  top: var(--app-viewport-top, 0px);
+  left: 0;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
+  height: var(--app-viewport-height, 100%);
+}
+@supports (height: 100dvh) {
+  #root { height: var(--app-viewport-height, 100dvh); }
 }
 
 .tabbar {
@@ -87,7 +95,7 @@ body {
 }
 /* Agenda reference: scoped so Academia and Dieta retain their existing styling. */
 .reference-agenda-shell { background:linear-gradient(135deg,#EDF4FF 0%,#F3F6FD 55%,#EFF3FC 100%); }
-.reference-agenda-shell main { padding-left:16px; padding-right:16px; padding-top:calc(16px + env(safe-area-inset-top,0px)) !important; padding-bottom:calc(24px + env(safe-area-inset-bottom,0px)); }
+.reference-agenda-shell main { padding-left:16px; padding-right:16px; padding-top:calc(16px + env(safe-area-inset-top,0px)) !important; }
 .reference-agenda-shell .app-header { padding:8px 5px 10px; gap:12px; }
 .reference-agenda-shell .app-header>div { align-items:center; }
 .reference-agenda-shell .app-header h1 { font-family:Inter,ui-sans-serif,system-ui,sans-serif; font-size:23px; font-weight:750; letter-spacing:-.8px; gap:5px; }
@@ -174,20 +182,11 @@ body {
 .reference-overdue-label { color:#A65A30; font-size:8px; font-weight:500; }
 :root.high-contrast .reference-overdue-time,
 :root.high-contrast .reference-overdue-label { color:#FFD3A6; }
-/* Stage 1: persistent navigation and the daily home surface. */
-/* Keep the installed app at the full viewport height. Some iOS versions retain
-   an oversized bottom inset after browser/standalone transitions; reserve at
-   most the 34px home-indicator area instead of moving the menu far upward. */
-.hagenda-app-shell { --app-safe-bottom:min(env(safe-area-inset-bottom,0px),34px); position:fixed; inset:0; min-height:0; }
-@supports (height:100dvh) {
-  .hagenda-app-shell { height:100dvh; bottom:auto; }
-}
-@media (display-mode:standalone) {
-  .hagenda-app-shell { height:100%; bottom:0; }
-}
-.hagenda-app-shell>main { min-height:0; padding-bottom:16px !important; overscroll-behavior-y:contain; }
-/* The footer participates in the viewport-height shell. Only main scrolls;
-   the iOS bottom inset is reserved once, without an extra fixed-footer spacer. */
+/* One height chain in browser and standalone: visible viewport > root > shell.
+   Nav remains in flex flow; main shrinks and scrolls without a footer spacer. */
+.hagenda-app-shell { --app-safe-bottom:env(safe-area-inset-bottom,0px); height:100%; min-height:0; }
+.hagenda-app-shell>main { min-height:0; overscroll-behavior-y:contain; }
+/* Safe-area padding belongs only to the nav, whose background reaches the edge. */
 .app-primary-nav { position:relative; flex-shrink:0; display:flex; justify-content:center; padding:6px max(12px,env(safe-area-inset-right,0px),calc((100vw - 680px)/2)) calc(4px + var(--app-safe-bottom)) max(12px,env(safe-area-inset-left,0px),calc((100vw - 680px)/2)); background:var(--app-card); border-top:1px solid var(--border-discreet); z-index:40; }
 .app-primary-nav button { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; min-height:48px; color:var(--text-sec); font-size:10px; }
 .app-primary-nav button>span { display:grid; place-items:center; width:50px; height:28px; border-radius:10px; }
@@ -199,7 +198,6 @@ body {
 .hagenda-app-shell>main:has(.home-page) {
   container:home-dashboard / size;
   padding-top:max(12px, env(safe-area-inset-top, 0px)) !important;
-  padding-bottom:16px !important;
 }
 .home-page { --home-navy:#10213B; --home-green:#51B58A; display:flex; flex-direction:column; gap:1rem; max-width:640px; margin:auto; padding:4px 0 0; }
 .home-header { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:0 2px; }
