@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Apple, CheckCircle2, Circle, Droplets, Info, Sparkles, Check, 
-  RotateCw, ChevronDown, ChevronUp, Utensils, Calendar as CalendarIcon, Settings 
+  RotateCw, ChevronDown, ChevronUp, Utensils, Calendar as CalendarIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MEAL_PLAN, DIET_INFO, Meal } from '../data/dietData';
 
 interface DietaTabProps {
   userName?: string;
-  onOpenSettings?: () => void;
 }
 
 const getTodayStr = (): string => {
@@ -19,7 +18,7 @@ const getTodayStr = (): string => {
   return `${year}-${month}-${day}`;
 };
 
-export default function DietaTab({ userName = 'Henrique', onOpenSettings }: DietaTabProps) {
+export default function DietaTab({ userName = 'Henrique' }: DietaTabProps) {
   // Today's date string for resetting daily states YYYY-MM-DD
   const todayStr = getTodayStr();
 

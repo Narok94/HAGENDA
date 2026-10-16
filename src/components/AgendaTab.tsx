@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw, Trash2, Mic, MicOff, Loader2, Send, X, BoxSelect, RotateCw, Check, Bell, Trophy, Cloud, CloudOff, Dumbbell, Apple, Settings, Utensils, GraduationCap, Laptop, Footprints, MoreVertical, AlertCircle } from 'lucide-react';
+import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcase, ChevronRight, Plus, Clock, Tag, RefreshCw, Trash2, Mic, MicOff, Loader2, Send, X, BoxSelect, RotateCw, Check, Bell, Trophy, Cloud, CloudOff, Dumbbell, Apple, Utensils, GraduationCap, Laptop, Footprints, MoreVertical, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform, useReducedMotion } from 'motion/react';
 import { Task } from '../types';
 import { formatDateLocal, isTaskOnDate, isTaskCompletedOnDate } from '../utils/taskDates';
@@ -98,7 +98,6 @@ export interface AgendaHomeAction {
 interface AgendaTabProps {
   userName: string;
   avatarUrl: string | null;
-  onOpenSettings: () => void;
   openNewTaskTrigger?: number;
   onTodayTasksChange?: (tasks: Task[] | null) => void;
   onCalendarTasksChange?: (tasks: Task[] | null) => void;
@@ -156,7 +155,7 @@ const getTaskTargetDateForFilter = (task: Task, filter: 'hoje' | 'semana' | 'mes
   return todayStr;
 };
 
-export default function AgendaTab({ userName, avatarUrl, onOpenSettings, openNewTaskTrigger, onTodayTasksChange, onCalendarTasksChange, homeAction }: AgendaTabProps) {
+export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onTodayTasksChange, onCalendarTasksChange, homeAction }: AgendaTabProps) {
   const [now, setNow] = useState(() => new Date());
   const reduceMotion = useReducedMotion();
   const todayStr = formatDateLocal(now);

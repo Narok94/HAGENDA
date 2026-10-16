@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Dumbbell, CheckCircle2, Circle, Flame, Sparkles, Trophy, RotateCw, 
-  ChevronRight, Info, Edit3, ArrowRight, Check, ExternalLink, Calendar as CalendarIcon, Settings 
+  ChevronRight, Info, Edit3, ArrowRight, Check, ExternalLink, Calendar as CalendarIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { WORKOUT_GROUPS, WorkoutGroup, Exercise } from '../data/workoutData';
 
 interface AcademiaTabProps {
   userName?: string;
-  onOpenSettings?: () => void;
 }
 
 const getTodayStr = (): string => {
@@ -19,7 +18,7 @@ const getTodayStr = (): string => {
   return `${year}-${month}-${day}`;
 };
 
-export default function AcademiaTab({ userName = 'Henrique', onOpenSettings }: AcademiaTabProps) {
+export default function AcademiaTab({ userName = 'Henrique' }: AcademiaTabProps) {
   const todayStr = getTodayStr();
 
   // Active group that represents today's current workout session

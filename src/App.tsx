@@ -297,7 +297,7 @@ export default function App() {
   };
 
   return (
-    <div className={`hagenda-app-shell h-full w-full bg-app-bg flex flex-col font-sans text-text-sub relative overflow-hidden ${activeTab === 'agenda' ? 'reference-agenda-shell' : ''}`}>
+    <div className={`hagenda-app-shell w-full bg-app-bg flex flex-col font-sans text-text-sub overflow-hidden ${activeTab === 'agenda' ? 'reference-agenda-shell' : ''}`}>
       {/* MAIN CONTENT AREA */}
       <main 
         style={{ paddingTop: 'calc(16px + env(safe-area-inset-top, 0px))' }}
@@ -330,21 +330,12 @@ export default function App() {
                 {activeTab === 'agenda' ? agendaGreeting : 'Bom dia'}, {userName} <span className="text-xl md:text-2xl">👋</span>
               </h1>
             </div>
-            
-            <div className="dashboard-header-actions">
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              aria-label="Configurações"
-              className="app-settings p-2 text-[#9AA1B8] hover:text-[#0E1730] transition-colors cursor-pointer active:scale-95"
-            >
-              <Settings size={20} strokeWidth={1.5} />
-            </button></div>
           </div>
 
         </header>}
 
         <div style={{ display: activeTab === 'agenda' ? 'block' : 'none' }} aria-hidden={activeTab !== 'agenda'}>
-          <AgendaTab userName={userName} avatarUrl={avatarUrl} onOpenSettings={() => setIsSettingsOpen(true)} openNewTaskTrigger={openNewTaskTrigger} onCalendarTasksChange={setCalendarTasks} homeAction={homeAction} />
+          <AgendaTab userName={userName} avatarUrl={avatarUrl} openNewTaskTrigger={openNewTaskTrigger} onCalendarTasksChange={setCalendarTasks} homeAction={homeAction} />
         </div>
         <div style={{ display: activeTab === 'calendario' ? 'block' : 'none' }} aria-hidden={activeTab !== 'calendario'}>
         <CalendarTab tasks={calendarTasks} now={agendaNow}
@@ -361,8 +352,8 @@ export default function App() {
           </div>
         </section>}
         {(activeTab === 'academia' || activeTab === 'dieta') && <button className="navigation-back" onClick={() => setActiveTab('mais')}><ArrowLeft size={15} />Voltar para Mais</button>}
-        {activeTab === 'academia' && <AcademiaTab userName={userName} onOpenSettings={() => setIsSettingsOpen(true)} />}
-        {activeTab === 'dieta' && <DietaTab userName={userName} onOpenSettings={() => setIsSettingsOpen(true)} />}
+        {activeTab === 'academia' && <AcademiaTab userName={userName} />}
+        {activeTab === 'dieta' && <DietaTab userName={userName} />}
 
       </main>
       <nav className="app-primary-nav" aria-label="Navegação principal">
