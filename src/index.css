@@ -175,10 +175,16 @@ body {
 :root.high-contrast .reference-overdue-time,
 :root.high-contrast .reference-overdue-label { color:#FFD3A6; }
 /* Stage 1: persistent navigation and the daily home surface. */
-/* Anchor the shell to the viewport edges, including in iOS standalone mode.
-   Avoid a separate 100dvh height: WebKit can report a different dynamic height
-   from the fixed viewport in an installed PWA. The document never scrolls. */
-.hagenda-app-shell { --app-safe-bottom:env(safe-area-inset-bottom,0px); position:fixed; inset:0; min-height:0; }
+/* Keep the installed app at the full viewport height. Some iOS versions retain
+   an oversized bottom inset after browser/standalone transitions; reserve at
+   most the 34px home-indicator area instead of moving the menu far upward. */
+.hagenda-app-shell { --app-safe-bottom:min(env(safe-area-inset-bottom,0px),34px); position:fixed; inset:0; min-height:0; }
+@supports (height:100dvh) {
+  .hagenda-app-shell { height:100dvh; bottom:auto; }
+}
+@media (display-mode:standalone) {
+  .hagenda-app-shell { height:100%; bottom:0; }
+}
 .hagenda-app-shell>main { min-height:0; padding-bottom:16px !important; overscroll-behavior-y:contain; }
 /* The footer participates in the viewport-height shell. Only main scrolls;
    the iOS bottom inset is reserved once, without an extra fixed-footer spacer. */
