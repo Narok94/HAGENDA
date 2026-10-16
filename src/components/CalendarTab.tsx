@@ -1,18 +1,17 @@
 import { useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Clock3, MoreHorizontal, Plus, RefreshCw } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Clock3, Plus, RefreshCw } from 'lucide-react';
 import { Task } from '../types';
 import { formatDateLocal, isTaskCompletedOnDate, isTaskOnDate } from '../utils/taskDates';
 
 interface CalendarTabProps {
   tasks: Task[] | null;
   now: Date;
-  onOpenMenu: () => void;
   onOpenTask: (taskId: string, date: string) => void;
   onToggleTask: (taskId: string, date: string) => void;
   onCreateTask: (date: string) => void;
 }
 
-export default function CalendarTab({ tasks, now, onOpenMenu, onOpenTask, onToggleTask, onCreateTask }: CalendarTabProps) {
+export default function CalendarTab({ tasks, now, onOpenTask, onToggleTask, onCreateTask }: CalendarTabProps) {
   const today = formatDateLocal(now);
   const [month, setMonth] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState(today);
@@ -38,7 +37,7 @@ export default function CalendarTab({ tasks, now, onOpenMenu, onOpenTask, onTogg
 
   return (
     <section className="calendar-page">
-      <header className="calendar-header"><div><p>SEU TEMPO, EM PERSPECTIVA</p><h1>Calendário</h1></div><button aria-label="Outras áreas" onClick={onOpenMenu}><MoreHorizontal size={23} /></button></header>
+      <header className="calendar-header"><div><p>SEU TEMPO, EM PERSPECTIVA</p><h1>Calendário</h1></div></header>
       <section className="calendar-month" aria-label="Calendário mensal">
         <div className="calendar-month-heading">
           <h2 aria-live="polite">{month.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</h2>

@@ -331,7 +331,7 @@ export default function App() {
               </h1>
             </div>
             
-            <div className="dashboard-header-actions"><button aria-label="Outras áreas" onClick={() => setActiveTab('mais')}><MoreHorizontal size={21} /></button>
+            <div className="dashboard-header-actions">
             <button
               onClick={() => setIsSettingsOpen(true)}
               aria-label="Configurações"
@@ -348,7 +348,6 @@ export default function App() {
         </div>
         <div style={{ display: activeTab === 'calendario' ? 'block' : 'none' }} aria-hidden={activeTab !== 'calendario'}>
         <CalendarTab tasks={calendarTasks} now={agendaNow}
-          onOpenMenu={() => setActiveTab('mais')}
           onOpenTask={(taskId, date) => { setActiveTab('agenda'); setHomeAction({ taskId, date, action: 'details' }); }}
           onToggleTask={(taskId, date) => setHomeAction({ taskId, date, action: 'toggle' })}
           onCreateTask={date => { setActiveTab('agenda'); setHomeAction({ taskId: '', date, action: 'create' }); }} />
@@ -367,8 +366,8 @@ export default function App() {
 
       </main>
       <nav className="app-primary-nav" aria-label="Navegação principal">
-        {([{ id: 'agenda', label: 'Dashboard', Icon: ListTodo }, { id: 'calendario', label: 'Calendário', Icon: Calendar }] as const).map(({ id, label, Icon }) => {
-          const selected = id === activeTab;
+        {([{ id: 'agenda', label: 'Dashboard', Icon: ListTodo }, { id: 'calendario', label: 'Calendário', Icon: Calendar }, { id: 'mais', label: 'Mais', Icon: MoreHorizontal }] as const).map(({ id, label, Icon }) => {
+          const selected = id === activeTab || (id === 'mais' && (activeTab === 'academia' || activeTab === 'dieta'));
           return <button key={id} aria-current={selected ? 'page' : undefined} onClick={() => setActiveTab(id)}><span><Icon size={21} strokeWidth={selected ? 2 : 1.7} /></span>{label}</button>;
         })}
       </nav>
