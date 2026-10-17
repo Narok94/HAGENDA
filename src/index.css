@@ -194,8 +194,8 @@ html[data-app-display-mode="standalone"] { --app-layout-height: 100vh; height: v
    Nav remains in flex flow; main shrinks and scrolls without a footer spacer. */
 .hagenda-app-shell { --app-safe-bottom:env(safe-area-inset-bottom,0px); height:100%; min-height:0; }
 .hagenda-app-shell>main { min-height:0; overscroll-behavior-y:contain; }
-/* Safe-area padding belongs only to the nav, whose background reaches the edge. */
-.app-primary-nav { position:relative; flex-shrink:0; display:flex; justify-content:center; padding:6px max(12px,env(safe-area-inset-right,0px),calc((100vw - 680px)/2)) calc(4px + var(--app-safe-bottom)) max(12px,env(safe-area-inset-left,0px),calc((100vw - 680px)/2)); background:var(--app-card); border-top:1px solid var(--border-discreet); z-index:40; }
+/* Keep the full native safe area, without adding another bottom gap to it. */
+.app-primary-nav { position:relative; flex-shrink:0; display:flex; justify-content:center; padding:6px max(12px,env(safe-area-inset-right,0px),calc((100vw - 680px)/2)) max(4px,var(--app-safe-bottom)) max(12px,env(safe-area-inset-left,0px),calc((100vw - 680px)/2)); background:var(--app-card); border-top:1px solid var(--border-discreet); z-index:40; }
 .app-primary-nav button { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; min-height:48px; color:var(--text-sec); font-size:10px; }
 .app-primary-nav button>span { display:grid; place-items:center; width:50px; height:28px; border-radius:10px; }
 .app-primary-nav button[aria-current=page] { color:var(--text-sub); font-weight:650; }

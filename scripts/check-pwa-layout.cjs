@@ -40,7 +40,7 @@ async function check(page, safeBottom = 0, expectedHeight = null, expectedTop = 
   }
   assert.ok(Math.abs(m.nav.bottom - (top + height)) < 1, JSON.stringify(m));
   assert.ok(Math.abs(m.main.bottom - m.nav.top) < 1, JSON.stringify(m));
-  assert.equal(m.nav.paddingBottom, safeBottom + 4);
+  assert.equal(m.nav.paddingBottom, Math.max(4, safeBottom));
   assert.equal(m.main.paddingBottom, 16);
   assert.equal(m.main.overflow, 'auto');
   assert.equal(m.root.overflow, 'visible');
