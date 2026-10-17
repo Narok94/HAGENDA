@@ -23,14 +23,17 @@ async function measure(page) {
   });
 }
 
-async function check(page, safeBottom = 0) {
-  await page.waitForFunction(() => {
+async function check(page, safeBottom = 0, expectedHeight = null, expectedTop = null) {
+  await page.waitForFunction(({ expectedHeight, expectedTop }) => {
     const viewport = window.visualViewport;
-    return !viewport || Math.abs(document.querySelector('#root').getBoundingClientRect().height - viewport.height) < 1;
-  });
+    const rect = document.querySelector('#root').getBoundingClientRect();
+    const height = expectedHeight ?? viewport?.height ?? innerHeight;
+    const top = expectedTop ?? ((viewport?.pageTop ?? 0) - scrollY);
+    return Math.abs(rect.height - height) < 1 && Math.abs(rect.top - top) < 1;
+  }, { expectedHeight, expectedTop });
   const m = await measure(page);
-  const height = m.viewport?.height ?? m.innerHeight;
-  const top = (m.viewport?.pageTop ?? 0) - m.scrollY;
+  const height = expectedHeight ?? m.viewport?.height ?? m.innerHeight;
+  const top = expectedTop ?? ((m.viewport?.pageTop ?? 0) - m.scrollY);
   for (const element of ['root', 'shell']) {
     assert.ok(Math.abs(m[element].height - height) < 1, JSON.stringify(m));
     assert.ok(Math.abs(m[element].top - top) < 1, JSON.stringify(m));
@@ -50,21 +53,31 @@ async function check(page, safeBottom = 0) {
   for (const [name, engine] of Object.entries({ webkit, chromium })) {
     const browser = await engine.launch();
     try {
-      for (const viewport of [{ width: 390, height: 844 }, { width: 375, height: 667 }, { width: 844, height: 390 }]) {
-        for (const mode of ['native viewport', 'synthetic standalone/keyboard', 'no VisualViewport']) {
+      for (const viewport of [{ width: 414, height: 896 }, { width: 390, height: 844 }, { width: 375, height: 667 }, { width: 844, height: 390 }]) {
+        for (const mode of ['native viewport', 'synthetic standalone/keyboard', 'synthetic browser/keyboard', 'no VisualViewport']) {
           const page = await browser.newPage({ viewport, isMobile: true, hasTouch: true });
+          const standalone = mode === 'synthetic standalone/keyboard';
+          const restingHeight = mode.startsWith('synthetic') ? viewport.height - 48 : viewport.height;
+          const restCheck = async (inset = 0) => {
+            const m = await check(page, inset, standalone ? viewport.height : null, standalone ? 0 : null);
+            if (standalone) {
+              assert.equal(m.html.height, viewport.height);
+              assert.equal(m.body.height, viewport.height);
+            }
+            return m;
+          };
           const errors = [];
           page.on('pageerror', error => errors.push(error.message));
-          await page.addInitScript(({ mode, viewport }) => {
+          await page.addInitScript(({ mode, viewport, restingHeight, standalone }) => {
             if (mode === 'no VisualViewport') {
               Object.defineProperty(window, 'visualViewport', { value: undefined });
             } else if (mode.startsWith('synthetic')) {
               const vv = new EventTarget();
-              Object.assign(vv, { height: viewport.height, pageTop: 0, offsetTop: 0, scale: 1 });
+              Object.assign(vv, { height: restingHeight, pageTop: 0, offsetTop: 0, scale: 1 });
               Object.defineProperty(window, 'visualViewport', { value: vv });
-              Object.defineProperty(navigator, 'standalone', { value: true });
+              Object.defineProperty(navigator, 'standalone', { value: standalone });
             }
-          }, { mode, viewport });
+          }, { mode, viewport, restingHeight, standalone });
           // Isolate layout checks from backend writes and production data.
           await page.route('**/api/**', route => route.fulfill({ json:
             route.request().url().endsWith('/tasks') ? [] : {} }));
@@ -76,26 +89,43 @@ async function check(page, safeBottom = 0) {
               // Simulate the CSS environment value without capping it.
               await page.locator('.hagenda-app-shell').evaluate((el, inset) =>
                 el.style.setProperty('--app-safe-bottom', `${inset}px`), inset);
-              await check(page, inset);
+              await restCheck(inset);
             }
           }
           await page.locator('.hagenda-app-shell').evaluate(el => el.style.removeProperty('--app-safe-bottom'));
           if (mode.startsWith('synthetic')) {
-            // Keyboard shrink/pan while innerHeight remains unchanged, then dismissal.
-            for (const state of [{ height: 300, pageTop: 80 }, { height: 350, pageTop: 0 }, { height: viewport.height, pageTop: 0 }]) {
+            // Reproduce 896 CSS viewport / 848 VisualViewport without using screen.height.
+            await restCheck();
+            await page.locator('main').evaluate(main => {
+              const input = document.createElement('input');
+              input.setAttribute('data-keyboard-test', '');
+              main.prepend(input);
+              input.focus({ preventScroll: true });
+            });
+            // Allow the focus event to settle before the synthetic keyboard resizes.
+            await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+            await restCheck(); // Focus alone must not turn the 48px API discrepancy into a keyboard.
+            for (const state of [
+              { height: Math.floor(restingHeight * 0.45), pageTop: 40 },
+              { height: Math.floor(restingHeight * 0.55), pageTop: 0 },
+              { height: restingHeight, pageTop: 0 },
+            ]) {
               await page.evaluate(state => {
                 Object.assign(visualViewport, state, { offsetTop: state.pageTop });
                 visualViewport.dispatchEvent(new Event('resize'));
                 visualViewport.dispatchEvent(new Event('scroll'));
               }, state);
+              const restored = state.height === restingHeight;
+              const expectedHeight = restored && standalone ? viewport.height : state.height;
               for (const tab of ['Dashboard', 'Calendário', 'Mais']) {
                 await page.getByRole('navigation').getByRole('button', { name: tab, exact: true }).click();
-                await check(page);
+                await check(page, 0, expectedHeight, state.pageTop);
               }
-              const measurement = await check(page);
-              console.log(name, 'synthetic keyboard state:', JSON.stringify({ state, innerHeight: measurement.innerHeight, root: measurement.root.height, shell: measurement.shell.height, navBottom: measurement.nav.bottom }));
+              const measurement = await check(page, 0, expectedHeight, state.pageTop);
+              console.log(name, mode, JSON.stringify({ visualHeight: state.height, innerHeight: measurement.innerHeight,
+                rootHeight: measurement.root.height, navBottom: measurement.nav.bottom }));
             }
-            console.log(name, 'keyboard/pan/restore measurements:', JSON.stringify(await measure(page)));
+            await page.locator('[data-keyboard-test]').evaluate(input => input.remove());
           } else {
             await page.setViewportSize({ width: viewport.width, height: Math.max(300, viewport.height - 100) });
             await check(page);
@@ -110,7 +140,7 @@ async function check(page, safeBottom = 0) {
             main.scrollTop = main.scrollHeight;
           });
           assert.ok(await page.locator('main').evaluate(main => main.scrollTop > 0));
-          await check(page);
+          await restCheck();
           assert.deepEqual(errors, []);
           console.log('PASS', name, mode, JSON.stringify(viewport));
           await page.close();

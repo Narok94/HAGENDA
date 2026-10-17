@@ -31,24 +31,32 @@ html, body {
   min-height: 0;
   margin: 0;
   padding: 0;
-  background: #FF0000; /* Temporary iOS footer diagnostic. */
+  background: #FFFFFF;
   -webkit-text-size-adjust: 100%;
   /* Scroll ownership, not a footer-gap workaround: main is the scrollport. */
   overflow: hidden;
 }
 
-/* Main owns scrolling. Root follows the visible viewport instead of inheriting
-   a percentage height from the initial containing block on iOS. */
+/* Main owns scrolling. Browser mode follows the visual viewport. Standalone
+   uses CSS vh at rest: iOS can under-report drawable height through dvh and
+   VisualViewport. The keyboard override is measured only during editing. */
 #root {
   position: absolute;
   top: var(--app-viewport-top, 0px);
   left: 0;
   width: 100%;
-  height: var(--app-viewport-height, 100%);
+  height: var(--app-viewport-height, var(--app-layout-height));
 }
+html { --app-layout-height: 100%; }
 @supports (height: 100dvh) {
-  #root { height: var(--app-viewport-height, 100dvh); }
+  html { --app-layout-height: 100dvh; }
 }
+
+@media (display-mode: standalone) {
+  html { --app-layout-height: 100vh; height: var(--app-layout-height); }
+}
+/* navigator.standalone fallback for iOS versions without the media query. */
+html[data-app-display-mode="standalone"] { --app-layout-height: 100vh; height: var(--app-layout-height); }
 
 .tabbar {
   background: #FFFFFF;
@@ -79,7 +87,7 @@ html, body {
 @layer base {
   body {
     @apply font-sans antialiased text-text-sub selection:bg-brand-primary selection:text-white;
-    background: #FF0000;
+    background: #FFFFFF;
     color-scheme: light;
   }
   :root.high-contrast body {
@@ -182,7 +190,7 @@ html, body {
 .reference-overdue-label { color:#A65A30; font-size:8px; font-weight:500; }
 :root.high-contrast .reference-overdue-time,
 :root.high-contrast .reference-overdue-label { color:#FFD3A6; }
-/* One height chain in browser and standalone: visible viewport > root > shell.
+/* One height chain: selected viewport > root > shell.
    Nav remains in flex flow; main shrinks and scrolls without a footer spacer. */
 .hagenda-app-shell { --app-safe-bottom:env(safe-area-inset-bottom,0px); height:100%; min-height:0; }
 .hagenda-app-shell>main { min-height:0; overscroll-behavior-y:contain; }

@@ -1,5 +1,66 @@
 # Investigação do rodapé iOS — 2026-10-15
 
+## Atualização após o teste real de fundo vermelho — 2026-10-17
+
+O usuário confirmou no iPhone 11 que a faixa inferior muda para vermelho quando
+html/body recebem fundo vermelho. Informou screen.height=896,
+visualViewport.height=848, nav.bottom=848, gapBelowNav=0 e inset inferior=34.
+Isso comprova a exposição do fundo da página, mas não mede a altura CSS de
+100vh, o tamanho completo de root/shell ou a origem física da WebView.
+896−848=48 não é igual ao inset de 34px. Não se deve somar nenhum deles ao root
+nem usar screen.height como altura utilizável: a tela inclui áreas do sistema.
+
+A implementação anterior forçava o root a visualViewport.height, reproduzindo
+qualquer subdimensionamento que a API reportasse. gapBelowNav=0 só comparava nav
+com a mesma API usada para dimensionar o root; não comprovava cobertura física.
+O teste vermelho é evidência adicional, não uma validação dessa cobertura.
+
+A estratégia foi ajustada para standalone: html usa a altura CSS 100vh, body
+acompanha html e root/shell ocupam essa mesma altura. Assim a cadeia percentual
+não continua presa ao tamanho reduzido anterior de html/body. A detecção usa
+display-mode:standalone ou navigator.standalone. A altura normal deixa de ser
+sobrescrita pela VisualViewport. Safari em aba continua seguindo a viewport
+visível e suas barras. O fundo vermelho foi retirado, sem alterar a cor da nav
+ou pintar a faixa com uma cor de disfarce.
+
+No standalone, a API visual só dimensiona root durante uma redução observada
+com foco em campo editável, comparada à própria altura visual em repouso. A
+redução permanece ativa durante a animação de fechamento e é retirada quando a
+altura visual retorna. Nenhuma diferença CSS/visual em repouso é tratada como
+teclado. Não há screen.height no cálculo, soma de insets, altura numérica fixa,
+margem negativa ou nova regra de overflow para ocultar a área. O inset continua
+reservado uma vez no nav; main continua como scrollport da página.
+
+O WebKit registra que visualViewport/svh podem excluir espaço de PWAs com
+viewport-fit=cover, e aponta vh para a altura CSS de standalone:
+https://bugs.webkit.org/show_bug.cgi?id=254868 (comentários 2 e 3).
+Isso sustenta a mudança de estratégia, mas não confirma a versão do bug no
+aparelho do usuário. Há também relatos de áreas do sistema que usam a cor da
+página e não são acessíveis ao DOM:
+https://bugs.webkit.org/show_bug.cgi?id=301994 (comentário 12).
+Portanto, vermelho no fundo NÃO basta para excluir um problema nativo do iOS.
+
+A validação local inclui o cenário sintético com viewport CSS 414×896 e API
+visual de 848px: standalone mantém root/nav em 896; navegador mantém 848. Isso
+não afirma que 100vh será 896 no iPhone real. O painel foi preservado para medir
+root, html/body e nav após o deploy e confirmar visualmente o limite utilizável.
+Também são testadas redução/pan do teclado, restauração, quatro dimensões,
+conteúdo longo, troca das três telas e inset único em WebKit/Chromium.
+
+Validação desta atualização: TypeScript e build aprovados. O script de layout
+passou nos 32 cenários (2 motores × 4 dimensões × 4 modos) contra o build de
+produção, incluindo a diferença CSS/API de 48px, foco sem teclado, redução/pan,
+restauração e navegação. O teste do painel de diagnóstico passou nos dois
+motores. Inspeção visual local em 414×896 também realizada.
+
+**Sem iPhone/PWA real disponível nesta sessão, a resolução permanece pendente
+de validação no aparelho.** Depois do deploy, coletar o painel com teclado
+fechado, aberto e fechado novamente, junto da versão iOS e de uma captura do
+rodapé. A conferência física deve confirmar controles acima do indicador de
+início e fundo até a borda. As medições simuladas não substituem esse teste.
+
+## Histórico da investigação anterior (antes do teste vermelho)
+
 ## Estado e limite da conclusão
 
 A faixa branca do iPhone não foi reproduzida no ambiente local. Não há Safari
