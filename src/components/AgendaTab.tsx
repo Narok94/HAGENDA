@@ -349,15 +349,17 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
   };
 
   // Synchronize tasks state with DB and local state
-  const syncTaskToDb = async (task: Task) => {
+  const syncTaskToDb = async (task: Task, strict = false) => {
     try {
-      await fetch('/api/tasks', {
+      const response = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(task)
       });
+      if (!response.ok) throw new Error('Não foi possível salvar a tarefa no servidor');
     } catch (error) {
       console.error('Erro ao sincronizar tarefa com o banco:', error);
+      if (strict) throw error;
     }
   };
 
@@ -619,14 +621,9 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
     setTasks(updatedTasks);
   };
 
-  const handleSaveTask = (task: Task) => {
-    if (isCreating) {
-      setTasks([...tasks, task]);
-    } else {
-      setTasks(tasks.map(t => t.id === task.id ? task : t));
-    }
-    syncTaskToDb(task);
-    closeModal();
+  const handleSaveTask = async (task: Task) => {
+    await syncTaskToDb(task, true);
+    setTasks(current => [...current.filter(t => t.id !== task.id), task]);
   };
 
   const handleDeleteTask = (id: string) => {
@@ -704,6 +701,26 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
       setIsCreating(false);
     }, 200); // Wait for exit animation
   };
+
+  const openedPushActivity = useRef(false);
+  useEffect(() => {
+    if (!tasksLoaded || openedPushActivity.current) return;
+    const params = new URLSearchParams(location.search);
+    const id = params.get('activity');
+    const task = allCombinedTasks.find(t => t.id === id);
+    if (task) { openedPushActivity.current = true; openTaskDetails(task); }
+  }, [tasksLoaded, allCombinedTasks]);
+
+  useEffect(() => {
+    const refresh = () => {
+      fetch('/api/tasks').then(r => r.ok ? r.json() : null).then(data => { if (data) setTasks(data); }).catch(() => {});
+      fetchWorkoutState(); fetchDietState(); fetchSettingsState();
+    };
+    const message = (event: MessageEvent) => { if (event.data?.type === 'reminder-updated') refresh(); };
+    navigator.serviceWorker?.addEventListener('message', message);
+    window.addEventListener('focus', refresh);
+    return () => { navigator.serviceWorker?.removeEventListener('message', message); window.removeEventListener('focus', refresh); };
+  }, [todayStr]);
 
   const handleToggleTask = (task: Task) => {
     if (task.id === 'workout_group_summary' || task.id.startsWith('workout_')) {

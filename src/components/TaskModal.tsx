@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Trash2, Edit3, Save, Flame, Calendar as CalendarIcon, Clock, AlignLeft, Tag } from 'lucide-react';
 import { Task } from '../types';
 import { getIcon, AVAILABLE_ICONS } from '../utils/icons';
+import ReminderEditor, { defaultReminder, saveReminder } from './ReminderEditor';
 
 const getLocalTodayStr = () => {
   const d = new Date();
@@ -14,7 +15,7 @@ const getLocalTodayStr = () => {
 interface TaskModalProps {
   task?: Task;
   onClose: () => void;
-  onSave: (task: Task) => void;
+  onSave: (task: Task) => void | Promise<void>;
   onDelete?: (id: string) => void;
 }
 
@@ -34,21 +35,29 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
   const [icon, setIcon] = useState(task?.icon || 'Circle');
   const [priority, setPriority] = useState(task?.priority || false);
   const [notes, setNotes] = useState(task?.notes || '');
+  const [reminder, setReminder] = useState(defaultReminder);
+  const [saveError, setSaveError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [createdId] = useState(() => Date.now().toString());
   const [recurrence, setRecurrence] = useState<'none' | 'semanal' | 'mensal'>(task?.recurrence || 'none');
   const [recurrenceDay, setRecurrenceDay] = useState(task?.recurrenceDay || '1');
   const [recurrenceDays, setRecurrenceDays] = useState<string[]>(
     task?.recurrenceDays || (task?.recurrenceDay && task.recurrence === 'semanal' ? [task.recurrenceDay] : ['1'])
   );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) return;
+    if (saving) return;
+    setSaving(true); setSaveError('');
+    try {
     
     const finalDate = recurrence === 'semanal' 
       ? '' 
       : (date || localToday);
 
-    onSave({
-      id: task?.id || Date.now().toString(),
+    const savedId = isCreateMode ? createdId : task.id;
+    await onSave({
+      id: savedId,
       title,
       date: finalDate,
       time,
@@ -62,6 +71,10 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
       recurrenceDay: recurrence === 'mensal' ? recurrenceDay : undefined,
       recurrenceDays: recurrence === 'semanal' ? recurrenceDays : undefined,
     });
+    if (isCreateMode && reminder.mode !== 'none') await saveReminder(savedId, reminder);
+    onClose();
+    } catch(e: any) { setSaveError(e.message || 'Não foi possível salvar'); }
+    finally { setSaving(false); }
   };
 
   return (
@@ -350,6 +363,8 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
             )}
           </div>
 
+          <ReminderEditor id={isCreateMode ? undefined : task?.id} time={time} onChange={setReminder} />
+          {saveError && <p role="alert" className="text-sm text-red-600">{saveError}</p>}
           {/* Notes / Observations */}
           <div className="flex flex-col gap-2 pb-6 sm:pb-0">
             <label className="text-xs font-semibold text-[#69708A] flex items-center gap-1 font-display">

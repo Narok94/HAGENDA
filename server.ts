@@ -1,11 +1,11 @@
 import express from "express";
 import path from "path";
-import { app, setupDatabase } from "./api/index.js";
+import { app, databaseReady } from "./api/index.js";
 
 const PORT = 3000;
 
 async function startServer() {
-  await setupDatabase();
+  await databaseReady;
 
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");

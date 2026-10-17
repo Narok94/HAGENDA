@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MEAL_PLAN, DIET_INFO, Meal } from '../data/dietData';
+import ReminderEditor from './ReminderEditor';
 
 interface DietaTabProps {
   userName?: string;
@@ -140,6 +141,7 @@ export default function DietaTab({ userName = 'Henrique' }: DietaTabProps) {
 
   return (
     <div className="py-2 space-y-6 max-w-4xl mx-auto pb-12">
+      <details className="rounded-2xl border border-[#E3E8F1] p-3"><summary className="text-sm font-semibold cursor-pointer">Lembrete de água</summary><ReminderEditor id="water_daily" /></details>
 
       {/* NUTRI BANNER */}
       <div className="bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#14532D] rounded-[24px] p-5 md:p-6 text-white shadow-xl space-y-4 relative overflow-hidden">

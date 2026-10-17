@@ -16,6 +16,9 @@ export default function App() {
   const [calendarTasks, setCalendarTasks] = useState<Task[] | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [openNewTaskTrigger, setOpenNewTaskTrigger] = useState<number>(0);
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('activity') === 'water_daily') setActiveTab('dieta');
+  }, []);
 
   const [agendaNow, setAgendaNow] = useState(() => new Date());
   useEffect(() => {
@@ -504,28 +507,9 @@ export default function App() {
                       {/* Reminder Advance Time Selector */}
                       <div className="pt-3 border-t border-border-discreet/60 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-[#0E1730]">Antecedência do lembrete</span>
-                          <span className="text-[11px] font-semibold text-brand-primary">{reminderMinutes} min antes</span>
+                          <span className="text-xs font-bold text-[#0E1730]">Alertas por atividade</span>
                         </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {[5, 10, 15, 30, 60].map((mins) => {
-                            const isSelected = reminderMinutes === mins;
-                            return (
-                              <button
-                                key={mins}
-                                type="button"
-                                onClick={() => setReminderMinutes(mins)}
-                                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                                  isSelected
-                                    ? 'bg-brand-primary text-white shadow-xs'
-                                    : 'bg-white border border-border-discreet text-text-sec hover:text-text-sub hover:bg-gray-50'
-                                }`}
-                              >
-                                {mins} min
-                              </button>
-                            );
-                          })}
-                        </div>
+                        <p className="text-xs text-text-sec">Abra os detalhes da atividade para configurar antecedência, repetição e adiamento. O lembrete de água fica na aba Dieta.</p>
                       </div>
                     </div>
                   </div>

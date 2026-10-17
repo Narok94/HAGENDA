@@ -3,7 +3,10 @@ import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 import { neon } from "@neondatabase/serverless";
-import webpush from "web-push";
+import { installReminders, migrateReminders, recordCompletedOccurrences, syncSeededMealCompletions, syncSeededWorkoutCompletion, integratedConfirmations } from "./reminders.js";
+import { WORKOUT_GROUPS } from "../src/data/workoutData.js";
+import { localDate } from "./reminder-policy.js";
+import { installAccess } from "./access.js";
 
 if (process.env.NODE_ENV !== "production") {
   try {
@@ -17,6 +20,11 @@ const app = express();
 app.use(express.json());
 
 const apiRouter = express.Router();
+installAccess(apiRouter);
+apiRouter.use(async (_req, res, next) => {
+  try { await databaseReady; next(); } catch { res.status(503).json({ error: "Banco indisponível" }); }
+});
+installReminders(apiRouter, getDb);
 
 const DEFAULT_WEEKLY_TASKS = [
   {
@@ -256,14 +264,18 @@ async function setupDatabase() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       )
     `;
+    await migrateReminders(sql);
     console.log("Neon PostgreSQL conectado com sucesso! Tabelas verificadas/criadas.");
   } catch (error) {
-    console.error("Erro ao configurar tabela no Neon PostgreSQL:", error);
+    console.error("Erro ao configurar tabela no Neon PostgreSQL");
+    throw error;
   }
 }
 
 // Ensure database is initialized in serverless environments
-setupDatabase();
+const databaseReady = setupDatabase();
+// Observe rejection immediately; requests still fail closed through databaseReady.
+databaseReady.catch(() => {});
 
 // Lazy initialization of Google Gen AI to prevent crashing if the key is missing on startup
 let aiClient: GoogleGenAI | null = null;
@@ -491,30 +503,7 @@ apiRouter.get("/tasks", async (req, res) => {
   try {
     const sql = getDb();
     if (sql) {
-      // Auto-update default schedule for cardio and treino if they exist in DB
-      await sql`
-        UPDATE tasks SET recurrence_days = ${JSON.stringify(["2", "4", "6"])}
-        WHERE id = 'task_cardio'
-      `;
-      await sql`
-        UPDATE tasks SET recurrence_days = ${JSON.stringify(["1", "2", "3", "4", "5"])}
-        WHERE id = 'task_treino'
-      `;
-
-      let rows = await sql`SELECT * FROM tasks`;
-      if (rows.length === 0 || !rows.some((r: any) => r.id.startsWith('task_'))) {
-        await sql`DELETE FROM tasks`;
-        for (const t of DEFAULT_WEEKLY_TASKS) {
-          await sql`
-            INSERT INTO tasks (
-              id, title, time, date, category, icon, completed, priority, notes, recurrence, recurrence_day, recurrence_days, completed_dates, reminder_sent
-            ) VALUES (
-              ${t.id}, ${t.title}, ${t.time}, ${t.date}, ${t.category}, ${t.icon}, ${t.completed}, ${t.priority}, ${t.notes}, ${t.recurrence}, ${t.recurrenceDay}, ${JSON.stringify(t.recurrenceDays)}, ${JSON.stringify(t.completedDates)}, false
-            )
-          `;
-        }
-        rows = await sql`SELECT * FROM tasks`;
-      }
+      const rows = await sql`SELECT * FROM tasks`;
       const tasks = rows.map((row: any) => ({
         id: row.id,
         title: row.title,
@@ -547,10 +536,16 @@ apiRouter.post("/tasks", async (req, res) => {
     if (!task.id) {
       return res.status(400).json({ error: "O id da tarefa é obrigatório." });
     }
+    if (!task.title || typeof task.time !== "string" || !["none", "semanal", "mensal"].includes(task.recurrence || "none")) return res.status(400).json({ error: "Tarefa inválida" });
     const reminderSentVal = task.reminderSent !== undefined ? !!task.reminderSent : false;
     const sql = getDb();
     if (sql) {
-      await sql`
+      const reviseReminders = sql`UPDATE reminder_configs SET revision=gen_random_uuid()::text, updated_at=now(), generated_through=NULL WHERE activity_id=${task.id}
+        AND EXISTS(SELECT 1 FROM tasks WHERE id=${task.id} AND (time IS DISTINCT FROM ${task.time}
+          OR date IS DISTINCT FROM ${task.date} OR recurrence IS DISTINCT FROM ${task.recurrence || 'none'}
+          OR recurrence_day IS DISTINCT FROM ${task.recurrenceDay || ''}
+          OR recurrence_days IS DISTINCT FROM ${JSON.stringify(task.recurrenceDays || [])}))`;
+      const saveTask = sql`
         INSERT INTO tasks (
           id, title, time, date, category, icon, completed, priority, notes, recurrence, recurrence_day, recurrence_days, completed_dates, reminder_sent
         ) VALUES (
@@ -584,6 +579,10 @@ apiRouter.post("/tasks", async (req, res) => {
           completed_dates = EXCLUDED.completed_dates,
           reminder_sent = ${reminderSentVal}
       `;
+      const confirmOccurrences = sql`UPDATE reminder_occurrences SET confirmed_at=COALESCE(confirmed_at,now()) WHERE activity_id=${task.id}
+        AND (${!!task.completed} AND ${task.recurrence || 'none'}='none'
+          OR occurrence_date IN (SELECT jsonb_array_elements_text(${JSON.stringify(task.completedDates || [])}::jsonb)))`;
+      await sql.transaction([reviseReminders, saveTask, confirmOccurrences]);
       return res.json({ success: true, task });
     } else {
       const idx = memoryTasks.findIndex(t => t.id === task.id);
@@ -606,7 +605,11 @@ apiRouter.delete("/tasks/:id", async (req, res) => {
     const { id } = req.params;
     const sql = getDb();
     if (sql) {
-      await sql`DELETE FROM tasks WHERE id = ${id}`;
+      await sql.transaction([
+        sql`DELETE FROM reminder_configs WHERE activity_id=${id}`,
+        sql`UPDATE reminder_occurrences SET cancelled_at=now() WHERE activity_id=${id}`,
+        sql`DELETE FROM tasks WHERE id = ${id}`
+      ]);
     }
     memoryTasks = memoryTasks.filter(t => t.id !== id);
     return res.json({ success: true });
@@ -621,7 +624,7 @@ apiRouter.post("/tasks/reset", async (req, res) => {
     memoryTasks = [...DEFAULT_WEEKLY_TASKS];
     const sql = getDb();
     if (sql) {
-      await sql`DELETE FROM tasks`;
+      await sql.transaction([sql`DELETE FROM reminder_configs`, sql`UPDATE reminder_occurrences SET cancelled_at=now()`, sql`DELETE FROM tasks`]);
       for (const t of DEFAULT_WEEKLY_TASKS) {
         await sql`
           INSERT INTO tasks (
@@ -659,7 +662,7 @@ apiRouter.post("/subscribe", async (req, res) => {
     const actualP256dh = p256dh || keys?.p256dh;
     const actualAuth = auth || keys?.auth;
 
-    if (!endpoint || !actualP256dh || !actualAuth) {
+    if (typeof endpoint !== 'string' || !/^https:\/\//.test(endpoint) || !actualP256dh || !actualAuth) {
       return res.status(400).json({ error: "endpoint, p256dh e auth são obrigatórios." });
     }
 
@@ -705,12 +708,13 @@ apiRouter.get("/settings", async (req, res) => {
     const sql = getDb();
     if (sql) {
       const rows = await sql`SELECT user_name, high_contrast, reminder_minutes, completed_study_dates FROM user_settings WHERE id = 1`;
+      const studyConfirmations = await sql`SELECT occurrence_date FROM reminder_occurrences WHERE activity_id='study_daily_summary' AND confirmed_at IS NOT NULL`;
       if (rows.length > 0) {
         return res.json({
           userName: rows[0].user_name ?? "Henrique",
           highContrast: !!rows[0].high_contrast,
           reminderMinutes: rows[0].reminder_minutes ?? 15,
-          completedStudyDates: rows[0].completed_study_dates ? JSON.parse(rows[0].completed_study_dates) : []
+          completedStudyDates: [...new Set([...(rows[0].completed_study_dates ? JSON.parse(rows[0].completed_study_dates) : []), ...studyConfirmations.map((r: any) => r.occurrence_date)])]
         });
       }
     }
@@ -749,197 +753,10 @@ apiRouter.post("/settings", async (req, res) => {
           updated_at = CURRENT_TIMESTAMP
       `;
     }
+    await recordCompletedOccurrences(sql, localDate(new Date()));
     return res.json({ success: true, settings: memoryUserSettings });
   } catch (error: any) {
     console.error("Erro ao salvar configurações:", error);
-    return res.status(500).json({ error: error.message });
-  }
-});
-
-// Endpoint 6: Trigger Push Reminders Check (Cron / Manual)
-apiRouter.all("/send-reminders", async (req, res) => {
-  try {
-    const sql = getDb();
-
-    // 1. Fetch user settings (reminder_minutes)
-    let reminderMinutes = 15;
-    if (sql) {
-      const rows = await sql`SELECT reminder_minutes FROM user_settings WHERE id = 1`;
-      if (rows.length > 0 && rows[0].reminder_minutes !== null) {
-        reminderMinutes = Number(rows[0].reminder_minutes) || 15;
-      }
-    } else {
-      reminderMinutes = memoryUserSettings.reminderMinutes || 15;
-    }
-
-    // 2. Current local time in Brazil/BRT (UTC-3)
-    const now = new Date();
-    const dateParts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(now); // "YYYY-MM-DD"
-    const timeStr = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false }).format(now); // "HH:mm"
-    const [nowH, nowM] = timeStr.split(":").map(Number);
-    const nowTotalMins = nowH * 60 + nowM;
-
-    // 3. Fetch all tasks
-    let rawTasks: any[] = [];
-    if (sql) {
-      rawTasks = await sql`SELECT * FROM tasks`;
-    } else {
-      rawTasks = memoryTasks;
-    }
-
-    const isTaskOnDate = (task: any, dateStr: string): boolean => {
-      if (task.recurrence !== "semanal" && task.date && task.date > dateStr) return false;
-      if (!task.recurrence || task.recurrence === "none") {
-        return task.date === dateStr;
-      }
-      if (task.recurrence === "semanal") {
-        const [year, month, day] = dateStr.split("-").map(Number);
-        const d = new Date(year, month - 1, day);
-        const dayOfWeek = d.getDay().toString();
-        const recurrenceDays = typeof task.recurrence_days === "string" 
-          ? JSON.parse(task.recurrence_days) 
-          : (task.recurrenceDays || []);
-        if (recurrenceDays && recurrenceDays.length > 0) {
-          return recurrenceDays.includes(dayOfWeek);
-        }
-        return dayOfWeek === (task.recurrence_day || task.recurrenceDay);
-      }
-      if (task.recurrence === "mensal") {
-        const [year, month, day] = dateStr.split("-").map(Number);
-        const dayOfMonth = day.toString();
-        return dayOfMonth === (task.recurrence_day || task.recurrenceDay);
-      }
-      return false;
-    };
-
-    const isTaskCompletedOnDate = (task: any, dateStr: string): boolean => {
-      if (!task.recurrence || task.recurrence === "none") {
-        return !!task.completed;
-      }
-      const completedDates = typeof task.completed_dates === "string"
-        ? JSON.parse(task.completed_dates)
-        : (task.completedDates || []);
-      return completedDates.includes(dateStr);
-    };
-
-    // Filter tasks that need reminder now
-    const eligibleTasks = rawTasks.filter((t: any) => {
-      if (isTaskCompletedOnDate(t, dateParts)) return false;
-      if (!isTaskOnDate(t, dateParts)) return false;
-      
-      const isSent = t.reminder_sent !== undefined ? !!t.reminder_sent : !!t.reminderSent;
-      if (isSent) return false;
-
-      if (!t.time || typeof t.time !== "string" || !t.time.includes(":")) return false;
-
-      const [taskH, taskM] = t.time.split(":").map(Number);
-      if (isNaN(taskH) || isNaN(taskM)) return false;
-      const taskTotalMins = taskH * 60 + taskM;
-      const triggerMins = taskTotalMins - reminderMinutes;
-
-      // Check if current time is within [triggerMins, taskTotalMins + 5]
-      return nowTotalMins >= triggerMins && nowTotalMins <= taskTotalMins + 5;
-    });
-
-    if (eligibleTasks.length === 0) {
-      return res.json({
-        success: true,
-        message: "Nenhuma tarefa pendente no horário do lembrete.",
-        currentDate: dateParts,
-        currentTime: timeStr,
-        reminderMinutes,
-        eligibleTasksCount: 0,
-        sentCount: 0
-      });
-    }
-
-    // 4. Fetch subscriptions
-    let subscriptions: any[] = [];
-    if (sql) {
-      subscriptions = await sql`SELECT endpoint, p256dh, auth FROM push_subscriptions`;
-    } else {
-      subscriptions = memorySubscriptions;
-    }
-
-    if (subscriptions.length === 0) {
-      return res.json({
-        success: true,
-        message: "Há tarefas no horário, mas nenhuma inscrição de push encontrada.",
-        currentDate: dateParts,
-        currentTime: timeStr,
-        reminderMinutes,
-        eligibleTasksCount: eligibleTasks.length,
-        sentCount: 0
-      });
-    }
-
-    // Configure Web Push VAPID keys
-    const vapidPublic = (process.env.VITE_VAPID_PUBLIC_KEY || "").trim().replace(/^"|"$/g, "").replace(/^'|'$/g, "");
-    const vapidPrivate = (process.env.VAPID_PRIVATE_KEY || "").trim().replace(/^"|"$/g, "").replace(/^'|'$/g, "");
-
-    let pushConfigured = false;
-    if (vapidPublic && vapidPrivate) {
-      try {
-        webpush.setVapidDetails("mailto:contato@hagenda.app", vapidPublic, vapidPrivate);
-        pushConfigured = true;
-      } catch (err) {
-        console.error("Erro ao configurar VAPID webpush:", err);
-      }
-    }
-
-    let totalNotificationsSent = 0;
-
-    for (const task of eligibleTasks) {
-      const title = `Lembrete: ${task.title}`;
-      const body = `Sua tarefa está agendada para ${task.time} (em ${reminderMinutes} min).`;
-      const payload = JSON.stringify({
-        title,
-        body,
-        icon: "/icon-180.png",
-        badge: "/icon-180.png",
-        tag: `task-${task.id}`
-      });
-
-      if (pushConfigured) {
-        for (const sub of subscriptions) {
-          try {
-            const pushSub = {
-              endpoint: sub.endpoint,
-              keys: {
-                p256dh: sub.p256dh,
-                auth: sub.auth
-              }
-            };
-            await webpush.sendNotification(pushSub, payload);
-            totalNotificationsSent++;
-          } catch (err: any) {
-            console.error(`Erro ao enviar notificação push para ${sub.endpoint}:`, err?.message || err);
-          }
-        }
-      }
-
-      // Mark task as reminder_sent = true
-      if (sql) {
-        await sql`UPDATE tasks SET reminder_sent = true WHERE id = ${task.id}`;
-      }
-      const memIdx = memoryTasks.findIndex((t: any) => t.id === task.id);
-      if (memIdx >= 0) {
-        memoryTasks[memIdx].reminderSent = true;
-      }
-    }
-
-    return res.json({
-      success: true,
-      message: `${totalNotificationsSent} notificações enviadas para ${eligibleTasks.length} tarefas.`,
-      currentDate: dateParts,
-      currentTime: timeStr,
-      reminderMinutes,
-      eligibleTasksCount: eligibleTasks.length,
-      sentCount: totalNotificationsSent
-    });
-
-  } catch (error: any) {
-    console.error("Erro ao disparar lembretes:", error);
     return res.status(500).json({ error: error.message });
   }
 });
@@ -950,6 +767,13 @@ apiRouter.get("/workout-state", async (req, res) => {
     const sql = getDb();
     if (sql) {
       const rows = await sql`SELECT active_group_id, workout_date, completed_exercises, weights FROM workout_state WHERE id = 1`;
+      const today = localDate(new Date());
+      const confirmations = await integratedConfirmations(sql, today);
+      if (confirmations.workout) {
+        const group = WORKOUT_GROUPS.find(g => g.id === rows[0]?.active_group_id) || WORKOUT_GROUPS[0];
+        return res.json({ activeGroupId: group.id, workoutDate: today,
+          completedExercises: Object.fromEntries(group.exercises.map(e => [e.id, true])), weights: rows[0]?.weights ? JSON.parse(rows[0].weights) : {} });
+      }
       if (rows.length > 0) {
         const row = rows[0];
         let completedExercises = {};
@@ -1007,6 +831,8 @@ apiRouter.post("/workout-state", async (req, res) => {
           updated_at = CURRENT_TIMESTAMP
       `;
     }
+    await syncSeededWorkoutCompletion(sql, dateStr, group, exercisesObj);
+    await recordCompletedOccurrences(sql, dateStr);
     return res.json({ success: true, workoutState: memoryWorkoutState });
   } catch (error: any) {
     console.error("Erro ao salvar estado do treino:", error);
@@ -1020,6 +846,13 @@ apiRouter.get("/diet-state", async (req, res) => {
     const sql = getDb();
     if (sql) {
       const rows = await sql`SELECT diet_date, completed_meals, water_ml FROM diet_state WHERE id = 1`;
+      const today = localDate(new Date());
+      const confirmations = await integratedConfirmations(sql, today);
+      if (confirmations.water || Object.keys(confirmations.meals).length) {
+        const current = rows[0]?.diet_date === today ? rows[0] : null;
+        return res.json({ dietDate: today, completedMeals: { ...(current?.completed_meals ? JSON.parse(current.completed_meals) : {}), ...confirmations.meals },
+          waterMl: Math.max(Number(current?.water_ml) || 0, confirmations.water ? 3000 : 0) });
+      }
       if (rows.length > 0) {
         const row = rows[0];
         let completedMeals = {};
@@ -1068,6 +901,8 @@ apiRouter.post("/diet-state", async (req, res) => {
           updated_at = CURRENT_TIMESTAMP
       `;
     }
+    await syncSeededMealCompletions(sql, dateStr, mealsObj);
+    await recordCompletedOccurrences(sql, dateStr);
     return res.json({ success: true, dietState: memoryDietState });
   } catch (error: any) {
     console.error("Erro ao salvar estado da dieta:", error);
@@ -1076,7 +911,6 @@ apiRouter.post("/diet-state", async (req, res) => {
 });
 
 app.use("/api", apiRouter);
-app.use("/", apiRouter);
 
-export { app, setupDatabase };
+export { app, setupDatabase, databaseReady };
 export default app;

@@ -1,65 +1,36 @@
-// Service Worker for HAGENDA Push Notifications
-
-self.addEventListener('push', (event) => {
-  let data = {
-    title: 'HAGENDA',
-    body: 'Você tem uma nova atualização!',
-    icon: '/icon-180.png',
-    badge: '/icon-180.png',
-  };
-
-  if (event.data) {
-    try {
-      const parsed = event.data.json();
-      data = {
-        title: parsed.title || data.title,
-        body: parsed.body || parsed.message || data.body,
-        icon: parsed.icon || data.icon,
-        badge: parsed.badge || data.badge,
-        tag: parsed.tag,
-        data: parsed.data || {}
-      };
-    } catch (e) {
-      // If it is not JSON, use the raw text payload
-      data.body = event.data.text();
-    }
-  }
-
-  const options = {
-    body: data.body,
-    icon: data.icon,
-    badge: data.badge,
-    silent: false,
-    vibrate: [200, 100, 200],
-    data: data.data || {},
-    tag: data.tag || 'hagenda-notification',
-    renotify: true,
-    actions: [
-      { action: 'open', title: 'Abrir HAGENDA' }
-    ]
-  };
-
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
+// Repetition is scheduled on the server, without client timers.
+self.addEventListener('push', event => {
+  let payload = {};
+  try { payload = event.data?.json() || {}; } catch { payload = { body: event.data?.text() }; }
+  event.waitUntil(self.registration.showNotification(payload.title || 'HAGENDA', {
+    body: payload.body || 'Você tem uma atividade pendente.', icon: '/icon-180.png', badge: '/icon-180.png',
+    tag: payload.tag || 'hagenda', renotify: true, data: payload.data || {},
+    actions: payload.data?.token ? [{ action: 'confirm', title: 'Confirmar' }, { action: 'snooze', title: 'Adiar' }, { action: 'open', title: 'Abrir' }] : [{ action: 'open', title: 'Abrir' }]
+  }));
 });
-
-self.addEventListener('notificationclick', (event) => {
+self.addEventListener('notificationclick', event => {
   event.notification.close();
-
-  // Handle click action
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Focus on an existing open window/tab
-      for (const client of clientList) {
-        if ('focus' in client) {
-          return client.focus();
-        }
-      }
-      // Or open a new tab if none are open
-      if (clients.openWindow) {
-        return clients.openWindow('/');
-      }
-    })
-  );
+  const data = event.notification.data || {};
+  event.waitUntil((async () => {
+    if (['confirm', 'snooze'].includes(event.action) && data.token) {
+      try {
+        const response = await fetch('/api/reminder-action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: event.action, token: data.token }) });
+        if (!response.ok) throw new Error('action failed');
+        const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+        for (const client of windows) client.postMessage({ type: 'reminder-updated' });
+        const notifications = await self.registration.getNotifications({ tag: event.notification.tag });
+        for (const notification of notifications) notification.close();
+        return;
+      } catch { /* Open a visible retry flow. */ }
+    }
+    const url = new URL('/', self.location.origin);
+    if (data.id) url.searchParams.set('activity', data.id);
+    if (data.date) url.searchParams.set('date', data.date);
+    if (data.token) url.hash = new URLSearchParams({ reminderToken: data.token }).toString();
+    const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of windows) {
+      if ('navigate' in client) { await client.navigate(url.href); return client.focus(); }
+    }
+    return clients.openWindow(url.href);
+  })());
 });
