@@ -3,6 +3,7 @@ import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcas
 import { motion, AnimatePresence, useMotionValue, useTransform, useReducedMotion } from 'motion/react';
 import { Task } from '../types';
 import { formatDateLocal, isTaskOnDate, isTaskCompletedOnDate } from '../utils/taskDates';
+import { isTaskList, readTaskCache, writeTaskCache } from '../utils/taskStorage';
 import { WORKOUT_GROUPS } from '../data/workoutData';
 import { MEAL_PLAN } from '../data/dietData';
 import { getIcon } from '../utils/icons';
@@ -170,7 +171,9 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
   }, []);
   
   const handledHomeAction = useRef<AgendaHomeAction | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [initialTaskCache] = useState(readTaskCache);
+  const [tasks, setTasks] = useState<Task[]>(initialTaskCache.tasks);
+  const [taskCacheReady, setTaskCacheReady] = useState(initialTaskCache.recovered);
   const [tasksLoaded, setTasksLoaded] = useState(false);
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; mode: string }>({ connected: false, mode: 'loading' });
 
@@ -374,25 +377,29 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
   };
 
   useEffect(() => {
+    let active = true;
     const loadTasks = async () => {
       try {
         const res = await fetch('/api/tasks');
         if (res.ok) {
           const data = await res.json();
-          setTasks(data);
+          if (!isTaskList(data)) throw new Error('Resposta de tarefas inválida');
+          if (active) {
+            setTasks(data);
+            setTaskCacheReady(true);
+          }
         } else {
           throw new Error('Falha ao obter dados do banco');
         }
       } catch (error) {
         console.error('Erro ao carregar tarefas do banco:', error);
-        const saved = localStorage.getItem('momentum_tasks');
-        if (saved) setTasks(JSON.parse(saved));
       } finally {
-        setTasksLoaded(true);
+        if (active) setTasksLoaded(true);
       }
     };
     loadTasks();
     checkDbStatus();
+    return () => { active = false; };
   }, []);
 
   const [viewFilter, setViewFilter] = useState<'hoje' | 'semana' | 'mes'>('hoje');
@@ -598,8 +605,8 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
   }, [userName]);
 
   useEffect(() => {
-    localStorage.setItem('momentum_tasks', JSON.stringify(tasks));
-  }, [tasks]);
+    if (taskCacheReady) writeTaskCache(tasks);
+  }, [tasks, taskCacheReady]);
 
   const toggleTaskOnDate = (id: string, dateStr: string) => {
     const updatedTasks = tasks.map(t => {
@@ -713,7 +720,12 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
 
   useEffect(() => {
     const refresh = () => {
-      fetch('/api/tasks').then(r => r.ok ? r.json() : null).then(data => { if (data) setTasks(data); }).catch(() => {});
+      fetch('/api/tasks').then(r => r.ok ? r.json() : null).then(data => {
+        if (isTaskList(data)) {
+          setTasks(data);
+          setTaskCacheReady(true);
+        }
+      }).catch(error => console.error('Erro ao atualizar tarefas:', error));
       fetchWorkoutState(); fetchDietState(); fetchSettingsState();
     };
     const message = (event: MessageEvent) => { if (event.data?.type === 'reminder-updated') refresh(); };

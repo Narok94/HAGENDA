@@ -7,6 +7,7 @@ import { installReminders, migrateReminders, recordCompletedOccurrences, syncSee
 import { WORKOUT_GROUPS } from "../src/data/workoutData.js";
 import { localDate } from "./reminder-policy.js";
 import { installAccess } from "./access.js";
+import { installTaskPersistence, installSettingsPersistence, installPersistenceGuard, migrateTaskPersistence } from "./persistence.js";
 
 if (process.env.NODE_ENV !== "production") {
   try {
@@ -24,140 +25,10 @@ installAccess(apiRouter);
 apiRouter.use(async (_req, res, next) => {
   try { await databaseReady; next(); } catch { res.status(503).json({ error: "Banco indisponível" }); }
 });
+installPersistenceGuard(apiRouter, getDb);
 installReminders(apiRouter, getDb);
 
-const DEFAULT_WEEKLY_TASKS = [
-  {
-    id: "task_cardio",
-    title: "Cardio em jejum (moderado)",
-    time: "07:30",
-    date: "",
-    category: "Saúde",
-    icon: "Flame",
-    completed: false,
-    priority: false,
-    notes: "Cardio moderado em jejum (Ter, Qui, Sáb)",
-    recurrence: "semanal",
-    recurrenceDay: "",
-    recurrenceDays: ["2", "4", "6"],
-    completedDates: []
-  },
-  {
-    id: "task_cafe",
-    title: "Café da manhã",
-    time: "08:30",
-    date: "",
-    category: "Dieta",
-    icon: "Coffee",
-    completed: false,
-    priority: false,
-    notes: "Refeição matinal da dieta",
-    recurrence: "semanal",
-    recurrenceDay: "",
-    recurrenceDays: ["0", "1", "2", "3", "4", "5", "6"],
-    completedDates: []
-  },
-  {
-    id: "task_lanche_pre",
-    title: "Lanche (pré-treino)",
-    time: "11:00",
-    date: "",
-    category: "Dieta",
-    icon: "Apple",
-    completed: false,
-    priority: false,
-    notes: "Lanche reforçado pré-treino",
-    recurrence: "semanal",
-    recurrenceDay: "",
-    recurrenceDays: ["0", "1", "2", "3", "4", "5", "6"],
-    completedDates: []
-  },
-  {
-    id: "task_treino",
-    title: "Treino de força",
-    time: "11:30",
-    date: "",
-    category: "Academia",
-    icon: "Dumbbell",
-    completed: false,
-    priority: false,
-    notes: "Sessão diária de musculação / treino de força (Seg a Sex)",
-    recurrence: "semanal",
-    recurrenceDay: "",
-    recurrenceDays: ["1", "2", "3", "4", "5"],
-    completedDates: []
-  },
-  {
-    id: "task_almoco",
-    title: "Almoço (pós-treino)",
-    time: "13:30",
-    date: "",
-    category: "Dieta",
-    icon: "Apple",
-    completed: false,
-    priority: false,
-    notes: "Refeição de almoço pós-treino",
-    recurrence: "semanal",
-    recurrenceDay: "",
-    recurrenceDays: ["0", "1", "2", "3", "4", "5", "6"],
-    completedDates: []
-  },
-  {
-    id: "task_lanche",
-    title: "Lanche",
-    time: "17:30",
-    date: "",
-    category: "Dieta",
-    icon: "Apple",
-    completed: false,
-    priority: false,
-    notes: "Lanche da tarde",
-    recurrence: "semanal",
-    recurrenceDay: "",
-    recurrenceDays: ["0", "1", "2", "3", "4", "5", "6"],
-    completedDates: []
-  },
-  {
-    id: "task_jantar",
-    title: "Jantar",
-    time: "20:30",
-    date: "",
-    category: "Dieta",
-    icon: "Apple",
-    completed: false,
-    priority: false,
-    notes: "Refeição noturna",
-    recurrence: "semanal",
-    recurrenceDay: "",
-    recurrenceDays: ["0", "1", "2", "3", "4", "5", "6"],
-    completedDates: []
-  },
-  {
-    id: "task_estudo",
-    title: "Estudo",
-    time: "Horário flexível",
-    date: "",
-    category: "Estudo",
-    icon: "BookOpen",
-    completed: false,
-    priority: false,
-    notes: "Sessão diária de estudos",
-    recurrence: "semanal",
-    recurrenceDay: "",
-    recurrenceDays: ["0", "1", "2", "3", "4", "5", "6"],
-    completedDates: []
-  }
-];
-
-// In-memory fallback
-let memoryTasks: any[] = [...DEFAULT_WEEKLY_TASKS];
-let memorySubscriptions: any[] = [];
-let memoryUserSettings: { userName: string; highContrast: boolean; reminderMinutes: number; completedStudyDates: string[] } = {
-  userName: "Henrique",
-  highContrast: false,
-  reminderMinutes: 15,
-  completedStudyDates: [],
-};
+// Last successfully persisted snapshots, used only as a read fallback.
 let memoryWorkoutState: {
   activeGroupId: string;
   workoutDate: string;
@@ -200,30 +71,12 @@ function getDb() {
 async function setupDatabase() {
   const sql = getDb();
   if (!sql) {
-    console.log("DATABASE_URL não configurada ou inválida. O aplicativo usará persistência em memória no servidor.");
+    console.warn("DATABASE_URL não configurada ou inválida. Gravações serão recusadas até o Neon estar disponível.");
     return;
   }
   try {
     // Create database tables if they do not exist
-    await sql`
-      CREATE TABLE IF NOT EXISTS tasks (
-        id VARCHAR(255) PRIMARY KEY,
-        title TEXT NOT NULL,
-        time VARCHAR(5) NOT NULL,
-        date VARCHAR(10) NOT NULL,
-        category TEXT NOT NULL,
-        icon TEXT NOT NULL,
-        completed BOOLEAN NOT NULL DEFAULT FALSE,
-        priority BOOLEAN NOT NULL DEFAULT FALSE,
-        notes TEXT,
-        recurrence VARCHAR(50) DEFAULT 'none',
-        recurrence_day VARCHAR(10),
-        recurrence_days TEXT, -- Armazenado como string JSON array
-        completed_dates TEXT, -- Armazenado como string JSON array
-        reminder_sent BOOLEAN DEFAULT FALSE
-      )
-    `;
-    await sql`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN DEFAULT FALSE`;
+    await migrateTaskPersistence(sql);
     await sql`
       CREATE TABLE IF NOT EXISTS push_subscriptions (
         id SERIAL PRIMARY KEY,
@@ -307,7 +160,7 @@ function getAi() {
 apiRouter.get("/db-status", async (req, res) => {
   const sql = getDb();
   if (!sql) {
-    return res.json({ connected: false, mode: "memory" });
+    return res.json({ connected: false, mode: "unavailable" });
   }
   try {
     await sql`SELECT 1`;
@@ -498,162 +351,7 @@ Misture o foco físico, mental ou profissional dependendo das categorias de tare
   }
 });
 
-// Endpoint 3: CRUD for Tasks (Neon DB / Memory Fallback)
-apiRouter.get("/tasks", async (req, res) => {
-  try {
-    const sql = getDb();
-    if (sql) {
-      const rows = await sql`SELECT * FROM tasks`;
-      const tasks = rows.map((row: any) => ({
-        id: row.id,
-        title: row.title,
-        time: row.time,
-        date: row.date,
-        category: row.category,
-        icon: row.icon,
-        completed: !!row.completed,
-        priority: !!row.priority,
-        notes: row.notes || "",
-        recurrence: row.recurrence || "none",
-        recurrenceDay: row.recurrence_day || "",
-        recurrenceDays: row.recurrence_days ? JSON.parse(row.recurrence_days) : [],
-        completedDates: row.completed_dates ? JSON.parse(row.completed_dates) : [],
-        reminderSent: !!row.reminder_sent
-      }));
-      return res.json(tasks);
-    } else {
-      return res.json(memoryTasks);
-    }
-  } catch (error: any) {
-    console.error("Erro ao buscar tarefas:", error);
-    return res.json(memoryTasks);
-  }
-});
-
-apiRouter.post("/tasks", async (req, res) => {
-  try {
-    const task = req.body;
-    if (!task.id) {
-      return res.status(400).json({ error: "O id da tarefa é obrigatório." });
-    }
-    if (!task.title || typeof task.time !== "string" || !["none", "semanal", "mensal"].includes(task.recurrence || "none")) return res.status(400).json({ error: "Tarefa inválida" });
-    const reminderSentVal = task.reminderSent !== undefined ? !!task.reminderSent : false;
-    const sql = getDb();
-    if (sql) {
-      const reviseReminders = sql`UPDATE reminder_configs SET revision=gen_random_uuid()::text, updated_at=now(), generated_through=NULL WHERE activity_id=${task.id}
-        AND EXISTS(SELECT 1 FROM tasks WHERE id=${task.id} AND (time IS DISTINCT FROM ${task.time}
-          OR date IS DISTINCT FROM ${task.date} OR recurrence IS DISTINCT FROM ${task.recurrence || 'none'}
-          OR recurrence_day IS DISTINCT FROM ${task.recurrenceDay || ''}
-          OR recurrence_days IS DISTINCT FROM ${JSON.stringify(task.recurrenceDays || [])}))`;
-      const saveTask = sql`
-        INSERT INTO tasks (
-          id, title, time, date, category, icon, completed, priority, notes, recurrence, recurrence_day, recurrence_days, completed_dates, reminder_sent
-        ) VALUES (
-          ${task.id},
-          ${task.title},
-          ${task.time},
-          ${task.date},
-          ${task.category},
-          ${task.icon},
-          ${!!task.completed},
-          ${!!task.priority},
-          ${task.notes || ""},
-          ${task.recurrence || "none"},
-          ${task.recurrenceDay || ""},
-          ${JSON.stringify(task.recurrenceDays || [])},
-          ${JSON.stringify(task.completedDates || [])},
-          ${reminderSentVal}
-        )
-        ON CONFLICT (id) DO UPDATE SET
-          title = EXCLUDED.title,
-          time = EXCLUDED.time,
-          date = EXCLUDED.date,
-          category = EXCLUDED.category,
-          icon = EXCLUDED.icon,
-          completed = EXCLUDED.completed,
-          priority = EXCLUDED.priority,
-          notes = EXCLUDED.notes,
-          recurrence = EXCLUDED.recurrence,
-          recurrence_day = EXCLUDED.recurrence_day,
-          recurrence_days = EXCLUDED.recurrence_days,
-          completed_dates = EXCLUDED.completed_dates,
-          reminder_sent = ${reminderSentVal}
-      `;
-      const confirmOccurrences = sql`UPDATE reminder_occurrences SET confirmed_at=COALESCE(confirmed_at,now()) WHERE activity_id=${task.id}
-        AND (${!!task.completed} AND ${task.recurrence || 'none'}='none'
-          OR occurrence_date IN (SELECT jsonb_array_elements_text(${JSON.stringify(task.completedDates || [])}::jsonb)))`;
-      await sql.transaction([reviseReminders, saveTask, confirmOccurrences]);
-      return res.json({ success: true, task });
-    } else {
-      const idx = memoryTasks.findIndex(t => t.id === task.id);
-      const newTask = { ...task, reminderSent: reminderSentVal };
-      if (idx >= 0) {
-        memoryTasks[idx] = newTask;
-      } else {
-        memoryTasks.push(newTask);
-      }
-      return res.json({ success: true, task: newTask });
-    }
-  } catch (error: any) {
-    console.error("Erro ao salvar tarefa:", error);
-    return res.status(500).json({ error: error.message });
-  }
-});
-
-apiRouter.delete("/tasks/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const sql = getDb();
-    if (sql) {
-      await sql.transaction([
-        sql`DELETE FROM reminder_configs WHERE activity_id=${id}`,
-        sql`UPDATE reminder_occurrences SET cancelled_at=now() WHERE activity_id=${id}`,
-        sql`DELETE FROM tasks WHERE id = ${id}`
-      ]);
-    }
-    memoryTasks = memoryTasks.filter(t => t.id !== id);
-    return res.json({ success: true });
-  } catch (error: any) {
-    console.error("Erro ao deletar tarefa:", error);
-    return res.status(500).json({ error: error.message });
-  }
-});
-
-apiRouter.post("/tasks/reset", async (req, res) => {
-  try {
-    memoryTasks = [...DEFAULT_WEEKLY_TASKS];
-    const sql = getDb();
-    if (sql) {
-      await sql.transaction([sql`DELETE FROM reminder_configs`, sql`UPDATE reminder_occurrences SET cancelled_at=now()`, sql`DELETE FROM tasks`]);
-      for (const t of DEFAULT_WEEKLY_TASKS) {
-        await sql`
-          INSERT INTO tasks (
-            id, title, time, date, category, icon, completed, priority, notes, recurrence, recurrence_day, recurrence_days, completed_dates, reminder_sent
-          ) VALUES (
-            ${t.id},
-            ${t.title},
-            ${t.time},
-            ${t.date},
-            ${t.category},
-            ${t.icon},
-            ${t.completed},
-            ${t.priority},
-            ${t.notes},
-            ${t.recurrence},
-            ${t.recurrenceDay},
-            ${JSON.stringify(t.recurrenceDays)},
-            ${JSON.stringify(t.completedDates)},
-            false
-          )
-        `;
-      }
-    }
-    return res.json({ success: true, tasks: DEFAULT_WEEKLY_TASKS });
-  } catch (error: any) {
-    console.error("Erro ao resetar tarefas:", error);
-    return res.status(500).json({ error: error.message });
-  }
-});
+installTaskPersistence(apiRouter, getDb);
 
 // Endpoint 4: Subscribe to Push Notifications
 apiRouter.post("/subscribe", async (req, res) => {
@@ -667,16 +365,7 @@ apiRouter.post("/subscribe", async (req, res) => {
     }
 
     const sql = getDb();
-    if (!sql) {
-      // Memory fallback for subscriptions
-      const existingIdx = memorySubscriptions.findIndex(s => s.endpoint === endpoint);
-      if (existingIdx >= 0) {
-        memorySubscriptions[existingIdx] = { endpoint, p256dh: actualP256dh, auth: actualAuth };
-      } else {
-        memorySubscriptions.push({ endpoint, p256dh: actualP256dh, auth: actualAuth });
-      }
-      return res.json({ success: true, message: "Inscrição de notificações salva com sucesso (memória)!" });
-    }
+    if (!sql) return res.status(503).json({ error: 'Banco indisponível' });
 
     // Verificar se a inscrição já existe
     const existing = await sql`SELECT 1 FROM push_subscriptions WHERE endpoint = ${endpoint}`;
@@ -702,64 +391,7 @@ apiRouter.post("/subscribe", async (req, res) => {
   }
 });
 
-// Endpoint 5: Settings GET and POST
-apiRouter.get("/settings", async (req, res) => {
-  try {
-    const sql = getDb();
-    if (sql) {
-      const rows = await sql`SELECT user_name, high_contrast, reminder_minutes, completed_study_dates FROM user_settings WHERE id = 1`;
-      const studyConfirmations = await sql`SELECT occurrence_date FROM reminder_occurrences WHERE activity_id='study_daily_summary' AND confirmed_at IS NOT NULL`;
-      if (rows.length > 0) {
-        return res.json({
-          userName: rows[0].user_name ?? "Henrique",
-          highContrast: !!rows[0].high_contrast,
-          reminderMinutes: rows[0].reminder_minutes ?? 15,
-          completedStudyDates: [...new Set([...(rows[0].completed_study_dates ? JSON.parse(rows[0].completed_study_dates) : []), ...studyConfirmations.map((r: any) => r.occurrence_date)])]
-        });
-      }
-    }
-    return res.json(memoryUserSettings);
-  } catch (error: any) {
-    console.error("Erro ao buscar configurações:", error);
-    return res.json(memoryUserSettings);
-  }
-});
-
-apiRouter.post("/settings", async (req, res) => {
-  try {
-    const { userName, highContrast, reminderMinutes, completedStudyDates } = req.body;
-    const nameToSave = userName ?? "Henrique";
-    const contrastToSave = !!highContrast;
-    const minutesToSave = [5, 10, 15, 30, 60].includes(Number(reminderMinutes)) ? Number(reminderMinutes) : 15;
-    const studyDatesArr = Array.isArray(completedStudyDates) ? completedStudyDates : (memoryUserSettings.completedStudyDates || []);
-
-    memoryUserSettings = {
-      userName: nameToSave,
-      highContrast: contrastToSave,
-      reminderMinutes: minutesToSave,
-      completedStudyDates: studyDatesArr
-    };
-
-    const sql = getDb();
-    if (sql) {
-      await sql`
-        INSERT INTO user_settings (id, user_name, high_contrast, reminder_minutes, completed_study_dates, updated_at)
-        VALUES (1, ${nameToSave}, ${contrastToSave}, ${minutesToSave}, ${JSON.stringify(studyDatesArr)}, CURRENT_TIMESTAMP)
-        ON CONFLICT (id) DO UPDATE SET
-          user_name = EXCLUDED.user_name,
-          high_contrast = EXCLUDED.high_contrast,
-          reminder_minutes = EXCLUDED.reminder_minutes,
-          completed_study_dates = EXCLUDED.completed_study_dates,
-          updated_at = CURRENT_TIMESTAMP
-      `;
-    }
-    await recordCompletedOccurrences(sql, localDate(new Date()));
-    return res.json({ success: true, settings: memoryUserSettings });
-  } catch (error: any) {
-    console.error("Erro ao salvar configurações:", error);
-    return res.status(500).json({ error: error.message });
-  }
-});
+installSettingsPersistence(apiRouter, getDb);
 
 // Endpoint 6: Workout State GET and POST
 apiRouter.get("/workout-state", async (req, res) => {
@@ -811,7 +443,7 @@ apiRouter.post("/workout-state", async (req, res) => {
     const exercisesJsonStr = JSON.stringify(exercisesObj);
     const weightsJsonStr = JSON.stringify(weightsObj);
 
-    memoryWorkoutState = {
+    const workoutState = {
       activeGroupId: group,
       workoutDate: dateStr,
       completedExercises: exercisesObj,
@@ -819,21 +451,21 @@ apiRouter.post("/workout-state", async (req, res) => {
     };
 
     const sql = getDb();
-    if (sql) {
-      await sql`
-        INSERT INTO workout_state (id, active_group_id, workout_date, completed_exercises, weights, updated_at)
-        VALUES (1, ${group}, ${dateStr}, ${exercisesJsonStr}, ${weightsJsonStr}, CURRENT_TIMESTAMP)
-        ON CONFLICT (id) DO UPDATE SET
-          active_group_id = EXCLUDED.active_group_id,
-          workout_date = EXCLUDED.workout_date,
-          completed_exercises = EXCLUDED.completed_exercises,
-          weights = EXCLUDED.weights,
-          updated_at = CURRENT_TIMESTAMP
-      `;
-    }
+    if (!sql) return res.status(503).json({ error: 'Banco indisponível' });
+    await sql`
+      INSERT INTO workout_state (id, active_group_id, workout_date, completed_exercises, weights, updated_at)
+      VALUES (1, ${group}, ${dateStr}, ${exercisesJsonStr}, ${weightsJsonStr}, CURRENT_TIMESTAMP)
+      ON CONFLICT (id) DO UPDATE SET
+        active_group_id = EXCLUDED.active_group_id,
+        workout_date = EXCLUDED.workout_date,
+        completed_exercises = EXCLUDED.completed_exercises,
+        weights = EXCLUDED.weights,
+        updated_at = CURRENT_TIMESTAMP
+    `;
     await syncSeededWorkoutCompletion(sql, dateStr, group, exercisesObj);
     await recordCompletedOccurrences(sql, dateStr);
-    return res.json({ success: true, workoutState: memoryWorkoutState });
+    memoryWorkoutState = workoutState;
+    return res.json({ success: true, workoutState });
   } catch (error: any) {
     console.error("Erro ao salvar estado do treino:", error);
     return res.status(500).json({ error: error.message });
@@ -883,27 +515,27 @@ apiRouter.post("/diet-state", async (req, res) => {
 
     const mealsJsonStr = JSON.stringify(mealsObj);
 
-    memoryDietState = {
+    const dietState = {
       dietDate: dateStr,
       completedMeals: mealsObj,
       waterMl: water
     };
 
     const sql = getDb();
-    if (sql) {
-      await sql`
-        INSERT INTO diet_state (id, diet_date, completed_meals, water_ml, updated_at)
-        VALUES (1, ${dateStr}, ${mealsJsonStr}, ${water}, CURRENT_TIMESTAMP)
-        ON CONFLICT (id) DO UPDATE SET
-          diet_date = EXCLUDED.diet_date,
-          completed_meals = EXCLUDED.completed_meals,
-          water_ml = EXCLUDED.water_ml,
-          updated_at = CURRENT_TIMESTAMP
-      `;
-    }
+    if (!sql) return res.status(503).json({ error: 'Banco indisponível' });
+    await sql`
+      INSERT INTO diet_state (id, diet_date, completed_meals, water_ml, updated_at)
+      VALUES (1, ${dateStr}, ${mealsJsonStr}, ${water}, CURRENT_TIMESTAMP)
+      ON CONFLICT (id) DO UPDATE SET
+        diet_date = EXCLUDED.diet_date,
+        completed_meals = EXCLUDED.completed_meals,
+        water_ml = EXCLUDED.water_ml,
+        updated_at = CURRENT_TIMESTAMP
+    `;
     await syncSeededMealCompletions(sql, dateStr, mealsObj);
     await recordCompletedOccurrences(sql, dateStr);
-    return res.json({ success: true, dietState: memoryDietState });
+    memoryDietState = dietState;
+    return res.json({ success: true, dietState });
   } catch (error: any) {
     console.error("Erro ao salvar estado da dieta:", error);
     return res.status(500).json({ error: error.message });
