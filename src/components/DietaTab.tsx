@@ -6,6 +6,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { MEAL_PLAN, DIET_INFO, Meal } from '../data/dietData';
 import ReminderEditor from './ReminderEditor';
+import { useTaskSync } from '../hooks/useTaskSync';
 
 interface DietaTabProps {
   userName?: string;
@@ -22,6 +23,7 @@ const getTodayStr = (): string => {
 export default function DietaTab({ userName = 'Henrique' }: DietaTabProps) {
   // Today's date string for resetting daily states YYYY-MM-DD
   const todayStr = getTodayStr();
+  const { documents, store } = useTaskSync();
 
   // Completed meals state (key: meal.id)
   const [completedMeals, setCompletedMeals] = useState<Record<string, boolean>>({});
@@ -37,76 +39,18 @@ export default function DietaTab({ userName = 'Henrique' }: DietaTabProps) {
     return localStorage.getItem('momentum_diet_jantar_sub') === 'true';
   });
 
-  // Fetch diet state from database/API
-  const fetchDietState = async () => {
-    try {
-      const res = await fetch('/api/diet-state');
-      if (!res.ok) return;
-      const data = await res.json();
-      let meals: Record<string, boolean> = data.completedMeals || {};
-      let water: number = Number(data.waterMl) || 0;
-
-      if (data.dietDate !== todayStr) {
-        // Reset for new day
-        meals = {};
-        water = 0;
-        fetch('/api/diet-state', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            dietDate: todayStr,
-            completedMeals: {},
-            waterMl: 0
-          })
-        }).catch(err => console.error(err));
-      }
-
-      setCompletedMeals(meals);
-      setWaterIntakeMl(water);
-    } catch (err) {
-      console.error('Erro ao buscar estado da dieta:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Sync state to API
-  const syncDietState = async (
-    newMeals: Record<string, boolean>,
-    newWater: number
-  ) => {
-    try {
-      await fetch('/api/diet-state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dietDate: todayStr,
-          completedMeals: newMeals,
-          waterMl: newWater
-        })
-      });
-      window.dispatchEvent(new Event('momentum_diet_update'));
-    } catch (err) {
-      console.error('Erro ao salvar estado da dieta no servidor:', err);
-    }
-  };
-
-  // Initial load
   useEffect(() => {
-    fetchDietState();
-  }, [todayStr]);
+    const data = documents['diet-state'];
+    if (!data) return;
+    setCompletedMeals(data.dietDate === todayStr ? data.completedMeals || {} : {});
+    setWaterIntakeMl(data.dietDate === todayStr ? Number(data.waterMl) || 0 : 0);
+    setIsLoading(false);
+  }, [documents['diet-state'], todayStr]);
 
-  // Listen for sync events from AgendaTab or other tabs
-  useEffect(() => {
-    const handleSync = () => {
-      fetchDietState();
-    };
-
-    window.addEventListener('momentum_diet_update', handleSync);
-    return () => {
-      window.removeEventListener('momentum_diet_update', handleSync);
-    };
-  }, [todayStr]);
+  const syncDietState = async (newMeals: Record<string, boolean>, newWater: number) => {
+    const base = documents['diet-state'] || { dietDate: '', completedMeals: {}, waterMl: 0, version: null };
+    return store.saveDocument('diet-state', base, { ...base, dietDate: todayStr, completedMeals: newMeals, waterMl: newWater });
+  };
 
   useEffect(() => {
     localStorage.setItem('momentum_diet_jantar_sub', String(useJantarSubstitution));
@@ -117,19 +61,22 @@ export default function DietaTab({ userName = 'Henrique' }: DietaTabProps) {
       ...completedMeals,
       [mealId]: !completedMeals[mealId]
     };
-    setCompletedMeals(next);
-    syncDietState(next, waterIntakeMl);
+    void syncDietState(next, waterIntakeMl).catch(console.error);
   };
 
   const handleAddWater = (amount: number) => {
-    const nextWater = Math.min(waterIntakeMl + amount, 5000);
-    setWaterIntakeMl(nextWater);
-    syncDietState(completedMeals, nextWater);
+    const planned = store.getSnapshot().pending.filter(change => change.resource === 'diet-state' && change.after?.dietDate === todayStr).at(-1)?.after;
+    const base = planned || documents['diet-state'] || { version: null, dietDate: '', completedMeals: {}, waterMl: 0 };
+    const nextWater = Math.min((base.dietDate === todayStr ? base.waterMl : 0) + amount, 5000);
+    void store.saveDocument('diet-state', base, { ...base, dietDate: todayStr,
+      completedMeals: base.dietDate === todayStr ? base.completedMeals : {}, waterMl: nextWater }).catch(console.error);
   };
 
   const handleResetWater = () => {
-    setWaterIntakeMl(0);
-    syncDietState(completedMeals, 0);
+    const planned = store.getSnapshot().pending.filter(change => change.resource === 'diet-state' && change.after?.dietDate === todayStr).at(-1)?.after;
+    const base = planned || documents['diet-state'] || { version: null, dietDate: '', completedMeals: {}, waterMl: 0 };
+    void store.saveDocument('diet-state', base, { ...base, dietDate: todayStr,
+      completedMeals: base.dietDate === todayStr ? base.completedMeals : {}, waterMl: 0 }).catch(console.error);
   };
 
   const totalMeals = MEAL_PLAN.length;

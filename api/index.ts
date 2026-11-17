@@ -3,10 +3,9 @@ import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 import { neon } from "@neondatabase/serverless";
-import { installReminders, migrateReminders, recordCompletedOccurrences, syncSeededMealCompletions, syncSeededWorkoutCompletion, integratedConfirmations } from "./reminders.js";
-import { WORKOUT_GROUPS } from "../src/data/workoutData.js";
-import { localDate } from "./reminder-policy.js";
+import { installReminders, migrateReminders } from "./reminders.js";
 import { installAccess } from "./access.js";
+import { installIntegratedPersistence } from "./integrated-persistence.js";
 import { installTaskPersistence, installSettingsPersistence, installPersistenceGuard, migrateTaskPersistence } from "./persistence.js";
 
 if (process.env.NODE_ENV !== "production") {
@@ -27,28 +26,6 @@ apiRouter.use(async (_req, res, next) => {
 });
 installPersistenceGuard(apiRouter, getDb);
 installReminders(apiRouter, getDb);
-
-// Last successfully persisted snapshots, used only as a read fallback.
-let memoryWorkoutState: {
-  activeGroupId: string;
-  workoutDate: string;
-  completedExercises: Record<string, boolean>;
-  weights: Record<string, string>;
-} = {
-  activeGroupId: "A",
-  workoutDate: "",
-  completedExercises: {},
-  weights: {},
-};
-let memoryDietState: {
-  dietDate: string;
-  completedMeals: Record<string, boolean>;
-  waterMl: number;
-} = {
-  dietDate: "",
-  completedMeals: {},
-  waterMl: 0,
-};
 
 // Helper for database queries
 let dbClient: any = null;
@@ -393,154 +370,7 @@ apiRouter.post("/subscribe", async (req, res) => {
 
 installSettingsPersistence(apiRouter, getDb);
 
-// Endpoint 6: Workout State GET and POST
-apiRouter.get("/workout-state", async (req, res) => {
-  try {
-    const sql = getDb();
-    if (sql) {
-      const rows = await sql`SELECT active_group_id, workout_date, completed_exercises, weights FROM workout_state WHERE id = 1`;
-      const today = localDate(new Date());
-      const confirmations = await integratedConfirmations(sql, today);
-      if (confirmations.workout) {
-        const group = WORKOUT_GROUPS.find(g => g.id === rows[0]?.active_group_id) || WORKOUT_GROUPS[0];
-        return res.json({ activeGroupId: group.id, workoutDate: today,
-          completedExercises: Object.fromEntries(group.exercises.map(e => [e.id, true])), weights: rows[0]?.weights ? JSON.parse(rows[0].weights) : {} });
-      }
-      if (rows.length > 0) {
-        const row = rows[0];
-        let completedExercises = {};
-        let weights = {};
-        try {
-          completedExercises = row.completed_exercises ? JSON.parse(row.completed_exercises) : {};
-        } catch (e) {}
-        try {
-          weights = row.weights ? JSON.parse(row.weights) : {};
-        } catch (e) {}
-
-        return res.json({
-          activeGroupId: row.active_group_id || "A",
-          workoutDate: row.workout_date || "",
-          completedExercises,
-          weights
-        });
-      }
-    }
-    return res.json(memoryWorkoutState);
-  } catch (error: any) {
-    console.error("Erro ao buscar estado do treino:", error);
-    return res.json(memoryWorkoutState);
-  }
-});
-
-apiRouter.post("/workout-state", async (req, res) => {
-  try {
-    const { activeGroupId, workoutDate, completedExercises, weights } = req.body;
-    const group = activeGroupId || "A";
-    const dateStr = workoutDate || "";
-    const exercisesObj = typeof completedExercises === "object" && completedExercises !== null ? completedExercises : {};
-    const weightsObj = typeof weights === "object" && weights !== null ? weights : {};
-
-    const exercisesJsonStr = JSON.stringify(exercisesObj);
-    const weightsJsonStr = JSON.stringify(weightsObj);
-
-    const workoutState = {
-      activeGroupId: group,
-      workoutDate: dateStr,
-      completedExercises: exercisesObj,
-      weights: weightsObj
-    };
-
-    const sql = getDb();
-    if (!sql) return res.status(503).json({ error: 'Banco indisponível' });
-    await sql`
-      INSERT INTO workout_state (id, active_group_id, workout_date, completed_exercises, weights, updated_at)
-      VALUES (1, ${group}, ${dateStr}, ${exercisesJsonStr}, ${weightsJsonStr}, CURRENT_TIMESTAMP)
-      ON CONFLICT (id) DO UPDATE SET
-        active_group_id = EXCLUDED.active_group_id,
-        workout_date = EXCLUDED.workout_date,
-        completed_exercises = EXCLUDED.completed_exercises,
-        weights = EXCLUDED.weights,
-        updated_at = CURRENT_TIMESTAMP
-    `;
-    await syncSeededWorkoutCompletion(sql, dateStr, group, exercisesObj);
-    await recordCompletedOccurrences(sql, dateStr);
-    memoryWorkoutState = workoutState;
-    return res.json({ success: true, workoutState });
-  } catch (error: any) {
-    console.error("Erro ao salvar estado do treino:", error);
-    return res.status(500).json({ error: error.message });
-  }
-});
-
-// Endpoint 7: Diet State GET and POST
-apiRouter.get("/diet-state", async (req, res) => {
-  try {
-    const sql = getDb();
-    if (sql) {
-      const rows = await sql`SELECT diet_date, completed_meals, water_ml FROM diet_state WHERE id = 1`;
-      const today = localDate(new Date());
-      const confirmations = await integratedConfirmations(sql, today);
-      if (confirmations.water || Object.keys(confirmations.meals).length) {
-        const current = rows[0]?.diet_date === today ? rows[0] : null;
-        return res.json({ dietDate: today, completedMeals: { ...(current?.completed_meals ? JSON.parse(current.completed_meals) : {}), ...confirmations.meals },
-          waterMl: Math.max(Number(current?.water_ml) || 0, confirmations.water ? 3000 : 0) });
-      }
-      if (rows.length > 0) {
-        const row = rows[0];
-        let completedMeals = {};
-        try {
-          completedMeals = row.completed_meals ? JSON.parse(row.completed_meals) : {};
-        } catch (e) {}
-
-        return res.json({
-          dietDate: row.diet_date || "",
-          completedMeals,
-          waterMl: Number(row.water_ml) || 0
-        });
-      }
-    }
-    return res.json(memoryDietState);
-  } catch (error: any) {
-    console.error("Erro ao buscar estado da dieta:", error);
-    return res.json(memoryDietState);
-  }
-});
-
-apiRouter.post("/diet-state", async (req, res) => {
-  try {
-    const { dietDate, completedMeals, waterMl } = req.body;
-    const dateStr = dietDate || "";
-    const mealsObj = typeof completedMeals === "object" && completedMeals !== null ? completedMeals : {};
-    const water = Number(waterMl) || 0;
-
-    const mealsJsonStr = JSON.stringify(mealsObj);
-
-    const dietState = {
-      dietDate: dateStr,
-      completedMeals: mealsObj,
-      waterMl: water
-    };
-
-    const sql = getDb();
-    if (!sql) return res.status(503).json({ error: 'Banco indisponível' });
-    await sql`
-      INSERT INTO diet_state (id, diet_date, completed_meals, water_ml, updated_at)
-      VALUES (1, ${dateStr}, ${mealsJsonStr}, ${water}, CURRENT_TIMESTAMP)
-      ON CONFLICT (id) DO UPDATE SET
-        diet_date = EXCLUDED.diet_date,
-        completed_meals = EXCLUDED.completed_meals,
-        water_ml = EXCLUDED.water_ml,
-        updated_at = CURRENT_TIMESTAMP
-    `;
-    await syncSeededMealCompletions(sql, dateStr, mealsObj);
-    await recordCompletedOccurrences(sql, dateStr);
-    memoryDietState = dietState;
-    return res.json({ success: true, dietState });
-  } catch (error: any) {
-    console.error("Erro ao salvar estado da dieta:", error);
-    return res.status(500).json({ error: error.message });
-  }
-});
+installIntegratedPersistence(apiRouter, getDb);
 
 app.use("/api", apiRouter);
 

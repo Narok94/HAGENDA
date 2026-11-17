@@ -1,6 +1,7 @@
 // Optional: requires Playwright + Chromium/WebKit. All APIs are mocked; no push is sent.
 const assert = require('node:assert/strict');
 const { chromium, webkit } = require('playwright');
+const mockApi = require('./mock-api.cjs');
 const base = process.argv[2] || 'http://127.0.0.1:3000';
 (async () => {
   for (const [name, engine] of Object.entries({ chromium, webkit })) {
@@ -12,11 +13,7 @@ const base = process.argv[2] || 'http://127.0.0.1:3000';
       await page.route('**/api/**', async route => {
         const req = route.request(), path = new URL(req.url()).pathname;
         if (req.method() !== 'GET') writes.push({ path, body: req.postDataJSON() });
-        let data = {};
-        if (path === '/api/settings') data = { userName:'Teste',highContrast:false,reminderMinutes:15,completedStudyDates:[] };
-        if (path === '/api/tasks') data = req.method() === 'GET' ? [] : {success:true};
-        if (path === '/api/db-status') data = {connected:true,mode:'neon'};
-        if (path === '/api/reminders') data = {configs:{},scheduler:{}};
+        const data = mockApi(req, { userName: 'Teste' });
         await route.fulfill({ status:200,contentType:'application/json',body:JSON.stringify(data) });
       });
       await page.goto(base);

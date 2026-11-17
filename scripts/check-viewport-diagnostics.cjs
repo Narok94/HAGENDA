@@ -1,3 +1,4 @@
+const mockApi = require('./mock-api.cjs');
 // Optional Playwright smoke check. Start vite preview on port 5175 first.
 const assert = require('node:assert/strict');
 const { webkit, chromium } = require('playwright');
@@ -17,9 +18,7 @@ const baseURL = process.argv[2] || 'http://127.0.0.1:5175';
           },
         } });
       });
-      await page.route('**/api/**', route => route.fulfill({ json:
-        route.request().url().endsWith('/tasks') ? [] :
-        route.request().url().endsWith('/settings') ? { userName: 'PRIVATE_DIAGNOSTIC_USER' } : {} }));
+      await page.route('**/api/**', route => route.fulfill({ json: mockApi(route.request(), { userName: 'PRIVATE_DIAGNOSTIC_USER' }) }));
       await page.goto(baseURL);
       await page.getByRole('navigation').waitFor();
       assert.equal(await page.getByText('Diagnóstico do rodapé (temporário)', { exact: true }).count(), 0);

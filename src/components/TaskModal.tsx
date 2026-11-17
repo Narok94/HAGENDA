@@ -16,7 +16,7 @@ interface TaskModalProps {
   task?: Task;
   onClose: () => void;
   onSave: (task: Task) => void | Promise<void>;
-  onDelete?: (id: string) => void;
+  onDelete?: (id: string) => void | Promise<void>;
 }
 
 export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModalProps) {
@@ -38,7 +38,7 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
   const [reminder, setReminder] = useState(defaultReminder);
   const [saveError, setSaveError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [createdId] = useState(() => Date.now().toString());
+  const [createdId] = useState(() => crypto.randomUUID());
   const [recurrence, setRecurrence] = useState<'none' | 'semanal' | 'mensal'>(task?.recurrence || 'none');
   const [recurrenceDay, setRecurrenceDay] = useState(task?.recurrenceDay || '1');
   const [recurrenceDays, setRecurrenceDays] = useState<string[]>(
@@ -58,6 +58,7 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
     const savedId = isCreateMode ? createdId : task.id;
     await onSave({
       id: savedId,
+      version: task?.version,
       title,
       date: finalDate,
       time,
@@ -77,6 +78,14 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
     finally { setSaving(false); }
   };
 
+  const handleDelete = async () => {
+    if (!task || !onDelete || saving) return;
+    setSaving(true); setSaveError('');
+    try { await onDelete(task.id); }
+    catch (error: any) { setSaveError(error.message || 'Exclusão pendente. Tente novamente.'); }
+    finally { setSaving(false); }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#0E1730]/60 backdrop-blur-sm p-0 sm:p-4 pb-0">
       <div className="bg-white w-full max-w-lg rounded-t-[24px] sm:rounded-[24px] shadow-2xl border-t border-x sm:border border-[#E3E8F1] overflow-hidden animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
@@ -84,7 +93,7 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
         {/* Header */}
         <div className="flex justify-between items-center p-5 border-b border-[#E3E8F1] bg-white sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <button onClick={onClose} className="p-3 min-w-11 min-h-11 rounded-full bg-[#F3F5FA] hover:bg-[#E3E8F1] text-[#69708A] hover:text-[#0E1730] transition-colors flex items-center justify-center -ml-3">
+            <button aria-label="Fechar tarefa" onClick={onClose} className="p-3 min-w-11 min-h-11 rounded-full bg-[#F3F5FA] hover:bg-[#E3E8F1] text-[#69708A] hover:text-[#0E1730] transition-colors flex items-center justify-center -ml-3">
               <X size={18} />
             </button>
             <h2 className="text-lg font-bold text-[#0E1730] font-display">
@@ -93,17 +102,17 @@ export default function TaskModal({ task, onClose, onSave, onDelete }: TaskModal
           </div>
           <div className="flex items-center gap-2">
             {!isCreateMode && !isEditing && !isVirtual && onDelete && (
-              <button onClick={() => onDelete(task.id)} className="p-3 min-w-11 min-h-11 flex items-center justify-center rounded-full bg-red-50 hover:bg-red-100 text-[#FF5252] transition-colors">
+              <button aria-label={`Excluir ${task.title}`} disabled={saving} onClick={handleDelete} className="p-3 min-w-11 min-h-11 flex items-center justify-center rounded-full bg-red-50 hover:bg-red-100 text-[#FF5252] transition-colors">
                 <Trash2 size={18} />
               </button>
             )}
             {!isCreateMode && !isEditing && !isVirtual && (
-              <button onClick={() => setIsEditing(true)} className="p-3 min-w-11 min-h-11 flex items-center justify-center rounded-full bg-[#F3F5FA] hover:bg-[#E3E8F1] text-[#69708A] hover:text-[#0E1730] transition-colors">
+              <button aria-label="Editar tarefa" onClick={() => setIsEditing(true)} className="p-3 min-w-11 min-h-11 flex items-center justify-center rounded-full bg-[#F3F5FA] hover:bg-[#E3E8F1] text-[#69708A] hover:text-[#0E1730] transition-colors">
                 <Edit3 size={18} />
               </button>
             )}
             {isEditing && (
-              <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2.5 bg-[#2F5CFF] hover:bg-[#1E3FD6] text-white rounded-[12px] text-sm font-semibold transition-colors shadow-md shadow-[#2F5CFF]/15 cursor-pointer">
+              <button disabled={saving} onClick={handleSave} className="flex items-center gap-2 px-4 py-2.5 bg-[#2F5CFF] hover:bg-[#1E3FD6] text-white rounded-[12px] text-sm font-semibold transition-colors shadow-md shadow-[#2F5CFF]/15 cursor-pointer">
                 <Save size={16} />
                 Salvar
               </button>

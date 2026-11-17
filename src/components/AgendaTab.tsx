@@ -3,7 +3,7 @@ import { User, CheckCircle2, Circle, Flame, Sparkles, BookOpen, Coffee, Briefcas
 import { motion, AnimatePresence, useMotionValue, useTransform, useReducedMotion } from 'motion/react';
 import { Task } from '../types';
 import { formatDateLocal, isTaskOnDate, isTaskCompletedOnDate } from '../utils/taskDates';
-import { isTaskList, readTaskCache, writeTaskCache } from '../utils/taskStorage';
+import { useTaskSync } from '../hooks/useTaskSync';
 import { WORKOUT_GROUPS } from '../data/workoutData';
 import { MEAL_PLAN } from '../data/dietData';
 import { getIcon } from '../utils/icons';
@@ -171,10 +171,7 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
   }, []);
   
   const handledHomeAction = useRef<AgendaHomeAction | null>(null);
-  const [initialTaskCache] = useState(readTaskCache);
-  const [tasks, setTasks] = useState<Task[]>(initialTaskCache.tasks);
-  const [taskCacheReady, setTaskCacheReady] = useState(initialTaskCache.recovered);
-  const [tasksLoaded, setTasksLoaded] = useState(false);
+  const { tasks, loaded: tasksLoaded, documents, pending, store } = useTaskSync();
   const [dbStatus, setDbStatus] = useState<{ connected: boolean; mode: string }>({ connected: false, mode: 'loading' });
 
   useEffect(() => {
@@ -191,72 +188,22 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
   const [waterIntakeMl, setWaterIntakeMl] = useState<number>(0);
   const [completedStudyDates, setCompletedStudyDates] = useState<string[]>([]);
 
-  const fetchWorkoutState = async () => {
-    try {
-      const res = await fetch('/api/workout-state');
-      if (!res.ok) return;
-      const data = await res.json();
-      setActiveGroupId((data.activeGroupId as 'A' | 'B' | 'C' | 'D' | 'E') || 'A');
-      if (data.workoutDate === todayStr) {
-        setTodayCompletedExercises(data.completedExercises || {});
-      } else {
-        setTodayCompletedExercises({});
-      }
-      setWorkoutWeights(data.weights || {});
-    } catch (e) {
-      console.error('Erro ao buscar workout state em AgendaTab:', e);
-    }
-  };
-
-  const fetchDietState = async () => {
-    try {
-      const res = await fetch('/api/diet-state');
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.dietDate === todayStr) {
-        setCompletedMeals(data.completedMeals || {});
-        setWaterIntakeMl(Number(data.waterMl) || 0);
-      } else {
-        setCompletedMeals({});
-        setWaterIntakeMl(0);
-      }
-    } catch (e) {
-      console.error('Erro ao buscar diet state em AgendaTab:', e);
-    }
-  };
-
-  const fetchSettingsState = async () => {
-    try {
-      const res = await fetch('/api/settings');
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.completedStudyDates && Array.isArray(data.completedStudyDates)) {
-        setCompletedStudyDates(data.completedStudyDates);
-      }
-    } catch (e) {
-      console.error('Erro ao buscar settings em AgendaTab:', e);
-    }
-  };
-
   useEffect(() => {
-    fetchWorkoutState();
-    fetchDietState();
-    fetchSettingsState();
-  }, [todayStr]);
-
-  // Listen for workout/diet sync events across tabs/components
+    const data = documents['workout-state'];
+    if (!data) return;
+    setActiveGroupId(data.activeGroupId || 'A');
+    setTodayCompletedExercises(data.workoutDate === todayStr ? data.completedExercises || {} : {});
+    setWorkoutWeights(data.weights || {});
+  }, [documents['workout-state'], todayStr]);
   useEffect(() => {
-    const handleWorkoutSync = () => fetchWorkoutState();
-    const handleDietSync = () => fetchDietState();
-
-    window.addEventListener('momentum_workout_update', handleWorkoutSync);
-    window.addEventListener('momentum_diet_update', handleDietSync);
-
-    return () => {
-      window.removeEventListener('momentum_workout_update', handleWorkoutSync);
-      window.removeEventListener('momentum_diet_update', handleDietSync);
-    };
-  }, [todayStr]);
+    const data = documents['diet-state'];
+    if (!data) return;
+    setCompletedMeals(data.dietDate === todayStr ? data.completedMeals || {} : {});
+    setWaterIntakeMl(data.dietDate === todayStr ? Number(data.waterMl) || 0 : 0);
+  }, [documents['diet-state'], todayStr]);
+  useEffect(() => {
+    if (documents.settings) setCompletedStudyDates(documents.settings.completedStudyDates || []);
+  }, [documents.settings]);
 
   // Single virtual task for today's workout ("Academia") with flexible time
   const workoutVirtualTasks: Task[] = React.useMemo(() => {
@@ -351,56 +298,7 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
     }
   };
 
-  // Synchronize tasks state with DB and local state
-  const syncTaskToDb = async (task: Task, strict = false) => {
-    try {
-      const response = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(task)
-      });
-      if (!response.ok) throw new Error('Não foi possível salvar a tarefa no servidor');
-    } catch (error) {
-      console.error('Erro ao sincronizar tarefa com o banco:', error);
-      if (strict) throw error;
-    }
-  };
-
-  const syncDeleteToDb = async (id: string) => {
-    try {
-      await fetch(`/api/tasks/${id}`, {
-        method: 'DELETE'
-      });
-    } catch (error) {
-      console.error('Erro ao excluir tarefa do banco:', error);
-    }
-  };
-
-  useEffect(() => {
-    let active = true;
-    const loadTasks = async () => {
-      try {
-        const res = await fetch('/api/tasks');
-        if (res.ok) {
-          const data = await res.json();
-          if (!isTaskList(data)) throw new Error('Resposta de tarefas inválida');
-          if (active) {
-            setTasks(data);
-            setTaskCacheReady(true);
-          }
-        } else {
-          throw new Error('Falha ao obter dados do banco');
-        }
-      } catch (error) {
-        console.error('Erro ao carregar tarefas do banco:', error);
-      } finally {
-        if (active) setTasksLoaded(true);
-      }
-    };
-    loadTasks();
-    checkDbStatus();
-    return () => { active = false; };
-  }, []);
+  useEffect(() => { void checkDbStatus(); }, []);
 
   const [viewFilter, setViewFilter] = useState<'hoje' | 'semana' | 'mes'>('hoje');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -443,13 +341,23 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
     setVoiceError('');
   };
 
+  const aiTaskDraft = useRef<{ source: string; task: Task } | null>(null);
+  const voiceTaskDraft = useRef<Task | null>(null);
+  const pendingAudio = useRef<{ audio: string; mimeType: string } | null>(null);
+
   // Parse Text with IA (POST to backend)
   const handleParseAiTask = async (textToParse: string) => {
+    if (isParsing || isListening) return;
     const textClean = textToParse || aiInput;
     if (!textClean.trim()) return;
 
     setIsParsing(true);
     try {
+      if (aiTaskDraft.current?.source === textClean) {
+        await store.saveTask(null, aiTaskDraft.current.task);
+        aiTaskDraft.current = null; setAiInput(''); setIsAssistantOpen(false);
+        return;
+      }
       const response = await fetch('/api/parse-task', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -460,7 +368,7 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
       const parsed = await response.json();
 
       const newTask: Task = {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(),
         title: parsed.title || textClean,
         date: parsed.date || todayStr,
         time: parsed.time || '12:00',
@@ -474,20 +382,52 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
         recurrenceDays: parsed.recurrenceDays,
       };
 
-      setTasks(prev => [...prev, newTask]);
-      syncTaskToDb(newTask);
+      aiTaskDraft.current = { source: textClean, task: newTask };
+      await store.saveTask(null, newTask);
+      aiTaskDraft.current = null;
       setAiInput('');
       setIsAssistantOpen(false);
     } catch (error) {
-      console.error('Erro ao analisar tarefa com IA:', error);
+      console.error('Erro ao analisar ou salvar tarefa com IA:', error);
+      setVoiceError(error instanceof Error ? error.message : 'Não foi possível salvar a tarefa.');
     } finally {
       setIsParsing(false);
     }
   };
 
+  const transcribeVoice = async () => {
+    const audio = pendingAudio.current;
+    if (!audio && !voiceTaskDraft.current) return;
+    setIsParsing(true); setVoiceError('');
+    try {
+      if (!voiceTaskDraft.current) {
+        const response = await fetch('/api/transcribe-task', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...audio, currentDate: todayStr })
+        });
+        if (!response.ok) throw new Error('Falha na transcrição. O áudio foi mantido nesta aba para nova tentativa.');
+        const parsed = await response.json();
+        voiceTaskDraft.current = {
+          id: crypto.randomUUID(), title: parsed.title || 'Tarefa de áudio não compreendida',
+          date: parsed.date || todayStr, time: parsed.time || '12:00', category: parsed.category || 'Geral',
+          icon: parsed.icon || 'Circle', priority: parsed.priority || false, completed: false,
+          notes: parsed.notes || '', recurrence: parsed.recurrence || 'none', recurrenceDay: parsed.recurrenceDay,
+          recurrenceDays: parsed.recurrenceDays
+        };
+      }
+      await store.saveTask(null, voiceTaskDraft.current);
+      voiceTaskDraft.current = null; pendingAudio.current = null;
+      setIsAssistantOpen(false);
+    } catch (error) {
+      console.error('Transcrição ou salvamento pendente:', error);
+      setVoiceError(error instanceof Error ? error.message : 'Não foi possível transcrever ou salvar a tarefa.');
+    } finally { setIsParsing(false); }
+  };
+
   // Voice recognition via MediaRecorder and Backend
   const startRecording = async () => {
     setVoiceError('');
+    voiceTaskDraft.current = null; pendingAudio.current = null;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -510,49 +450,12 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
-          const base64Audio = reader.result?.toString().split(',')[1];
-          if (!base64Audio) return;
-          
-          setIsParsing(true);
-          try {
-            const response = await fetch('/api/transcribe-task', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                audio: base64Audio, 
-                currentDate: todayStr,
-                mimeType: audioBlob.type
-              })
-            });
-
-            if (!response.ok) throw new Error('Falha na transcrição');
-            const parsed = await response.json();
-
-            const newTask: Task = {
-              id: Date.now().toString(),
-              title: parsed.title || 'Tarefa de áudio não compreendida',
-              date: parsed.date || todayStr,
-              time: parsed.time || '12:00',
-              category: parsed.category || 'Geral',
-              icon: parsed.icon || 'Circle',
-              priority: parsed.priority || false,
-              completed: false,
-              notes: parsed.notes || '',
-              recurrence: parsed.recurrence || 'none',
-              recurrenceDay: parsed.recurrenceDay,
-              recurrenceDays: parsed.recurrenceDays,
-            };
-
-            setTasks(prev => [...prev, newTask]);
-            syncTaskToDb(newTask);
-            setIsAssistantOpen(false);
-          } catch (error) {
-            console.error('Erro ao transcrever:', error);
-            setVoiceError('Erro ao transcrever o áudio.');
-          } finally {
-            setIsParsing(false);
-          }
+          const audio = reader.result?.toString().split(',')[1];
+          if (!audio) { setVoiceError('Não foi possível ler o áudio. Tente gravar novamente.'); return; }
+          pendingAudio.current = { audio, mimeType: audioBlob.type };
+          await transcribeVoice();
         };
+        reader.onerror = () => setVoiceError('Não foi possível ler o áudio. Tente gravar novamente.');
       };
 
       mediaRecorder.start();
@@ -604,89 +507,83 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
     fetchInspiration();
   }, [userName]);
 
-  useEffect(() => {
-    if (taskCacheReady) writeTaskCache(tasks);
-  }, [tasks, taskCacheReady]);
+  const reportTaskError = (error: unknown) => console.error('Alteração de tarefa pendente:', error);
 
   const toggleTaskOnDate = (id: string, dateStr: string) => {
-    const updatedTasks = tasks.map(t => {
-      if (t.id !== id) return t;
-      let updated: Task;
-      if (!t.recurrence || t.recurrence === 'none') {
-        updated = { ...t, completed: !t.completed };
-      } else {
-        const completedDates = t.completedDates || [];
-        const exists = completedDates.includes(dateStr);
-        const newCompletedDates = exists 
-          ? completedDates.filter(d => d !== dateStr) 
-          : [...completedDates, dateStr];
-        updated = { ...t, completedDates: newCompletedDates };
-      }
-      syncTaskToDb(updated);
-      return updated;
-    });
-    setTasks(updatedTasks);
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    const updated = !task.recurrence || task.recurrence === 'none'
+      ? { ...task, completed: !task.completed }
+      : { ...task, completedDates: (task.completedDates || []).includes(dateStr)
+        ? task.completedDates!.filter(d => d !== dateStr) : [...(task.completedDates || []), dateStr] };
+    void store.saveTask(task, updated).catch(reportTaskError);
   };
 
+  const createdTasks = useRef(new Map<string, Task>());
   const handleSaveTask = async (task: Task) => {
-    await syncTaskToDb(task, true);
-    setTasks(current => [...current.filter(t => t.id !== task.id), task]);
+    const before = selectedTask || createdTasks.current.get(task.id) || null;
+    const saved = await store.saveTask(before, task);
+    if (!selectedTask && saved) createdTasks.current.set(task.id, saved as Task);
   };
 
-  const handleDeleteTask = (id: string) => {
-    const taskToDelete = tasks.find(t => t.id === id);
-    if (!taskToDelete) return;
-
-    if (undoDeleteState.timeoutId) {
-      clearTimeout(undoDeleteState.timeoutId);
-    }
-
-    setTasks(tasks.filter(t => t.id !== id));
-    syncDeleteToDb(id);
+  const deleteRequested = useRef<Task | null>(null);
+  const finishDeletion = (task: Task) => {
+    if (deleteRequested.current?.id !== task.id) return;
+    deleteRequested.current = null;
+    if (undoDeleteState.timeoutId) clearTimeout(undoDeleteState.timeoutId);
     closeModal();
+    const timeoutId = setTimeout(() => setUndoDeleteState({ task: null, timeoutId: null }), 5000);
+    setUndoDeleteState({ task, timeoutId });
+  };
+  const handleDeleteTask = async (id: string) => {
+    const task = selectedTask?.id === id ? selectedTask : tasks.find(t => t.id === id);
+    if (!task) return;
+    deleteRequested.current = task;
+    await store.deleteTask(task);
+    finishDeletion(task);
+  };
+  useEffect(() => {
+    const task = deleteRequested.current;
+    if (task && !tasks.some(item => item.id === task.id) && !pending.some(change => change.entityId === task.id)) finishDeletion(task);
+  }, [tasks, pending]);
 
-    const timeoutId = setTimeout(() => {
+  const handleUndoDelete = async () => {
+    if (!undoDeleteState.task) return;
+    if (undoDeleteState.timeoutId) clearTimeout(undoDeleteState.timeoutId);
+    try {
+      await store.saveTask(null, { ...undoDeleteState.task, version: undefined });
       setUndoDeleteState({ task: null, timeoutId: null });
-    }, 5000);
-
-    setUndoDeleteState({ task: taskToDelete, timeoutId });
+    } catch (error) { reportTaskError(error); }
   };
-
-  const handleUndoDelete = () => {
-    if (undoDeleteState.task) {
-      setTasks([...tasks, undoDeleteState.task]);
-      syncTaskToDb(undoDeleteState.task);
+  useEffect(() => {
+    if (undoDeleteState.task && tasks.some(t => t.id === undoDeleteState.task!.id)) {
+      if (undoDeleteState.timeoutId) clearTimeout(undoDeleteState.timeoutId);
+      setUndoDeleteState({ task: null, timeoutId: null });
     }
-    if (undoDeleteState.timeoutId) {
-      clearTimeout(undoDeleteState.timeoutId);
-    }
-    setUndoDeleteState({ task: null, timeoutId: null });
-  };
+  }, [tasks, undoDeleteState]);
 
-  const handlePostpone = (days: number) => {
+  const postponedDraft = useRef<{ key: string; task: Task } | null>(null);
+  const handlePostpone = async (days: number) => {
     if (!postponeTask) return;
     const task = postponeTask;
-    
-    // Calcula a nova data
-    const newDate = new Date(todayStr);
+    const newDate = new Date(`${todayStr}T12:00:00`);
     newDate.setDate(newDate.getDate() + days);
-    const newDateStr = newDate.toISOString().split('T')[0];
-
-    if (!task.recurrence || task.recurrence === 'none') {
-      const updated = { ...task, date: newDateStr };
-      setTasks(tasks.map(t => t.id === task.id ? updated : t));
-      syncTaskToDb(updated);
-    } else {
-      // Se for recorrente, esconde hoje adicionando aos completedDates
-      const completedDates = task.completedDates || [];
-      const updatedTask = { ...task, completedDates: [...completedDates, todayStr] };
-      // Cria uma nova tarefa apenas para a nova data, não recorrente
-      const newTask: Task = { ...task, id: Date.now().toString(), date: newDateStr, recurrence: 'none', completedDates: [] };
-      setTasks([...tasks.filter(t => t.id !== task.id), updatedTask, newTask]);
-      syncTaskToDb(updatedTask);
-      syncTaskToDb(newTask);
-    }
-    setPostponeTask(null);
+    const date = formatDateLocal(newDate);
+    try {
+      if (!task.recurrence || task.recurrence === 'none') {
+        await store.saveTask(task, { ...task, date });
+      } else {
+        const key = `${task.id}/${date}`;
+        if (postponedDraft.current?.key !== key) postponedDraft.current = { key,
+          task: { ...task, id: crypto.randomUUID(), version: undefined, date, recurrence: 'none', completed: false, completedDates: [] } };
+        await store.saveTaskBatch([
+          { before: null, after: postponedDraft.current.task },
+          { before: task, after: { ...task, completedDates: [...new Set([...(task.completedDates || []), todayStr])] } }
+        ]);
+        postponedDraft.current = null;
+      }
+      setPostponeTask(null);
+    } catch (error) { reportTaskError(error); }
   };
 
   const openCreateModal = () => {
@@ -718,88 +615,30 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
     if (task) { openedPushActivity.current = true; openTaskDetails(task); }
   }, [tasksLoaded, allCombinedTasks]);
 
-  useEffect(() => {
-    const refresh = () => {
-      fetch('/api/tasks').then(r => r.ok ? r.json() : null).then(data => {
-        if (isTaskList(data)) {
-          setTasks(data);
-          setTaskCacheReady(true);
-        }
-      }).catch(error => console.error('Erro ao atualizar tarefas:', error));
-      fetchWorkoutState(); fetchDietState(); fetchSettingsState();
-    };
-    const message = (event: MessageEvent) => { if (event.data?.type === 'reminder-updated') refresh(); };
-    navigator.serviceWorker?.addEventListener('message', message);
-    window.addEventListener('focus', refresh);
-    return () => { navigator.serviceWorker?.removeEventListener('message', message); window.removeEventListener('focus', refresh); };
-  }, [todayStr]);
-
   const handleToggleTask = (task: Task) => {
     if (task.id === 'workout_group_summary' || task.id.startsWith('workout_')) {
-      const activeGroup = WORKOUT_GROUPS.find(g => g.id === activeGroupId) || WORKOUT_GROUPS[0];
-      const isCurrentlyAllCompleted = activeGroup.exercises.length > 0 && activeGroup.exercises.every(ex => !!todayCompletedExercises[ex.id]);
-      const newCompletedState = !isCurrentlyAllCompleted;
-
-      const updated: Record<string, boolean> = { ...todayCompletedExercises };
-      activeGroup.exercises.forEach(ex => {
-        updated[ex.id] = newCompletedState;
-      });
-      setTodayCompletedExercises(updated);
-
-      fetch('/api/workout-state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          activeGroupId,
-          workoutDate: todayStr,
-          completedExercises: updated,
-          weights: workoutWeights
-        })
-      }).then(() => {
-        window.dispatchEvent(new Event('momentum_workout_update'));
-      }).catch(err => console.error(err));
+      const base = documents['workout-state'] || { version: null, activeGroupId: 'A', workoutDate: '', completedExercises: {}, weights: {} };
+      const group = WORKOUT_GROUPS.find(g => g.id === activeGroupId) || WORKOUT_GROUPS[0];
+      const completed = !group.exercises.every(ex => !!todayCompletedExercises[ex.id]);
+      const updated = { ...todayCompletedExercises };
+      group.exercises.forEach(ex => { updated[ex.id] = completed; });
+      void store.saveDocument('workout-state', base, { ...base, activeGroupId, workoutDate: todayStr,
+        completedExercises: updated, weights: workoutWeights }).catch(reportTaskError);
       return;
     }
-
     if (task.id === 'study_daily_summary') {
-      const isCompleted = completedStudyDates.includes(todayStr);
-      const newDates = isCompleted
-        ? completedStudyDates.filter(d => d !== todayStr)
-        : [...completedStudyDates, todayStr];
-
-      setCompletedStudyDates(newDates);
-
-      fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          completedStudyDates: newDates
-        })
-      }).catch(err => console.error(err));
+      const base = documents.settings || { version: null, userName, highContrast: false, reminderMinutes: 15, completedStudyDates: [] };
+      const dates = completedStudyDates.includes(todayStr) ? completedStudyDates.filter(d => d !== todayStr) : [...completedStudyDates, todayStr];
+      void store.saveDocument('settings', base, { ...base, completedStudyDates: dates }).catch(reportTaskError);
       return;
     }
-
     if (task.id.startsWith('diet_')) {
-      const mealId = task.id.replace('diet_', '');
-      const updated = {
-        ...completedMeals,
-        [mealId]: !completedMeals[mealId]
-      };
-      setCompletedMeals(updated);
-      fetch('/api/diet-state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dietDate: todayStr,
-          completedMeals: updated,
-          waterMl: waterIntakeMl
-        })
-      }).then(() => {
-        window.dispatchEvent(new Event('momentum_diet_update'));
-      }).catch(err => console.error(err));
+      const base = documents['diet-state'] || { version: null, dietDate: '', completedMeals: {}, waterMl: 0 };
+      const meal = task.id.replace('diet_', '');
+      void store.saveDocument('diet-state', base, { ...base, dietDate: todayStr,
+        completedMeals: { ...completedMeals, [meal]: !completedMeals[meal] }, waterMl: waterIntakeMl }).catch(reportTaskError);
       return;
     }
-
     toggleTaskOnDate(task.id, getTaskTargetDateForFilter(task, viewFilter, todayStr));
   };
 
@@ -1005,6 +844,7 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
                 
                 <button
                   onClick={isListening ? stopRecording : startRecording}
+                  disabled={isParsing}
                   type="button"
                   className={`w-[48px] h-[48px] rounded-[16px] flex items-center justify-center transition-all cursor-pointer shrink-0 ${
                     isListening 
@@ -1024,6 +864,8 @@ export default function AgendaTab({ userName, avatarUrl, openNewTaskTrigger, onT
               {voiceError && (
                 <p className="text-[11px] text-[#FF5252] font-semibold mt-3 text-center">
                   {voiceError}
+                  {(pendingAudio.current || voiceTaskDraft.current) && <button disabled={isParsing}
+                    className="ml-2 underline" onClick={() => { void transcribeVoice(); }}>Tentar novamente</button>}
                 </p>
               )}
             </motion.div>

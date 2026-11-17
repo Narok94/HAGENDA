@@ -8,9 +8,12 @@ import CalendarTab from './components/CalendarTab';
 import { Task } from './types';
 import { useAppViewport } from './hooks/useAppViewport';
 import ViewportDiagnostics from './components/ViewportDiagnostics';
+import TaskSyncStatus from './components/TaskSyncStatus';
+import { useTaskSyncLifecycle } from './hooks/useTaskSync';
 
 export default function App() {
   useAppViewport();
+  useTaskSyncLifecycle();
   const [activeTab, setActiveTab] = useState<'calendario' | 'agenda' | 'mais' | 'academia' | 'dieta'>('agenda');
   const [homeAction, setHomeAction] = useState<AgendaHomeAction | null>(null);
   const [calendarTasks, setCalendarTasks] = useState<Task[] | null>(null);
@@ -340,6 +343,7 @@ export default function App() {
 
         </header>}
 
+        <TaskSyncStatus />
         <div style={{ display: activeTab === 'agenda' ? 'block' : 'none' }} aria-hidden={activeTab !== 'agenda'}>
           <AgendaTab userName={userName} avatarUrl={avatarUrl} openNewTaskTrigger={openNewTaskTrigger} onCalendarTasksChange={setCalendarTasks} homeAction={homeAction} />
         </div>

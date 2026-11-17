@@ -1,3 +1,4 @@
+const mockApi = require('./mock-api.cjs');
 // Optional local verification tool: requires Playwright and its WebKit/Chromium browsers.
 // Start `npm run dev`, then run `node scripts/check-pwa-layout.cjs [base-url]`.
 // Desktop WebKit and synthetic viewport events DO NOT validate an installed iOS PWA.
@@ -79,8 +80,7 @@ async function check(page, safeBottom = 0, expectedHeight = null, expectedTop = 
             }
           }, { mode, viewport, restingHeight, standalone });
           // Isolate layout checks from backend writes and production data.
-          await page.route('**/api/**', route => route.fulfill({ json:
-            route.request().url().endsWith('/tasks') ? [] : {} }));
+          await page.route('**/api/**', route => route.fulfill({ json: mockApi(route.request()) }));
           await page.goto(baseURL);
           await page.locator('nav').waitFor();
           for (const tab of ['Dashboard', 'Calendário', 'Mais']) {
