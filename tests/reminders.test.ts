@@ -46,7 +46,11 @@ async function seed(mode = 'persistent', id = 'test') {
   await sql`INSERT INTO reminder_occurrences(activity_id,occurrence_date,revision,next_at) VALUES(${id},${today},'v1',now()-interval '1 minute')`;
   for (const endpoint of ['https://push.test/a','https://push.test/b']) await sql`INSERT INTO push_subscriptions(endpoint,p256dh,auth) VALUES(${endpoint},'key','auth')`;
 }
-const sender = (calls: string[]) => async (sub: any) => { calls.push(sub.endpoint); return {} as any; };
+const sender = (calls: string[], dates?: string[]) => async (sub: any, payload?: string) => {
+  calls.push(sub.endpoint);
+  if (dates && payload) dates.push(JSON.parse(payload).data.date);
+  return {} as any;
+};
 async function request(path: string, body?: any, auth = true) {
   return fetch(base + path, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: 'Bearer test-access-only' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
 }
@@ -149,8 +153,10 @@ test('recurring completion does not suppress the next day', async () => {
   await seed();
   await sql`UPDATE tasks SET recurrence='semanal',recurrence_days='["0","1","2","3","4","5","6"]',date='',completed_dates=${JSON.stringify([today])}`;
   await recordCompletedOccurrences(sql,today);
-  const calls: string[] = []; await runReminders(sql,sender(calls),now);
-  assert.equal(calls.length,0);
+  const calls: string[] = [], dates: string[] = []; await runReminders(sql,sender(calls, dates),now);
+  // Tomorrow can already be due during the lead window before midnight.
+  assert.equal(dates.includes(today),false);
+  assert.ok((await sql`SELECT confirmed_at FROM reminder_occurrences WHERE occurrence_date=${today}`)[0].confirmed_at);
   assert.ok((await sql`SELECT * FROM reminder_occurrences WHERE occurrence_date<>${today}`).length >= 1);
 });
 test('integrated water completion is durable when the next day replaces its snapshot', async () => {
@@ -179,7 +185,8 @@ test('seeded diet task confirmation stays synchronized with integrated meal prog
   await syncSeededMealCompletions(sql,today,{cafe_manha:true});
   await recordCompletedOccurrences(sql,today);
   assert.ok(JSON.parse((await sql`SELECT completed_dates FROM tasks`)[0].completed_dates).includes(today));
-  const calls: string[]=[]; await runReminders(sql,sender(calls),now); assert.equal(calls.length,0);
+  const calls: string[]=[], dates: string[]=[]; await runReminders(sql,sender(calls, dates),now);
+  assert.equal(dates.includes(today),false);
 });
 
 test('disabling mode prevents delivery, while no subscriptions never marks success', async () => {

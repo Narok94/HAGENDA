@@ -46,4 +46,10 @@ O projeto Vercel confirmado é `henriques-projects-46c626a8/hagenda`, repositór
 
 Antes da implantação, a migração e a importação foram exercitadas na branch cópia `hagenda-deploy-verify-330c0a5`. Duas leituras da API real nessa branch confirmaram os 24 registros, nenhum ausente, divergente ou duplicado. A comparação dos valores das colunas anteriores confirmou a preservação dos dados existentes. A linha de base de produção continha 12 tarefas, 3 inscrições push e um registro em cada tabela de perfil, treino e dieta.
 
-A comprovação final de produção depende do status Ready da Vercel e da execução da auditoria autenticada após esse deploy. Testes em cópia não substituem essa conferência.
+A implantação de produção foi confirmada como Ready e a auditoria autenticada em `https://hagenda.vercel.app` confirmou 24 publicações (14 Passione, 10 Narok Store), nenhuma ausente, divergente ou duplicada, e IDs/revisões estáveis em duas leituras. O importador também foi executado duas vezes no Neon de produção sem recriar registros.
+
+Antes de abrir a interface, os hashes dos valores anteriores permaneceram idênticos nas cinco tabelas existentes. Após o teste real de login e navegação mobile, apenas `user_settings.updated_at` avançou devido ao salvamento automático de perfil já existente; os valores das demais colunas foram comparados com a branch cópia e permaneceram iguais. Nenhum registro anterior foi removido. O teste no navegador confirmou login, aba Marketing, calendário inicial, ausência de overflow horizontal e ausência de erros JavaScript.
+
+A primeira inicialização remota retornou 503 durante a criação do schema. A execução autenticada das migrações no Neon existente passou, uma nova inicialização da implantação ficou saudável e `/api/db-status` confirmou conexão. Os logs de inicialização agora incluem o código e a mensagem do erro para futuros diagnósticos, sem imprimir parâmetros SQL ou credenciais.
+
+Os 75 testes passaram. Dois testes de lembretes foram ajustados para verificar a ausência de reenvios da ocorrência de hoje, permitindo alertas legítimos da ocorrência de amanhã dentro da antecedência antes da meia-noite. Nenhuma regra de envio foi alterada.
