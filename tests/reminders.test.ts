@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { PGlite } from '@electric-sql/pglite';
 import express from 'express';
 import { once } from 'node:events';
-import { migrateReminders, runReminders, installReminders, recordCompletedOccurrences, syncSeededMealCompletions, syncSeededWorkoutCompletion, integratedConfirmations } from '../api/reminders.js';
+import { migrateReminders, runReminders, installReminders, recordCompletedOccurrences, syncSeededMealCompletions, syncSeededWorkoutCompletion, integratedConfirmations } from '../api/_reminders.js';
 import { WORKOUT_GROUPS } from '../src/data/workoutData.js';
-import { installAccess } from '../api/access.js';
-import { actionToken, verifyActionToken, validateConfig, firstDue, localDate } from '../api/reminder-policy.js';
+import { installAccess } from '../api/_access.js';
+import { actionToken, verifyActionToken, validateConfig, firstDue, localDate } from '../api/_reminder-policy.js';
 
 let db: PGlite, sql: any, server: any, base: string;
 const now = new Date();

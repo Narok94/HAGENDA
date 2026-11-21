@@ -3,12 +3,12 @@ import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 import { neon } from "@neondatabase/serverless";
-import { installReminders, migrateReminders } from "./reminders.js";
-import { installAccess } from "./access.js";
-import { installIntegratedPersistence } from "./integrated-persistence.js";
-import { installTaskPersistence, installSettingsPersistence, installPersistenceGuard, migrateTaskPersistence } from "./persistence.js";
+import { installReminders, migrateReminders } from "./_reminders.js";
+import { installAccess } from "./_access.js";
+import { installIntegratedPersistence } from "./_integrated-persistence.js";
+import { installTaskPersistence, installSettingsPersistence, installPersistenceGuard, migrateTaskPersistence } from "./_persistence.js";
 
-import { installMarketing, migrateMarketing } from "./marketing.js";
+import { installMarketing, migrateMarketing } from "./_marketing.js";
 
 if (process.env.NODE_ENV !== "production") {
   try {

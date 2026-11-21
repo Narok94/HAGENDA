@@ -4,11 +4,11 @@ import { once } from 'node:events';
 import type { Server } from 'node:http';
 import express from 'express';
 import { PGlite } from '@electric-sql/pglite';
-import { installTaskPersistence, installSettingsPersistence, installPersistenceGuard, migrateTaskPersistence } from '../api/persistence.js';
-import { migrateReminders } from '../api/reminders.js';
-import { installIntegratedPersistence } from '../api/integrated-persistence.js';
+import { installTaskPersistence, installSettingsPersistence, installPersistenceGuard, migrateTaskPersistence } from '../api/_persistence.js';
+import { migrateReminders } from '../api/_reminders.js';
+import { installIntegratedPersistence } from '../api/_integrated-persistence.js';
 import { TaskSync } from '../src/utils/taskSync.js';
-import { localDate } from '../api/reminder-policy.js';
+import { localDate } from '../api/_reminder-policy.js';
 
 // This suite imports only injectable routes, never the production app or its env.
 let db: PGlite, sql: any, server: Server, base: string;

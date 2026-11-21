@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import type { Router } from 'express';
-import { secureEqual } from './reminder-policy.js';
+import { secureEqual } from './_reminder-policy.js';
 
 const sessionValue = (expires: number) => `${expires}.${createHmac('sha256', process.env.APP_ACCESS_TOKEN || '').update(String(expires)).digest('hex')}`;
 export function installAccess(router: Router) {

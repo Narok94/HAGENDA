@@ -1,7 +1,7 @@
 import type { Router } from "express";
-import { recordCompletedOccurrences } from "./reminders.js";
-import { localDate } from "./reminder-policy.js";
-import { versionedWrite, expectedVersion } from './versioned-write.js';
+import { recordCompletedOccurrences } from "./_reminders.js";
+import { localDate } from "./_reminder-policy.js";
+import { versionedWrite, expectedVersion } from './_versioned-write.js';
 
 export function taskFromRow(row: any) {
   return {

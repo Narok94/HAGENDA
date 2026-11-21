@@ -1,8 +1,8 @@
 import type { Router } from 'express';
 import { WORKOUT_GROUPS } from '../src/data/workoutData.js';
-import { localDate } from './reminder-policy.js';
-import { integratedConfirmations, recordCompletedOccurrences, syncSeededMealCompletions, syncSeededWorkoutCompletion } from './reminders.js';
-import { expectedVersion, versionedWrite } from './versioned-write.js';
+import { localDate } from './_reminder-policy.js';
+import { integratedConfirmations, recordCompletedOccurrences, syncSeededMealCompletions, syncSeededWorkoutCompletion } from './_reminders.js';
+import { expectedVersion, versionedWrite } from './_versioned-write.js';
 
 const linkedMeals: Record<string, string> = { task_cafe: 'cafe_manha', task_lanche_pre: 'lanche_manha', task_almoco: 'almoco', task_lanche: 'lanche_tarde', task_jantar: 'jantar' };
 async function reopen(sql: any, ids: string[], date: string) {

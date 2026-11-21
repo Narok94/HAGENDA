@@ -4,7 +4,7 @@ import webpush from 'web-push';
 import { MEAL_PLAN } from '../src/data/dietData.js';
 import { WORKOUT_GROUPS } from '../src/data/workoutData.js';
 import { isTaskOnDate, isTaskCompletedOnDate } from '../src/utils/taskDates.js';
-import { actionToken, verifyActionToken, secureEqual, validateConfig, firstDue, localDate, offsetDate } from './reminder-policy.js';
+import { actionToken, verifyActionToken, secureEqual, validateConfig, firstDue, localDate, offsetDate } from './_reminder-policy.js';
 
 const parse = (value: any, fallback: any) => typeof value === 'string' ? JSON.parse(value) : value ?? fallback;
 const linkedMeals: Record<string, string> = { task_cafe: 'cafe_manha', task_lanche_pre: 'lanche_manha', task_almoco: 'almoco', task_lanche: 'lanche_tarde', task_jantar: 'jantar' };

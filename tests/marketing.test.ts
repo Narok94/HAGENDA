@@ -8,7 +8,7 @@ import {
   migrateMarketing,
   installMarketing,
   seedMarketing,
-} from "../api/marketing.js";
+} from "../api/_marketing.js";
 import { INITIAL_MARKETING_POSTS } from "../src/data/marketingData.js";
 import { parseImport, postKey } from "../src/utils/marketing.js";
 let db: PGlite, sql: any, server: Server, base: string;
