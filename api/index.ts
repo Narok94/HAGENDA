@@ -8,6 +8,8 @@ import { installAccess } from "./access.js";
 import { installIntegratedPersistence } from "./integrated-persistence.js";
 import { installTaskPersistence, installSettingsPersistence, installPersistenceGuard, migrateTaskPersistence } from "./persistence.js";
 
+import { installMarketing, migrateMarketing } from "./marketing.js";
+
 if (process.env.NODE_ENV !== "production") {
   try {
     dotenv.config();
@@ -17,7 +19,7 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 const apiRouter = express.Router();
 installAccess(apiRouter);
@@ -54,6 +56,7 @@ async function setupDatabase() {
   try {
     // Create database tables if they do not exist
     await migrateTaskPersistence(sql);
+    await migrateMarketing(sql);
     await sql`
       CREATE TABLE IF NOT EXISTS push_subscriptions (
         id SERIAL PRIMARY KEY,
@@ -329,6 +332,7 @@ Misture o foco físico, mental ou profissional dependendo das categorias de tare
 });
 
 installTaskPersistence(apiRouter, getDb);
+installMarketing(apiRouter, getDb);
 
 // Endpoint 4: Subscribe to Push Notifications
 apiRouter.post("/subscribe", async (req, res) => {

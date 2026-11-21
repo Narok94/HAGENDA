@@ -1,0 +1,679 @@
+/* Marketing follows the supplied mobile reference and existing app tokens. */
+.marketing-page {
+  max-width: 850px;
+  margin: auto;
+  padding: 4px 0 24px;
+  color: var(--text-sub);
+}
+.marketing-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 0 24px;
+}
+.marketing-top strong {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.7px;
+}
+.marketing-top button {
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+}
+.marketing-heading {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  margin: 0 5px 22px;
+}
+.marketing-heading > span {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #dce8fc, #cbdcf7);
+  color: #163d7c;
+  border-radius: 15px;
+}
+.marketing-heading h1 {
+  font-size: 29px;
+  font-weight: 750;
+  letter-spacing: -0.7px;
+  line-height: 1.2;
+}
+.marketing-heading p {
+  font-size: 13px;
+  margin-top: 4px;
+  color: var(--text-sec);
+}
+.marketing-brands {
+  display: flex;
+  gap: 8px;
+  margin: 0 4px 20px;
+  overflow-x: auto;
+  padding-bottom: 3px;
+}
+.marketing-brands button {
+  white-space: nowrap;
+  min-height: 39px;
+  padding: 7px 23px;
+  border: 1px solid #cfd7e6;
+  border-radius: 30px;
+  font-size: 14px;
+  background: var(--app-card-sec);
+  color: var(--text-sub);
+}
+.marketing-brands button[aria-pressed="true"] {
+  background: #1b5bae;
+  color: white;
+  border-color: #1b5bae;
+}
+.marketing-brands button:last-child {
+  padding: 7px 12px;
+}
+.marketing-panel {
+  padding: 18px 15px;
+  background: color-mix(in srgb, var(--app-card) 87%, transparent);
+  border-radius: 23px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 6px #19335b04;
+}
+.marketing-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.marketing-section-title h2 {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.6px;
+  line-height: 1.2;
+}
+.marketing-section-title p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-sec);
+  margin-top: 7px;
+  text-transform: capitalize;
+}
+.marketing-section-title > span {
+  background: #dce8fa;
+  color: #164584;
+  border-radius: 30px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.marketing-posts {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.marketing-post {
+  display: flex;
+  width: 100%;
+  padding: 12px 13px;
+  text-align: left;
+  border: 1px solid #d5dae4;
+  border-radius: 16px;
+  gap: 15px;
+  min-width: 0;
+  background: color-mix(in srgb, var(--app-card) 55%, transparent);
+}
+.marketing-time {
+  flex-shrink: 0;
+  width: 64px;
+  border-right: 1px solid var(--border-discreet);
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  padding-right: 10px;
+}
+.marketing-time > strong {
+  font-size: 20px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.marketing-time > span {
+  background: #e6eefb;
+  color: #17478e;
+  width: 43px;
+  height: 43px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+}
+.marketing-time > strong:first-child {
+  font-variant-numeric: tabular-nums;
+}
+.marketing-post-copy {
+  min-width: 0;
+  flex: 1;
+}
+.marketing-post-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+.marketing-brand {
+  padding: 3px 12px;
+  border-radius: 20px;
+  background: #dce9ff;
+  color: #153c76;
+  font-weight: 700;
+}
+.marketing-brand.passione {
+  background: #f9dfeb;
+  color: #8b2438;
+}
+.marketing-network {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-sec);
+}
+.marketing-network svg {
+  color: #c34196;
+}
+.marketing-status {
+  margin-left: auto;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: 650;
+  background: #ececf4;
+  color: #50536c;
+}
+.marketing-status[data-status="Planejado"] {
+  background: #fbedce;
+  color: #865020;
+}
+.marketing-status[data-status="Em produção"] {
+  background: #dce8fc;
+  color: #174585;
+}
+.marketing-status[data-status="Pronto"] {
+  background: #dcf7de;
+  color: #24632b;
+}
+.marketing-status[data-status="Publicado"] {
+  background: #dcf4ef;
+  color: #216958;
+}
+.marketing-post-copy > strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 750;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.marketing-instructions {
+  display: block;
+  font-size: 13px;
+  line-height: 1.4;
+  margin-top: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-sec);
+}
+.marketing-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+.marketing-actions > button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 47px;
+  border: 1px solid #cfd6e3;
+  border-radius: 13px;
+  padding: 10px 13px;
+  font-size: 14px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.marketing-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 10px 16px;
+  background: #1b5bae !important;
+  color: #fff !important;
+  font-weight: 650;
+}
+.marketing-primary:disabled {
+  opacity: 0.5;
+}
+.marketing-editorial .marketing-section-title h2 {
+  font-size: 17px;
+  letter-spacing: -0.3px;
+}
+.marketing-toggle {
+  display: flex;
+  padding: 3px;
+  border: 1px solid var(--border-discreet);
+  border-radius: 15px;
+  background: var(--app-card-sec);
+}
+.marketing-toggle button {
+  padding: 6px 16px;
+  font-size: 12px;
+  border-radius: 11px;
+  min-height: 33px;
+}
+.marketing-toggle button[aria-pressed="true"] {
+  background: #3679cb;
+  color: white;
+  font-weight: 650;
+}
+.marketing-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.marketing-filters label {
+  flex: 1;
+  min-width: 100px;
+  font-size: 11px;
+  color: var(--text-sec);
+}
+.marketing-filters input,
+.marketing-filters select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin-top: 4px;
+  padding: 8px;
+  border: 1px solid var(--border-discreet);
+  border-radius: 8px;
+  background: var(--app-card);
+  color: var(--text-sub);
+  font-size: 12px;
+  min-height: 38px;
+}
+.marketing-filters > button {
+  font-size: 12px;
+  color: var(--brand-primary);
+}
+.marketing-calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  margin: 8px 0;
+}
+.marketing-calendar-nav strong {
+  flex: 1;
+  text-align: center;
+  text-transform: capitalize;
+  font-size: 12px;
+}
+.marketing-calendar-nav button {
+  min-width: 35px;
+  min-height: 40px;
+  font-size: 12px;
+  display: grid;
+  place-items: center;
+}
+.marketing-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  text-align: center;
+}
+.marketing-calendar > small {
+  font-size: 10px;
+  color: var(--text-sec);
+  padding: 5px;
+}
+.marketing-calendar > button {
+  min-height: 48px;
+  border-radius: 10px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+.marketing-calendar button small {
+  color: #3475c3;
+  font-size: 9px;
+}
+.marketing-calendar button.is-today {
+  box-shadow: inset 0 0 0 1px #94b8e5;
+}
+.marketing-calendar button.is-outside {
+  opacity: 0.4;
+}
+.marketing-calendar button[aria-pressed="true"] {
+  background: #1b5bae;
+  color: white;
+  opacity: 1;
+}
+.marketing-calendar button[aria-pressed="true"] small {
+  color: white;
+}
+.marketing-calendar-label {
+  font-size: 12px;
+  margin: 18px 0 12px;
+  text-transform: capitalize;
+  font-weight: 650;
+}
+.marketing-date-label {
+  display: block;
+  font-size: 10px;
+  color: var(--text-sec);
+  margin: 5px 3px;
+  text-transform: capitalize;
+}
+.marketing-empty {
+  font-size: 13px;
+  color: var(--text-sec);
+  padding: 15px 3px;
+  line-height: 1.5;
+}
+.marketing-notice {
+  font-size: 12px;
+  color: #216958;
+  padding: 10px;
+}
+.marketing-alert {
+  color: #a12a30;
+  background: #fff0ef;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.marketing-alert button {
+  display: block;
+  text-decoration: underline;
+  margin-top: 8px;
+}
+.marketing-home {
+  max-width: 640px;
+  margin: 20px auto 0;
+  padding: 16px;
+  background: var(--app-card);
+  border-radius: 18px;
+}
+.marketing-home > p {
+  font-size: 12px;
+  color: var(--text-sec);
+  padding: 12px 0;
+}
+.marketing-home-post {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-discreet);
+  font-size: 12px;
+}
+.marketing-home-post > span {
+  flex: 1;
+}
+.marketing-home-post small {
+  display: block;
+  color: var(--text-sec);
+  margin-top: 4px;
+}
+.marketing-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: #0e173070;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+.marketing-dialog {
+  background: var(--app-card);
+  color: var(--text-sub);
+  width: min(100%, 690px);
+  max-height: 92dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 22px;
+  padding: 20px;
+}
+.marketing-dialog > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 10px;
+}
+.marketing-dialog h2 {
+  font-size: 20px;
+  font-weight: 700;
+}
+.marketing-dialog header button {
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+}
+.marketing-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  font-size: 13px;
+}
+.marketing-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-sec);
+}
+.marketing-form input,
+.marketing-form select,
+.marketing-form textarea {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid var(--border-discreet);
+  background: var(--app-card-sec);
+  color: var(--text-sub);
+  padding: 11px;
+  border-radius: 10px;
+  font-size: 16px;
+}
+.marketing-form textarea {
+  resize: vertical;
+}
+.marketing-form input[type="file"] {
+  font-size: 12px;
+}
+.marketing-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.marketing-form fieldset {
+  border: 1px solid var(--border-discreet);
+  padding: 12px;
+  border-radius: 12px;
+}
+.marketing-form legend {
+  font-size: 12px;
+  padding: 0 5px;
+}
+.marketing-form pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  padding: 10px;
+  background: var(--app-card-sec);
+  margin-top: 10px;
+}
+.marketing-source {
+  font-size: 11px;
+  color: var(--text-sec);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+.marketing-attachment {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+.marketing-attachment a {
+  color: var(--brand-primary);
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+}
+.marketing-attachment button {
+  min-width: 40px;
+  min-height: 40px;
+  display: grid;
+  place-items: center;
+}
+.marketing-import-preview {
+  max-height: 220px;
+  overflow: auto;
+  font-size: 12px;
+}
+.marketing-import-preview p {
+  padding: 10px;
+  border-bottom: 1px solid var(--border-discreet);
+}
+.marketing-page button:focus-visible,
+.marketing-dialog :focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 3px;
+}
+.marketing-dialog button:disabled {
+  opacity: 0.5;
+}
+@media (max-width: 480px) {
+  .marketing-panel {
+    padding: 16px 11px;
+  }
+  .marketing-section-title h2 {
+    font-size: 20px;
+  }
+  .marketing-section-title > span {
+    font-size: 10px;
+    padding: 6px 8px;
+  }
+  .marketing-post {
+    padding: 11px 9px;
+    gap: 10px;
+  }
+  .marketing-time {
+    width: 58px;
+    padding-right: 8px;
+  }
+  .marketing-time > strong {
+    font-size: 16px;
+  }
+  .marketing-post-copy > strong {
+    font-size: 14px;
+  }
+  .marketing-instructions {
+    font-size: 12px;
+  }
+  .marketing-post-meta {
+    gap: 5px;
+    font-size: 10px;
+  }
+  .marketing-brand {
+    padding: 3px 8px;
+  }
+  .marketing-status {
+    padding: 3px 7px;
+  }
+  .marketing-actions {
+    gap: 7px;
+  }
+  .marketing-actions > button {
+    font-size: 11px;
+    padding: 9px 7px;
+    gap: 6px;
+  }
+  .marketing-actions svg {
+    width: 17px;
+  }
+  .marketing-heading h1 {
+    font-size: 27px;
+  }
+  .marketing-heading p {
+    font-size: 12px;
+  }
+  .marketing-editorial .marketing-section-title {
+    align-items: flex-start;
+  }
+  .marketing-editorial .marketing-section-title h2 {
+    font-size: 15px;
+  }
+  .marketing-toggle button {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+  .marketing-overlay {
+    padding: 8px;
+  }
+  .marketing-dialog {
+    padding: 16px;
+    max-height: 96dvh;
+  }
+  .marketing-network {
+    max-width: 100%;
+  }
+}
+:root.high-contrast .marketing-page {
+  color: var(--text-sub);
+}
+:root.high-contrast .marketing-panel,
+:root.high-contrast .marketing-post,
+:root.high-contrast .marketing-time > span,
+:root.high-contrast .marketing-heading > span {
+  background: var(--app-card);
+  color: var(--text-sub);
+  border: 1px solid var(--border-discreet);
+}
+
+.marketing-time > strong.marketing-untimed {
+  font-size: 12px;
+  white-space: normal;
+  line-height: 1.3;
+}
+.marketing-home-post > span > strong {
+  font-weight: 600;
+}
+.marketing-section-title p,
+.marketing-calendar-label {
+  text-transform: none;
+}
+.marketing-section-title p::first-letter {
+  text-transform: uppercase;
+}

@@ -4,6 +4,7 @@ module.exports = function mockApi(request, settings = {}) {
   const body = request.method() === 'POST' ? request.postDataJSON() : {};
   if (path === '/api/tasks') return request.method() === 'GET' ? [] : { success: true, task: { ...body, version: 'mock-saved' } };
   const documents = {
+    '/api/marketing': { posts: [], brands: ['Passione', 'Narok Store'] },
     '/api/settings': { version: null, userName: 'Henrique', highContrast: false, reminderMinutes: 15, completedStudyDates: [], ...settings },
     '/api/workout-state': { version: null, activeGroupId: 'A', workoutDate: '', completedExercises: {}, weights: {} },
     '/api/diet-state': { version: null, dietDate: '', completedMeals: {}, waterMl: 0 }

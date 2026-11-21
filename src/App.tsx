@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Dumbbell, Target, User, Settings, Camera, X, ExternalLink, Flame, Trophy, Sparkles, Bell, BellRing, Apple, Cloud, CloudOff, Plus, Home, ListTodo, MoreHorizontal, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Calendar, Dumbbell, Target, User, Settings, Camera, X, ExternalLink, Flame, Trophy, Sparkles, Bell, BellRing, Apple, Cloud, CloudOff, Plus, Home, ListTodo, MoreHorizontal, ChevronRight, ArrowLeft, Megaphone } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import AgendaTab, { type AgendaHomeAction } from './components/AgendaTab';
 import AcademiaTab from './components/AcademiaTab';
 import DietaTab from './components/DietaTab';
 import CalendarTab from './components/CalendarTab';
+import MarketingTab, { MarketingToday } from './components/MarketingTab';
+import { useMarketing } from './hooks/useMarketing';
 import { Task } from './types';
 import { useAppViewport } from './hooks/useAppViewport';
 import ViewportDiagnostics from './components/ViewportDiagnostics';
@@ -12,9 +14,11 @@ import TaskSyncStatus from './components/TaskSyncStatus';
 import { useTaskSyncLifecycle } from './hooks/useTaskSync';
 
 export default function App() {
+  const marketing = useMarketing();
   useAppViewport();
   useTaskSyncLifecycle();
-  const [activeTab, setActiveTab] = useState<'calendario' | 'agenda' | 'mais' | 'academia' | 'dieta'>('agenda');
+  const [activeTab, setActiveTab] = useState<'calendario' | 'agenda' | 'mais' | 'marketing' | 'academia' | 'dieta'>('agenda');
+  useEffect(() => { document.querySelector('.hagenda-app-shell > main')?.scrollTo(0, 0); }, [activeTab]);
   const [homeAction, setHomeAction] = useState<AgendaHomeAction | null>(null);
   const [calendarTasks, setCalendarTasks] = useState<Task[] | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -346,6 +350,7 @@ export default function App() {
         <TaskSyncStatus />
         <div style={{ display: activeTab === 'agenda' ? 'block' : 'none' }} aria-hidden={activeTab !== 'agenda'}>
           <AgendaTab userName={userName} avatarUrl={avatarUrl} openNewTaskTrigger={openNewTaskTrigger} onCalendarTasksChange={setCalendarTasks} homeAction={homeAction} />
+          <MarketingToday store={marketing} now={agendaNow} onOpen={() => setActiveTab('marketing')} />
         </div>
         <div style={{ display: activeTab === 'calendario' ? 'block' : 'none' }} aria-hidden={activeTab !== 'calendario'}>
         <CalendarTab tasks={calendarTasks} now={agendaNow}
@@ -353,6 +358,7 @@ export default function App() {
           onToggleTask={(taskId, date) => setHomeAction({ taskId, date, action: 'toggle' })}
           onCreateTask={date => { setActiveTab('agenda'); setHomeAction({ taskId: '', date, action: 'create' }); }} />
         </div>
+        {activeTab === 'marketing' && <MarketingTab store={marketing} now={agendaNow} onMenu={() => setActiveTab('mais')} onSettings={() => setIsSettingsOpen(true)} />}
         {activeTab === 'mais' && <section className="navigation-page">
           <button className="navigation-back" onClick={() => setActiveTab('agenda')}><ArrowLeft size={15} />Voltar ao Dashboard</button><p className="navigation-eyebrow">HAGENDA</p><h1>Outras áreas</h1><p className="navigation-description">Seu bem-estar e suas preferências.</p>
           <div className="more-links">
@@ -367,7 +373,7 @@ export default function App() {
 
       </main>
       <nav className="app-primary-nav" aria-label="Navegação principal">
-        {([{ id: 'agenda', label: 'Dashboard', Icon: ListTodo }, { id: 'calendario', label: 'Calendário', Icon: Calendar }, { id: 'mais', label: 'Mais', Icon: MoreHorizontal }] as const).map(({ id, label, Icon }) => {
+        {([{ id: 'agenda', label: 'Dashboard', Icon: ListTodo }, { id: 'calendario', label: 'Calendário', Icon: Calendar }, { id: 'marketing', label: 'Marketing', Icon: Megaphone }, { id: 'mais', label: 'Mais', Icon: MoreHorizontal }] as const).map(({ id, label, Icon }) => {
           const selected = id === activeTab || (id === 'mais' && (activeTab === 'academia' || activeTab === 'dieta'));
           return <button key={id} aria-current={selected ? 'page' : undefined} onClick={() => setActiveTab(id)}><span><Icon size={21} strokeWidth={selected ? 2 : 1.7} /></span>{label}</button>;
         })}

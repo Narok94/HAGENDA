@@ -26,7 +26,9 @@ test('the real app returns 503 for task reads and every persistence write withou
   for (const [method, path] of [
     ['GET', '/tasks'], ['GET', '/settings'], ['POST', '/tasks'], ['DELETE', '/tasks/custom'],
     ['POST', '/tasks/reset'], ['POST', '/settings'], ['POST', '/workout-state'],
-    ['POST', '/diet-state'], ['POST', '/subscribe']
+    ['POST', '/diet-state'], ['POST', '/subscribe'],
+    ['GET', '/marketing'], ['POST', '/marketing/posts'], ['PUT', '/marketing/posts/custom'],
+    ['DELETE', '/marketing/posts/custom'], ['POST', '/marketing/brands'], ['POST', '/marketing/import']
   ]) {
     const response = await fetch(base + path, { method, headers: {
       Authorization: 'Bearer persistence-test-only', 'Content-Type': 'application/json'
