@@ -100,7 +100,10 @@ async function setupDatabase() {
     await migrateReminders(sql);
     console.log("Neon PostgreSQL conectado com sucesso! Tabelas verificadas/criadas.");
   } catch (error) {
-    console.error("Erro ao configurar tabela no Neon PostgreSQL");
+    console.error("Erro ao configurar tabela no Neon PostgreSQL", {
+      code: (error as any)?.code || null,
+      message: (error as Error)?.message || "Erro desconhecido",
+    });
     throw error;
   }
 }
