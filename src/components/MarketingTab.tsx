@@ -223,7 +223,7 @@ export default function MarketingTab({
     [status, setStatus] = useState(""),
     [start, setStart] = useState(""),
     [end, setEnd] = useState("");
-  const [mode, setMode] = useState<"week" | "month">("week"),
+  const [mode, setMode] = useState<"week" | "month" | "all">("week"),
     [cursor, setCursor] = useState(today),
     [selected, setSelected] = useState(today);
   const [draft, setDraft] = useState<MarketingPost | null>(null),
@@ -235,6 +235,34 @@ export default function MarketingTab({
     [busy, setBusy] = useState(false),
     [brandOpen, setBrandOpen] = useState(false),
     [brandName, setBrandName] = useState("");
+  const calendarInitialized = useRef(false);
+  useEffect(() => {
+    if (store.loading || store.error || calendarInitialized.current) return;
+    calendarInitialized.current = true;
+    const monday = new Date(today + "T12:00:00");
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 6);
+    const dates = store.posts.map((p) => p.date).sort();
+    if (
+      dates.some((date) => date >= dateKey(monday) && date <= dateKey(sunday))
+    )
+      return;
+    const next = dates.find((date) => date >= today) || dates.at(-1);
+    if (next) {
+      setCursor(next);
+      setSelected(next);
+    }
+  }, [store.loading, store.error, store.posts, today]);
+  const showSaved = () => {
+    setBrand("");
+    setStatus("");
+    setStart("");
+    setEnd("");
+    setMode("all");
+    setImportOpen(false);
+    requestAnimationFrame(() => document.querySelector(".marketing-editorial")?.scrollIntoView({ block: "start" }));
+  };
   const filtered = store.posts
     .filter(
       (p) =>
@@ -259,9 +287,11 @@ export default function MarketingTab({
     return dateKey(d);
   });
   const calendarPosts = filtered.filter((p) =>
-    mode === "week"
-      ? p.date >= days[0] && p.date <= days[6]
-      : p.date === selected,
+    mode === "all"
+      ? true
+      : mode === "week"
+        ? p.date >= days[0] && p.date <= days[6]
+        : p.date === selected,
   );
   const move = (amount: number) => {
     const d = new Date(anchor);
@@ -300,7 +330,8 @@ export default function MarketingTab({
         draft.version,
       );
       setDraft(null);
-      setNotice("Publicação salva no Neon.");
+      showSaved();
+      setNotice("Publicação salva.");
     });
   };
   const duplicate = () => {
@@ -361,6 +392,12 @@ export default function MarketingTab({
           <Plus size={18} />
         </button>
       </div>
+      {!store.loading && !store.error && (
+        <div className="marketing-saved-summary">
+          <span>{store.posts.length} publicações salvas</span>
+          <button onClick={showSaved}>Ver todas</button>
+        </div>
+      )}
       {store.error && (
         <div className="marketing-alert" role="alert">
           {store.error}
@@ -431,13 +468,13 @@ export default function MarketingTab({
             Calendário editorial
           </h2>
           <div className="marketing-toggle">
-            {(["week", "month"] as const).map((m) => (
+            {(["week", "month", "all"] as const).map((m) => (
               <button
                 key={m}
                 aria-pressed={mode === m}
                 onClick={() => setMode(m)}
               >
-                {m === "week" ? "Semana" : "Mês"}
+                {m === "week" ? "Semana" : m === "month" ? "Mês" : "Todas"}
               </button>
             ))}
           </div>
@@ -457,7 +494,10 @@ export default function MarketingTab({
             <input
               type="date"
               value={start}
-              onChange={(e) => setStart(e.target.value)}
+              onChange={(e) => {
+                setStart(e.target.value);
+                if (e.target.value) setMode("all");
+              }}
             />
           </label>
           <label>
@@ -466,7 +506,10 @@ export default function MarketingTab({
               type="date"
               min={start}
               value={end}
-              onChange={(e) => setEnd(e.target.value)}
+              onChange={(e) => {
+                setEnd(e.target.value);
+                if (e.target.value) setMode("all");
+              }}
             />
           </label>
           {(start || end || status || brand) && (
@@ -482,53 +525,61 @@ export default function MarketingTab({
             </button>
           )}
         </div>
-        <div className="marketing-calendar-nav">
-          <button aria-label="Período anterior" onClick={() => move(-1)}>
-            <ChevronLeft size={20} />
-          </button>
-          <strong>
-            {mode === "month"
-              ? anchor.toLocaleDateString("pt-BR", {
-                  month: "long",
-                  year: "numeric",
-                })
-              : `${days[0].split("-").reverse().join("/")} – ${days[6].split("-").reverse().join("/")}`}
-          </strong>
-          <button aria-label="Próximo período" onClick={() => move(1)}>
-            <ChevronRight size={20} />
-          </button>
-          <button
-            onClick={() => {
-              setCursor(today);
-              setSelected(today);
-            }}
-          >
-            Hoje
-          </button>
-        </div>
-        <div className="marketing-calendar">
-          {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((d) => (
-            <small key={d}>{d}</small>
-          ))}
-          {days.map((d) => {
-            const count = filtered.filter((p) => p.date === d).length;
-            return (
-              <button
-                key={d}
-                aria-label={`${humanDate(d)}, ${count} publicações`}
-                aria-pressed={selected === d}
-                className={`${d === today ? "is-today" : ""} ${d.slice(0, 7) !== cursor.slice(0, 7) ? "is-outside" : ""}`}
-                onClick={() => setSelected(d)}
-              >
-                <span>{Number(d.slice(-2))}</span>
-                <small>{count || "·"}</small>
+        {mode !== "all" && (
+          <>
+            <div className="marketing-calendar-nav">
+              <button aria-label="Período anterior" onClick={() => move(-1)}>
+                <ChevronLeft size={20} />
               </button>
-            );
-          })}
-        </div>
+              <strong>
+                {mode === "month"
+                  ? anchor.toLocaleDateString("pt-BR", {
+                      month: "long",
+                      year: "numeric",
+                    })
+                  : `${days[0].split("-").reverse().join("/")} – ${days[6].split("-").reverse().join("/")}`}
+              </strong>
+              <button aria-label="Próximo período" onClick={() => move(1)}>
+                <ChevronRight size={20} />
+              </button>
+              <button
+                onClick={() => {
+                  setCursor(today);
+                  setSelected(today);
+                }}
+              >
+                Hoje
+              </button>
+            </div>
+            <div className="marketing-calendar">
+              {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((d) => (
+                <small key={d}>{d}</small>
+              ))}
+              {days.map((d) => {
+                const count = filtered.filter((p) => p.date === d).length;
+                return (
+                  <button
+                    key={d}
+                    aria-label={`${humanDate(d)}, ${count} publicações`}
+                    aria-pressed={selected === d}
+                    className={`${d === today ? "is-today" : ""} ${d.slice(0, 7) !== cursor.slice(0, 7) ? "is-outside" : ""}`}
+                    onClick={() => setSelected(d)}
+                  >
+                    <span>{Number(d.slice(-2))}</span>
+                    <small>{count || "·"}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
         <p className="marketing-calendar-label">
-          {mode === "week" ? "Publicações da semana" : humanDate(selected)} ·{" "}
-          {calendarPosts.length} conteúdos
+          {mode === "all"
+            ? "Todas as publicações"
+            : mode === "week"
+              ? "Publicações da semana"
+              : humanDate(selected)}{" "}
+          · {calendarPosts.length} conteúdos
         </p>
         <div className="marketing-posts">
           {calendarPosts.map((p) => (
@@ -824,6 +875,7 @@ export default function MarketingTab({
               JSON
               <textarea
                 rows={9}
+                aria-label="JSON"
                 value={raw}
                 onChange={(e) => {
                   setRaw(e.target.value);
@@ -852,6 +904,11 @@ export default function MarketingTab({
                   {preview.length - uniquePreview().length} duplicadas
                   (ignoradas)
                 </p>
+                {preview.length > uniquePreview().length && (
+                  <button className="marketing-view-saved" onClick={showSaved}>
+                    Ver publicações já cadastradas
+                  </button>
+                )}
                 <div className="marketing-import-preview">
                   {preview.map((p, i) => (
                     <p key={i}>
@@ -879,7 +936,7 @@ export default function MarketingTab({
                         "POST",
                         preview,
                       );
-                      setImportOpen(false);
+                      showSaved();
                       setRaw("");
                       setNotice(
                         `${r.inserted} publicações importadas; ${r.duplicates} duplicadas ignoradas.`,

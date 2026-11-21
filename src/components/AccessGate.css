@@ -11,3 +11,4 @@
 @media(max-width:359px){.access-page{padding:22px 17px}.access-card{padding:27px 20px 23px}.access-card h1{font-size:23px}.access-description{font-size:11px}}
 @media(max-height:650px){.access-layout{gap:17px}.access-card{padding-top:22px}.access-lock{margin-bottom:17px}.access-description{margin-bottom:20px}}
 @media(prefers-reduced-motion:reduce){.access-spinner{animation:none}.access-code-field,.access-submit{transition:none}}
+.access-page { overflow-x: hidden; overscroll-behavior: none; }

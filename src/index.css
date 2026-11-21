@@ -325,3 +325,6 @@ html[data-app-display-mode="standalone"] { --app-layout-height: 100vh; height: v
 .calendar-empty button { display:flex; align-items:center; gap:7px; color:var(--brand-primary); min-height:44px; margin-top:8px; }
 .calendar-page button:focus-visible,.dashboard-header-actions button:focus-visible { outline:2px solid var(--brand-primary); outline-offset:2px; }
 @media(max-width:359px) { .calendar-month { padding:13px 8px 10px; } .calendar-grid { gap:2px; } .calendar-month-heading h2 { font-size:13px; } .calendar-month-heading button { min-width:28px; } }
+/* Keep one vertical scrollport, including on touch devices at scroll edges. */
+html, body, #root { overscroll-behavior: none; }
+.hagenda-app-shell > main { overflow-x: hidden; overscroll-behavior: none; min-width: 0; }
