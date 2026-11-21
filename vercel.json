@@ -1,6 +1,9 @@
 {
-  "crons": [{ "path": "/api/send-reminders", "schedule": "* * * * *" }],
-  "functions": { "api/index.ts": { "maxDuration": 60 } },
+  "functions": {
+    "api/index.ts": {
+      "maxDuration": 60
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
