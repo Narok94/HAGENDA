@@ -235,24 +235,17 @@ export default function MarketingTab({
     [busy, setBusy] = useState(false),
     [brandOpen, setBrandOpen] = useState(false),
     [brandName, setBrandName] = useState("");
-  const calendarInitialized = useRef(false);
+  const calendarInitialized = useRef<string | null>(null);
   useEffect(() => {
-    if (store.loading || store.error || calendarInitialized.current) return;
-    calendarInitialized.current = true;
-    const monday = new Date(today + "T12:00:00");
-    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-    const sunday = new Date(monday);
-    sunday.setDate(sunday.getDate() + 6);
-    const dates = store.posts.map((p) => p.date).sort();
-    if (
-      dates.some((date) => date >= dateKey(monday) && date <= dateKey(sunday))
-    )
-      return;
-    const next = dates.find((date) => date >= today) || dates.at(-1);
-    if (next) {
-      setCursor(next);
-      setSelected(next);
-    }
+    if (store.loading || store.error || calendarInitialized.current === today) return;
+    const dayChanged = calendarInitialized.current !== null;
+    calendarInitialized.current = today;
+    const firstScheduled = store.posts.map(p => p.date).sort()[0];
+    // Preview the first scheduled day before the calendar starts; thereafter open today.
+    const date = firstScheduled && today < firstScheduled ? firstScheduled : today;
+    setCursor(date);
+    setSelected(date);
+    if (dayChanged) setMode("week");
   }, [store.loading, store.error, store.posts, today]);
   const showSaved = () => {
     setBrand("");
@@ -286,13 +279,7 @@ export default function MarketingTab({
     d.setDate(d.getDate() + i);
     return dateKey(d);
   });
-  const calendarPosts = filtered.filter((p) =>
-    mode === "all"
-      ? true
-      : mode === "week"
-        ? p.date >= days[0] && p.date <= days[6]
-        : p.date === selected,
-  );
+  const calendarPosts = filtered.filter(p => mode === "all" || p.date === selected);
   const move = (amount: number) => {
     const d = new Date(anchor);
     if (mode === "week") d.setDate(d.getDate() + amount * 7);
@@ -574,11 +561,7 @@ export default function MarketingTab({
           </>
         )}
         <p className="marketing-calendar-label">
-          {mode === "all"
-            ? "Todas as publicações"
-            : mode === "week"
-              ? "Publicações da semana"
-              : humanDate(selected)}{" "}
+          {mode === "all" ? "Todas as publicações" : humanDate(selected)}{" "}
           · {calendarPosts.length} conteúdos
         </p>
         <div className="marketing-posts">
