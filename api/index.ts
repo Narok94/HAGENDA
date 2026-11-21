@@ -1,4 +1,5 @@
 import express from "express";
+import { createDatabaseInitializer } from "./_database-ready.js";
 import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -24,7 +25,7 @@ app.use(express.json({ limit: "10mb" }));
 const apiRouter = express.Router();
 installAccess(apiRouter);
 apiRouter.use(async (_req, res, next) => {
-  try { await databaseReady; next(); } catch { res.status(503).json({ error: "Banco indisponível" }); }
+  try { await ensureDatabase(); next(); } catch { res.status(503).json({ error: "Banco indisponível" }); }
 });
 installPersistenceGuard(apiRouter, getDb);
 installReminders(apiRouter, getDb);
@@ -109,8 +110,9 @@ async function setupDatabase() {
 }
 
 // Ensure database is initialized in serverless environments
-const databaseReady = setupDatabase();
-// Observe rejection immediately; requests still fail closed through databaseReady.
+const ensureDatabase = createDatabaseInitializer(setupDatabase);
+const databaseReady = ensureDatabase();
+// Requests share initialization and can recover after a failed cold start.
 databaseReady.catch(() => {});
 
 // Lazy initialization of Google Gen AI to prevent crashing if the key is missing on startup

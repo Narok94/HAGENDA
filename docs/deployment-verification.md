@@ -53,3 +53,10 @@ Antes de abrir a interface, os hashes dos valores anteriores permaneceram idênt
 A primeira inicialização remota retornou 503 durante a criação do schema. A execução autenticada das migrações no Neon existente passou, uma nova inicialização da implantação ficou saudável e `/api/db-status` confirmou conexão. Os logs de inicialização agora incluem o código e a mensagem do erro para futuros diagnósticos, sem imprimir parâmetros SQL ou credenciais.
 
 Os 75 testes passaram. Dois testes de lembretes foram ajustados para verificar a ausência de reenvios da ocorrência de hoje, permitindo alertas legítimos da ocorrência de amanhã dentro da antecedência antes da meia-noite. Nenhuma regra de envio foi alterada.
+## Recuperação de inicialização (503 intermitente)
+
+Os logs de produção mostraram `Error connecting to database: TypeError: fetch failed` durante um cold start. O servidor guardava uma única Promise de inicialização rejeitada e todas as requisições seguintes daquela instância retornavam 503, mesmo após o Neon voltar a responder.
+
+A inicialização agora é compartilhada por requisições concorrentes, tenta novamente até duas vezes em falhas transitórias e permite uma nova tentativa após cinco segundos caso a inicialização falhe. Erros de schema não recebem as tentativas rápidas de rede. As rotas continuam retornando 503 quando a conexão não está pronta; nenhuma gravação do usuário é repetida automaticamente. Apenas as migrações idempotentes são reexecutadas. Não há reset de tabelas, tarefas ou cache.
+
+Testes de regressão cobrem falha transitória, requisições concorrentes, recuperação sem redeploy, bloqueio de gravações enquanto indisponível e ausência de repetição de gravações após recuperar.
